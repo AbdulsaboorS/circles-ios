@@ -19,14 +19,19 @@
 **Goal:** Running app with sign-in, sign-up (Google + Apple), and a tab bar shell. No real content yet.
 
 **Requirements:**
-- Sign in with Apple (required by Apple)
-- Google OAuth via Supabase
-- Auth state persists across app launches
-- Tab bar: Home / Circles / Profile
-- Empty state screens for each tab
-- Supabase client configured (env vars via Secrets.plist)
+- Sign in with Apple (required by Apple) [PHASE1-AUTH-APPLE]
+- Google OAuth via Supabase [PHASE1-AUTH-GOOGLE]
+- Auth state persists across app launches [PHASE1-AUTH-PERSIST]
+- Tab bar: Home / Community / Profile [PHASE1-NAV-SHELL]
+- Empty state screens for each tab [PHASE1-EMPTY-STATES]
+- Supabase client configured (env vars via Secrets.plist) [PHASE1-SUPABASE-CONFIG]
 
-**Status:** Not started
+**Plans:** 1 plan
+
+Plans:
+- [ ] 01-PLAN.md — SupabaseService + AuthManager + AuthView + tab shell + ContentView routing
+
+**Status:** In planning
 
 ---
 
