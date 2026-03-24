@@ -2,9 +2,16 @@
 
 ## Current Phase
 
-**Phase 2: Habits + Daily Check-in** — COMPLETE (3/3 plans done; all verified in Simulator)
+**Phase 3: Circles (Create, Join, Member View)** — IN PROGRESS (1/3 plans done)
 
 ## What's Done
+
+### Phase 3, Plan 01: Circle Data Layer (2026-03-24) ✓
+- Circle.swift: Codable, Identifiable, Hashable, Sendable — mirrors halaqas table with invite_code and prayer_time
+- HalaqaMember.swift: Codable, Identifiable, Sendable — mirrors halaqa_members table
+- CircleService.swift: @Observable @MainActor singleton — fetchMyCircles (2-step query), createCircle, joinByInviteCode, fetchMembers
+- Auto-fixed: qualified SwiftUI.Circle() in ProfileView and HabitDetailView to resolve naming collision
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 2, Plan 03: HomeViewModel + HomeView + HabitDetailView (2026-03-24) ✓
 - HomeViewModel: @Observable @MainActor, parallel fetch habits/logs/streak, optimistic toggleHabit with revert
@@ -43,7 +50,7 @@
 
 ## What's In Progress
 
-Phase 3: Circles (Create, Join, Member View) — not yet started.
+Phase 3: Circles (Create, Join, Member View) — data layer complete, UI views next (Plans 02-03).
 
 ## Phase History
 
@@ -54,6 +61,7 @@ Phase 3: Circles (Create, Join, Member View) — not yet started.
 | Phase 2, Plan 01 | ✓ Complete | Habit/HabitLog/Streak models, HabitService, GeminiService |
 | Phase 2, Plan 02 | ✓ Complete | Onboarding flow: HabitSelection, RamadanAmount, AIStepDown, ContentView routing |
 | Phase 2, Plan 03 | ✓ Complete | HomeViewModel + HomeView + HabitDetailView; verified in Simulator |
+| Phase 3, Plan 01 | ✓ Complete | Circle + HalaqaMember models, CircleService singleton, naming collision fix |
 
 ## Active Decisions
 
@@ -67,10 +75,11 @@ Phase 3: Circles (Create, Join, Member View) — not yet started.
 - DATE columns stored as String in Swift models to avoid timezone issues
 - Capture @MainActor coordinator state before withTaskGroup (Swift 6 actor isolation — task closures are non-isolated)
 - import Supabase required in every file accessing session?.user.id (Auth module not re-exported by SwiftUI)
+- Circle model name shadows SwiftUI's Circle shape — qualify as SwiftUI.Circle() at all shape call sites
 
 ## Blockers
 
 None.
 
 ---
-*Last updated: 2026-03-23*
+*Last updated: 2026-03-24*
