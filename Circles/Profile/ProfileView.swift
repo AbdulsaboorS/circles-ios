@@ -12,7 +12,7 @@ struct ProfileView: View {
                 VStack(spacing: 32) {
                     Spacer()
 
-                    Circle()
+                    SwiftUI.Circle()
                         .fill(Color(hex: "E8834B").opacity(0.2))
                         .frame(width: 96, height: 96)
                         .overlay(

@@ -71,7 +71,7 @@ struct HabitDetailView: View {
                         LazyVGrid(columns: columns, spacing: 8) {
                             ForEach(last28Days, id: \.self) { dateStr in
                                 VStack(spacing: 2) {
-                                    Circle()
+                                    SwiftUI.Circle()
                                         .fill(isCompleted(dateString: dateStr) ? Color.green : Color(.systemGray5))
                                         .frame(width: 32, height: 32)
                                     Text(dayNumber(from: dateStr))
