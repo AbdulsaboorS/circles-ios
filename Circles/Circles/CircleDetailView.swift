@@ -4,17 +4,25 @@ import Supabase
 struct CircleDetailView: View {
     let circle: Circle
 
-    // Existing state
-    @State private var members: [CircleMember] = []
-    @State private var isLoading = true
+    // Feed state
+    @State private var feedViewModel = FeedViewModel()
 
-    // Moment state
-    @State private var moments: [CircleMoment] = []
+    // Members state
+    @State private var members: [CircleMember] = []
+    @State private var checkedInCount = 0
+    @State private var isLoadingMembers = true
+    @State private var showMembersSheet = false
+
+    // Moment window state
+    @State private var windowSecondsRemaining: Int = 0
+    @State private var windowTimer: Timer?
+
+    // Camera / post state
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
     @State private var showPreview = false
-    @State private var windowSecondsRemaining: Int = 0
-    @State private var windowTimer: Timer?
+
+    @Environment(AuthManager.self) private var auth
 
     // MARK: - Computed Properties
 
@@ -32,15 +40,6 @@ struct CircleDetailView: View {
         return String(format: "%02d:%02d remaining", mins, secs)
     }
 
-    private var currentUserId: UUID? {
-        SupabaseService.shared.client.auth.currentSession?.user.id
-    }
-
-    private var hasPostedToday: Bool {
-        guard let userId = currentUserId else { return false }
-        return moments.contains { $0.userId == userId }
-    }
-
     // MARK: - Body
 
     var body: some View {
@@ -53,79 +52,110 @@ struct CircleDetailView: View {
                     momentBanner
                 }
 
-                List {
-                    // Circle info header
-                    Section {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        // Circle info header
                         if let desc = circle.description, !desc.isEmpty {
                             Text(desc)
+                                .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.8))
-                                .listRowBackground(Color.white.opacity(0.06))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color.white.opacity(0.06))
+                                .padding(.horizontal, 16)
+                                .padding(.top, 12)
                         }
-                    }
 
-                    // Moments section
-                    Section("Moments") {
-                        momentsContent
-                            .animation(.easeOut(duration: 0.4), value: hasPostedToday)
-                    }
-                    .foregroundStyle(.white.opacity(0.6))
-
-                    // Invite section
-                    Section("Invite") {
-                        if let code = circle.inviteCode {
-                            HStack {
-                                Text("Code:")
-                                    .foregroundStyle(.white.opacity(0.6))
-                                Text(code)
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(.white)
-                                    .fontWeight(.semibold)
+                        // Invite section
+                        VStack(alignment: .leading, spacing: 0) {
+                            if let code = circle.inviteCode {
+                                HStack {
+                                    Text("Code:")
+                                        .foregroundStyle(.white.opacity(0.6))
+                                    Text(code)
+                                        .font(.system(.body, design: .monospaced))
+                                        .foregroundStyle(.white)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color.white.opacity(0.06))
+                                .padding(.horizontal, 16)
+                                .padding(.top, 12)
                             }
-                            .listRowBackground(Color.white.opacity(0.06))
+
+                            ShareLink(item: inviteURL) {
+                                Label("Invite Friends", systemImage: "square.and.arrow.up")
+                                    .foregroundStyle(Color(hex: "E8834B"))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(Color.white.opacity(0.06))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
                         }
 
-                        ShareLink(item: inviteURL) {
-                            Label("Invite Friends", systemImage: "square.and.arrow.up")
-                                .foregroundStyle(Color(hex: "E8834B"))
+                        // Members summary row
+                        Button {
+                            showMembersSheet = true
+                        } label: {
+                            HStack {
+                                Text("\(members.count) members · \(checkedInCount) checked in today")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.75))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.4))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(0.06))
                         }
-                        .listRowBackground(Color.white.opacity(0.06))
-                    }
-                    .foregroundStyle(.white.opacity(0.6))
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .sheet(isPresented: $showMembersSheet) {
+                            MembersListView(members: members)
+                        }
 
-                    // Members section
-                    Section("Members (\(members.count))") {
-                        if isLoading {
+                        // Activity section label
+                        Text("Activity")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+
+                        // Initial load indicator
+                        if feedViewModel.isLoadingInitial {
                             HStack {
                                 Spacer()
                                 ProgressView().tint(Color(hex: "E8834B"))
                                 Spacer()
                             }
-                            .listRowBackground(Color.white.opacity(0.06))
-                        } else {
-                            ForEach(members) { member in
-                                HStack {
-                                    Text(String(member.userId.uuidString.prefix(8)))
-                                        .font(.system(.body, design: .monospaced))
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                    if member.role == "admin" {
-                                        Text("Admin")
-                                            .font(.caption)
-                                            .foregroundStyle(Color(hex: "E8834B"))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 3)
-                                            .background(Color(hex: "E8834B").opacity(0.15))
-                                            .clipShape(Capsule())
-                                    }
-                                }
-                                .listRowBackground(Color.white.opacity(0.06))
-                            }
+                            .padding(.vertical, 24)
+                        }
+
+                        // Feed
+                        if let userId = auth.session?.user.id {
+                            FeedView(
+                                circleId: circle.id,
+                                currentUserId: userId,
+                                viewModel: feedViewModel
+                            )
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.6))
+                    .padding(.bottom, 24)
                 }
-                .listStyle(.insetGrouped)
-                .scrollContentBackground(.hidden)
+                .refreshable {
+                    guard let userId = auth.session?.user.id else { return }
+                    await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
+                }
             }
         }
         .navigationTitle(circle.name)
@@ -133,23 +163,19 @@ struct CircleDetailView: View {
         .toolbarBackground(Color(hex: "0D1021"), for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
-            // Fetch members
-            do {
-                members = try await CircleService.shared.fetchMembers(circleId: circle.id)
-            } catch {
-                // Non-critical: show empty members list on error
-            }
-            isLoading = false
+            guard let userId = auth.session?.user.id else { return }
 
-            // Fetch today's moments
-            do {
-                moments = try await MomentService.shared.fetchTodayMoments(circleId: circle.id)
-            } catch {
-                // Non-critical: moments section shows empty state
-            }
+            // Load members and feed in parallel
+            async let membersFetch = CircleService.shared.fetchMembers(circleId: circle.id)
+            members = (try? await membersFetch) ?? []
+            checkedInCount = 0  // Phase 5: no per-member check-in status yet; wired in future phase
+            isLoadingMembers = false
 
             // Start window countdown timer if window is active
             startWindowTimer()
+
+            // Load feed
+            await feedViewModel.loadInitial(circleId: circle.id, currentUserId: userId)
         }
         .onDisappear {
             windowTimer?.invalidate()
@@ -166,7 +192,7 @@ struct CircleDetailView: View {
                 MomentPreviewView(
                     image: image,
                     onPost: { caption in
-                        guard let userId = currentUserId else { return }
+                        guard let userId = auth.session?.user.id else { return }
                         let _ = try await MomentService.shared.postMoment(
                             image: image,
                             circleId: circle.id,
@@ -174,8 +200,8 @@ struct CircleDetailView: View {
                             caption: caption,
                             windowStart: circle.momentWindowStart
                         )
-                        // Reload moments to unlock reciprocity gate
-                        moments = try await MomentService.shared.fetchTodayMoments(circleId: circle.id)
+                        // Refresh feed to update reciprocity gate and show new Moment
+                        await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
                     },
                     onRetake: {
                         showPreview = false
@@ -212,92 +238,6 @@ struct CircleDetailView: View {
         .accessibilityLabel("Post your Moment, \(countdownText). Tap to open camera.")
     }
 
-    // MARK: - Moments Content
-
-    @ViewBuilder
-    private var momentsContent: some View {
-        let displayCards = momentCards
-
-        if displayCards.isEmpty {
-            // Empty state
-            Group {
-                if isWindowActive {
-                    Text("Be the first to post your Moment.")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                } else {
-                    Text("No Moments yet. Come back when the window opens.")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-            }
-            .listRowBackground(Color.white.opacity(0.06))
-        } else {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(displayCards, id: \.id) { card in
-                    MomentCardView(
-                        moment: card.moment,
-                        isOwnPost: card.isOwnPost,
-                        hasPostedToday: hasPostedToday,
-                        onTapLocked: { showCamera = true },
-                        memberName: card.memberName
-                    )
-                }
-            }
-            .padding(.vertical, 8)
-            .listRowBackground(Color.white.opacity(0.06))
-            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
-        }
-    }
-
-    // MARK: - Moment Card Data
-
-    private struct MomentCardData: Identifiable {
-        let id: UUID
-        let moment: CircleMoment?
-        let isOwnPost: Bool
-        let memberName: String
-    }
-
-    private var momentCards: [MomentCardData] {
-        guard !members.isEmpty else { return [] }
-
-        var cards: [MomentCardData] = []
-
-        for member in members {
-            let memberMoment = moments.first { $0.userId == member.userId }
-            let isOwn = member.userId == currentUserId
-            let name = isOwn ? "You" : String(member.userId.uuidString.prefix(8))
-
-            if isOwn {
-                // Always show own slot (unposted or posted)
-                cards.append(MomentCardData(
-                    id: member.userId,
-                    moment: memberMoment,
-                    isOwnPost: true,
-                    memberName: name
-                ))
-            } else if let memberMoment = memberMoment {
-                // Show peer only if they've posted
-                cards.append(MomentCardData(
-                    id: member.userId,
-                    moment: memberMoment,
-                    isOwnPost: false,
-                    memberName: name
-                ))
-            }
-            // Skip: peer with no moment posted
-        }
-
-        return cards
-    }
-
     // MARK: - Window Timer
 
     private func startWindowTimer() {
@@ -328,5 +268,38 @@ struct CircleDetailView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Members List Sheet
+
+private struct MembersListView: View {
+    let members: [CircleMember]
+
+    var body: some View {
+        ZStack {
+            Color(hex: "0D1021").ignoresSafeArea()
+            List(members) { member in
+                HStack {
+                    Text(member.userId.uuidString.prefix(8))
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    if member.role == "admin" {
+                        Text("Admin")
+                            .font(.caption)
+                            .foregroundStyle(Color(hex: "E8834B"))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color(hex: "E8834B").opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
+                .listRowBackground(Color.white.opacity(0.06))
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle("Members")
+        .presentationDetents([.medium, .large])
     }
 }
