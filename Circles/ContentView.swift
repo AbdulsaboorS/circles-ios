@@ -1,7 +1,9 @@
 import SwiftUI
+import Supabase
 
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
+    @State private var onboardingCoordinator = OnboardingCoordinator()
 
     var body: some View {
         Group {
@@ -12,10 +14,28 @@ struct ContentView: View {
                         .tint(Color(hex: "E8834B"))
                         .scaleEffect(1.5)
                 }
-            } else if auth.isAuthenticated {
-                MainTabView()
-            } else {
+            } else if !auth.isAuthenticated {
                 AuthView()
+            } else if let userId = auth.session?.user.id,
+                      !OnboardingCoordinator.hasCompletedOnboarding(userId: userId),
+                      !onboardingCoordinator.isComplete {
+                NavigationStack(path: Binding(
+                    get: { onboardingCoordinator.navigationPath },
+                    set: { onboardingCoordinator.navigationPath = $0 }
+                )) {
+                    HabitSelectionView()
+                        .navigationDestination(for: OnboardingCoordinator.Step.self) { step in
+                            switch step {
+                            case .ramadanAmounts:
+                                RamadanAmountView()
+                            case .aiSuggestions:
+                                AIStepDownView()
+                            }
+                        }
+                }
+                .environment(onboardingCoordinator)
+            } else {
+                MainTabView()
             }
         }
     }
