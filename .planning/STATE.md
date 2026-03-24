@@ -2,9 +2,23 @@
 
 ## Current Phase
 
-**Phase 2: Habits + Daily Check-in** — Plan 01 complete (1/3 plans done)
+**Phase 2: Habits + Daily Check-in** — Plans 01-03 complete (3/3 plans done; awaiting Task 3 human verification)
 
 ## What's Done
+
+### Phase 2, Plan 03: HomeViewModel + HomeView + HabitDetailView (2026-03-24) ✓ (Tasks 1-2)
+- HomeViewModel: @Observable @MainActor, parallel fetch habits/logs/streak, optimistic toggleHabit with revert
+- HomeView: habit list with checkboxes, streak banner, NavigationLink to HabitDetailView, pull-to-refresh
+- HabitDetailView: 28-day LazyVGrid dot calendar, direct Supabase date-range query, stat badges
+- Habit model: added Hashable conformance for navigationDestination
+- BUILD SUCCEEDED, zero errors
+- Task 3 (human verify) pending
+
+### Phase 2, Plan 02: Onboarding Flow (2026-03-24) ✓
+- OnboardingCoordinator @Observable with step navigation and habit selection enforcement
+- HabitSelectionView, RamadanAmountView, AIStepDownView
+- ContentView routing: new users → onboarding, returning users → MainTabView
+- UserDefaults flag for onboarding completion
 
 ### Phase 2, Plan 01: Habits Data Layer (2026-03-24) ✓
 - Habit, HabitLog, Streak Codable models with full snake_case CodingKeys
@@ -29,7 +43,7 @@
 
 ## What's In Progress
 
-Phase 2 — Plan 02 (Onboarding flow: HabitSelectionView, RamadanAmountView, AIStepDownView) is next.
+Phase 2, Plan 03 — Task 3: Human verification of full daily check-in flow in Simulator.
 
 ## Phase History
 
@@ -38,6 +52,8 @@ Phase 2 — Plan 02 (Onboarding flow: HabitSelectionView, RamadanAmountView, AIS
 | Setup | ✓ Complete | Xcode + SPM + GitHub |
 | Phase 1 | ✓ Complete | Auth + 3-tab nav shell, verified in Simulator |
 | Phase 2, Plan 01 | ✓ Complete | Habit/HabitLog/Streak models, HabitService, GeminiService |
+| Phase 2, Plan 02 | ✓ Complete | Onboarding flow: HabitSelection, RamadanAmount, AIStepDown, ContentView routing |
+| Phase 2, Plan 03 | ⏳ Pending verify | HomeViewModel + HomeView + HabitDetailView; awaiting Task 3 human check |
 
 ## Active Decisions
 
@@ -49,6 +65,8 @@ Phase 2 — Plan 02 (Onboarding flow: HabitSelectionView, RamadanAmountView, AIS
 - Service singletons use @Observable (not ObservableObject) — required by SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor
 - Optional single-row fetch: limit(1).first (maybeSingle() absent from Supabase Swift SDK v2.42)
 - DATE columns stored as String in Swift models to avoid timezone issues
+- Capture @MainActor coordinator state before withTaskGroup (Swift 6 actor isolation — task closures are non-isolated)
+- import Supabase required in every file accessing session?.user.id (Auth module not re-exported by SwiftUI)
 
 ## Blockers
 

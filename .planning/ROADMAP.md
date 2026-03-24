@@ -48,14 +48,14 @@ Plans:
 - Streak tracking: current streak, longest streak, grace days [PHASE2-STREAKS]
 - Habit detail: 28-day plan, history calendar [PHASE2-HABIT-DETAIL]
 
-**Status:** In progress (1/3 plans complete)
+**Status:** In progress (3/3 plans built; Plan 03 Task 3 pending human verification)
 
 **Plans:** 3 plans
 
 Plans:
 - [x] 02-01-PLAN.md — Codable models (Habit, HabitLog, Streak), HabitService singleton, GeminiService singleton
-- [ ] 02-02-PLAN.md — Onboarding flow (HabitSelectionView, RamadanAmountView, AIStepDownView, ContentView routing)
-- [ ] 02-03-PLAN.md — HomeView daily check-in, HomeViewModel optimistic toggling, HabitDetailView 28-day calendar
+- [x] 02-02-PLAN.md — Onboarding flow (HabitSelectionView, RamadanAmountView, AIStepDownView, ContentView routing)
+- [x] 02-03-PLAN.md — HomeView daily check-in, HomeViewModel optimistic toggling, HabitDetailView 28-day calendar
 
 ---
 
