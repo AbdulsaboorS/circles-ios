@@ -63,7 +63,7 @@ Plans:
 
 **Goal:** User can create a circle, invite friends, and see who's in it.
 
-**Requirements**: [PHASE3-CREATE-CIRCLE, PHASE3-INVITE-LINK, PHASE3-JOIN-CIRCLE, PHASE3-CIRCLES-TAB, PHASE3-CIRCLE-DETAIL]
+**Requirements**: [PHASE3-CREATE-CIRCLE, PHASE3-INVITE-LINK, PHASE3-JOIN-CIRCLE, PHASE3-CIRCLES-TAB, PHASE3-CIRCLE-DETAIL, PHASE3-DB-SCHEMA]
 
 - Create circle: name, description, pick prayer time for Circle Moment [PHASE3-CREATE-CIRCLE]
 - Invite link generation (deep link: `circles://join/[code]` or HTTPS universal link) [PHASE3-INVITE-LINK]
@@ -72,7 +72,14 @@ Plans:
 - Circle detail: member board, habit check-in status (name + ✓/✗, no detail) [PHASE3-CIRCLE-DETAIL]
 - Supabase tables: reuse `halaqas` + `halaqa_members` from Legacy schema [PHASE3-DB-SCHEMA]
 
-**Status:** Not started
+**Status:** In planning
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Circle + HalaqaMember models, CircleService singleton (data layer)
+- [ ] 03-02-PLAN.md — CirclesView (My Circles list), CreateCircleView, JoinCircleView, CircleDetailView (UI layer)
+- [ ] 03-03-PLAN.md — Deep link handling (circles://join/CODE), tab selection wiring, human verification
 
 ---
 
