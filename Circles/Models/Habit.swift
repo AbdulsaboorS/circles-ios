@@ -1,6 +1,6 @@
 import Foundation
 
-struct Habit: Codable, Identifiable, Equatable {
+struct Habit: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
     let userId: UUID
     var name: String
