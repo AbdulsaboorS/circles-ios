@@ -2,9 +2,18 @@
 
 ## Current Phase
 
-**Phase 3: Circles (Create, Join, Member View)** — IN PROGRESS (1/3 plans done)
+**Phase 3: Circles (Create, Join, Member View)** — IN PROGRESS (2/3 plans done)
 
 ## What's Done
+
+### Phase 3, Plan 02: Circles UI Layer (2026-03-24) ✓
+- CirclesViewModel: @Observable @MainActor with loadCircles, createCircle, joinCircle, pendingCode
+- CommunityView rewritten: My Circles list, empty state with Create/Join buttons, NavigationLink to detail, pull-to-refresh
+- CreateCircleView: sheet form with name, description, prayer time wheel picker
+- JoinCircleView: 8-char monospaced code entry, auto-uppercase, error display, pendingCode pre-fill
+- CircleDetailView: circle info, invite code + ShareLink, async member list with Admin badge
+- Auto-fixed: missing `import Supabase` in all views accessing auth.session?.user.id
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 3, Plan 01: Circle Data Layer (2026-03-24) ✓
 - Circle.swift: Codable, Identifiable, Hashable, Sendable — mirrors halaqas table with invite_code and prayer_time
@@ -50,7 +59,7 @@
 
 ## What's In Progress
 
-Phase 3: Circles (Create, Join, Member View) — data layer complete, UI views next (Plans 02-03).
+Phase 3: Circles (Create, Join, Member View) — data layer (Plan 01) and UI views (Plan 02) complete. Plan 03 (Invite Link deep-link + Circle Moment integration) is next.
 
 ## Phase History
 
@@ -62,6 +71,7 @@ Phase 3: Circles (Create, Join, Member View) — data layer complete, UI views n
 | Phase 2, Plan 02 | ✓ Complete | Onboarding flow: HabitSelection, RamadanAmount, AIStepDown, ContentView routing |
 | Phase 2, Plan 03 | ✓ Complete | HomeViewModel + HomeView + HabitDetailView; verified in Simulator |
 | Phase 3, Plan 01 | ✓ Complete | Circle + HalaqaMember models, CircleService singleton, naming collision fix |
+| Phase 3, Plan 02 | ✓ Complete | CirclesViewModel, CommunityView rewrite, CreateCircleView, JoinCircleView, CircleDetailView with ShareLink |
 
 ## Active Decisions
 
@@ -82,4 +92,7 @@ Phase 3: Circles (Create, Join, Member View) — data layer complete, UI views n
 None.
 
 ---
+- `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
+- `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
+
 *Last updated: 2026-03-24*
