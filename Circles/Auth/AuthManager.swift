@@ -8,6 +8,9 @@ final class AuthManager {
     var isLoading: Bool = true
     var authError: Error? = nil
 
+    // Weak static reference for AppDelegate APNs callback (cannot use @EnvironmentObject in AppDelegate)
+    nonisolated(unsafe) static weak var sharedForAPNs: AuthManager?
+
     init() {
         Task { await listenToAuthChanges() }
     }
