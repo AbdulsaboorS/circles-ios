@@ -97,14 +97,14 @@ Plans:
 - On-time indicator: ⭐ if posted within window [PHASE4-ON-TIME-INDICATOR]
 - Supabase Storage: upload photo to `circle-moments` bucket [PHASE4-STORAGE]
 
-**Status:** Code complete — awaiting human verification in Simulator (Phase 4 Plan 03 checkpoint)
+**Status:** Complete (3/3 plans built; camera permission denied edge case tabled — see 04-03-SUMMARY.md)
 
-**Plans:** 3/3 plans code-complete
+**Plans:** 3 plans
 
 Plans:
 - [x] 04-01-PLAN.md — CircleMoment model, Circle model update (momentWindowStart), MomentService singleton (data layer)
 - [x] 04-02-PLAN.md — CameraManager (AVCaptureMultiCamSession), MomentCameraView, MomentPreviewView (camera capture)
-- [⏸] 04-03-PLAN.md — CircleDetailView active window banner, Moments grid, reciprocity gate, posting flow (UI integration) — awaiting human verification
+- [x] 04-03-PLAN.md — CircleDetailView active window banner, Moments grid, reciprocity gate, posting flow (UI integration)
 
 ---
 

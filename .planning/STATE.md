@@ -2,12 +2,11 @@
 
 ## Current Phase
 
-**Phase 5: Unified Circle Feed** — PLANNED (2 plans ready, executing in parallel session)
-**Phase 4: Circle Moment (Camera, Post, Reciprocity Gate)** — AWAITING HUMAN VERIFICATION (3/3 plans code complete, Task 2 checkpoint pending)
+**Phase 5: Unified Circle Feed** — Ready to execute (2 plans drafted)
 
 ## What's Done
 
-### Phase 4, Plan 03: Reciprocity Gate + CircleDetailView Integration (2026-03-24) — CHECKPOINT
+### Phase 4, Plan 03: Reciprocity Gate + CircleDetailView Integration (2026-03-24) ✓
 - MomentCardView: 3 states (locked with blur/lock.fill, unlocked with AsyncImage, own-unposted LinearGradient)
 - Locked state: blur(radius:20) + lock.fill + "Post to unlock", onTapGesture opens camera
 - On-time star badge: star.fill amber on top-right of unlocked cards where isOnTime == true
@@ -17,7 +16,8 @@
 - fullScreenCover -> MomentCameraView; sheet -> MomentPreviewView -> MomentService.postMoment -> refresh moments
 - Window timer: ISO8601 parse, 1800s countdown, MainActor.assumeIsolated (Swift 6 safe)
 - Auto-fixed: Timer closure param non-Sendable — use stored windowTimer ref instead
-- BUILD SUCCEEDED, zero errors — awaiting human verification in Simulator
+- BUILD SUCCEEDED, zero errors
+- Known issue tabled: camera permission denied → "Open Settings" → return crashes (iOS 26.3 UIKit main-thread enforcement in re-entry path); affects edge case only; full fix deferred post-Phase 5
 
 ### Phase 4, Plan 02: Camera Capture UI (2026-03-24) ✓
 - CameraManager: @Observable @MainActor NSObject, AVCaptureMultiCamSession + AVCaptureSession fallback
@@ -94,7 +94,7 @@
 
 ## What's In Progress
 
-Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — All 3 plans code-complete. Plan 03 awaits human verification (Task 2 checkpoint: user runs Simulator, verifies full Moment flow end-to-end).
+Phase 5: Unified Circle Feed — Plans 01 and 02 drafted, ready to execute.
 
 ## Phase History
 
@@ -110,7 +110,7 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — All 3 plans code-com
 | Phase 3, Plan 03 | ✓ Complete | Deep links (circles://join/CODE), tab selection wiring, human verification passed |
 | Phase 4, Plan 01 | ✓ Complete | CircleMoment model, Circle.momentWindowStart, MomentService singleton with Storage upload |
 | Phase 4, Plan 02 | ✓ Complete | CameraManager (multi-cam + fallback), MomentCameraView, MomentPreviewView, compositing |
-| Phase 4, Plan 03 | ⏸ Checkpoint | MomentCardView + CircleDetailView wired; awaiting human verification in Simulator |
+| Phase 4, Plan 03 | ✓ Complete | MomentCardView + CircleDetailView wired; camera permission edge case tabled |
 | Phase 5, Plan 01 | 📋 Planned | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
 | Phase 5, Plan 02 | 📋 Planned | FeedViewModel + all feed UI + CircleDetailView restructure + checkpoint |
 
