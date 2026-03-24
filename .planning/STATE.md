@@ -2,9 +2,16 @@
 
 ## Current Phase
 
-**Phase 3: Circles (Create, Join, Member View)** — COMPLETE (3/3 plans done; all 6 simulator checks passed)
+**Phase 4: Circle Moment (Camera, Post, Reciprocity Gate)** — IN PROGRESS (1/3 plans done)
 
 ## What's Done
+
+### Phase 4, Plan 01: Circle Moment Data Layer (2026-03-24) ✓
+- CircleMoment.swift: Codable, Identifiable, Sendable — maps all 7 circle_moments table columns
+- Circle.swift: added momentWindowStart: String? (→ moment_window_start TIMESTAMPTZ on circles table)
+- MomentService.swift: @Observable @MainActor singleton — fetchTodayMoments, uploadPhoto, postMoment, computeIsOnTime
+- Storage bucket: circle-moments, file path {circleId}/{userId}_{date}.jpg with upsert=true
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 3, Plan 02: Circles UI Layer (2026-03-24) ✓
 - CirclesViewModel: @Observable @MainActor with loadCircles, createCircle, joinCircle, pendingCode
@@ -59,7 +66,7 @@
 
 ## What's In Progress
 
-Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — not yet started.
+Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — Plan 01 complete; Plans 02 (camera UI) and 03 (reciprocity gate) remaining.
 
 ## Phase History
 
@@ -73,6 +80,7 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — not yet started.
 | Phase 3, Plan 01 | ✓ Complete | Circle + HalaqaMember models, CircleService singleton, naming collision fix |
 | Phase 3, Plan 02 | ✓ Complete | CirclesViewModel, CommunityView rewrite, CreateCircleView, JoinCircleView, CircleDetailView with ShareLink |
 | Phase 3, Plan 03 | ✓ Complete | Deep links (circles://join/CODE), tab selection wiring, human verification passed |
+| Phase 4, Plan 01 | ✓ Complete | CircleMoment model, Circle.momentWindowStart, MomentService singleton with Storage upload |
 
 ## Active Decisions
 
@@ -90,6 +98,9 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — not yet started.
 - New `circles` + `circle_members` tables (not Legacy `halaqas` — too many unknown constraints)
 - Moment timing is platform-wide (BeReal-style) — no prayer_time on circles
 - RLS recursion avoided via SECURITY DEFINER function `auth_user_circle_ids()`
+- TIMESTAMPTZ columns (momentWindowStart, postedAt) stored as String in Swift models per date-as-string convention
+- MomentService uses circle-moments storage bucket; file path: {circleId}/{userId}_{date}.jpg, upsert=true
+- computeIsOnTime: checks now - windowStart < 1800 seconds (30 min); parses ISO8601 with/without fractional seconds
 
 ## Blockers
 
@@ -99,4 +110,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24*
+*Last updated: 2026-03-24 (Phase 4 Plan 01 complete)*
