@@ -97,7 +97,14 @@ Plans:
 - On-time indicator: ⭐ if posted within window [PHASE4-ON-TIME-INDICATOR]
 - Supabase Storage: upload photo to `circle-moments` bucket [PHASE4-STORAGE]
 
-**Status:** Not started
+**Status:** In planning
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — CircleMoment model, Circle model update (momentWindowStart), MomentService singleton (data layer)
+- [ ] 04-02-PLAN.md — CameraManager (AVCaptureMultiCamSession), MomentCameraView, MomentPreviewView (camera capture)
+- [ ] 04-03-PLAN.md — CircleDetailView active window banner, Moments grid, reciprocity gate, posting flow (UI integration)
 
 ---
 
