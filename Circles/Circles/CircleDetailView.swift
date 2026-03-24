@@ -100,6 +100,24 @@ struct CircleDetailView: View {
                             .padding(.top, 8)
                         }
 
+                        // Notifications-off inline note (shown when permission is denied)
+                        if NotificationService.shared.permissionStatus == .denied {
+                            HStack(spacing: 8) {
+                                Image(systemName: "bell.slash.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(Color(hex: "E8834B").opacity(0.8))
+                                Text("Notifications off — turn on in Settings to get Moment alerts")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.55))
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.04))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                        }
+
                         // Members summary row
                         Button {
                             showMembersSheet = true
@@ -121,7 +139,12 @@ struct CircleDetailView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
                         .sheet(isPresented: $showMembersSheet) {
-                            MembersListView(members: members)
+                            MembersListView(
+                                members: members,
+                                currentUserId: auth.session?.user.id,
+                                senderId: auth.session?.user.id,
+                                circleId: circle.id
+                            )
                         }
 
                         // Activity section label
@@ -166,6 +189,9 @@ struct CircleDetailView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             guard let userId = auth.session?.user.id else { return }
+
+            // Refresh notification permission status for inline note
+            await NotificationService.shared.refreshPermissionStatus()
 
             // Load members and feed in parallel
             async let membersFetch = CircleService.shared.fetchMembers(circleId: circle.id)
@@ -240,6 +266,27 @@ struct CircleDetailView: View {
         .accessibilityLabel("Post your Moment, \(countdownText). Tap to open camera.")
     }
 
+    // MARK: - Nudge
+
+    private func sendNudge(to targetUserId: UUID, nudgeType: String) async {
+        guard let senderId = auth.session?.user.id else { return }
+        do {
+            try await SupabaseService.shared.client.functions
+                .invoke(
+                    "send-peer-nudge",
+                    options: .init(body: [
+                        "senderId": senderId.uuidString,
+                        "targetUserId": targetUserId.uuidString,
+                        "circleId": circle.id.uuidString,
+                        "nudgeType": nudgeType
+                    ])
+                )
+        } catch {
+            // Rate-limited (429) or network error — fail silently; no UX disruption
+            print("[CircleDetailView] Nudge failed: \(error)")
+        }
+    }
+
     // MARK: - Window Timer
 
     private func startWindowTimer() {
@@ -277,6 +324,9 @@ struct CircleDetailView: View {
 
 private struct MembersListView: View {
     let members: [CircleMember]
+    let currentUserId: UUID?
+    let senderId: UUID?
+    let circleId: UUID
 
     var body: some View {
         ZStack {
@@ -295,6 +345,40 @@ private struct MembersListView: View {
                             .background(Color(hex: "E8834B").opacity(0.15))
                             .clipShape(Capsule())
                     }
+                    // Nudge buttons — only for other members, not self
+                    if member.userId != currentUserId {
+                        HStack(spacing: 6) {
+                            Button {
+                                Task {
+                                    await sendNudge(to: member.userId, type: "moment", circleId: circleId)
+                                }
+                            } label: {
+                                Text("Moment")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Color(hex: "E8834B"))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(hex: "E8834B").opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                Task {
+                                    await sendNudge(to: member.userId, type: "habit", circleId: circleId)
+                                }
+                            } label: {
+                                Text("Habit")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Color(hex: "E8834B"))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(hex: "E8834B").opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 .listRowBackground(Color.white.opacity(0.06))
             }
@@ -303,5 +387,23 @@ private struct MembersListView: View {
         }
         .navigationTitle("Members")
         .presentationDetents([.medium, .large])
+    }
+
+    private func sendNudge(to targetUserId: UUID, type nudgeType: String, circleId: UUID) async {
+        guard let senderId else { return }
+        do {
+            try await SupabaseService.shared.client.functions
+                .invoke(
+                    "send-peer-nudge",
+                    options: .init(body: [
+                        "senderId": senderId.uuidString,
+                        "targetUserId": targetUserId.uuidString,
+                        "circleId": circleId.uuidString,
+                        "nudgeType": nudgeType
+                    ])
+                )
+        } catch {
+            print("[MembersListView] Nudge failed: \(error)")
+        }
     }
 }
