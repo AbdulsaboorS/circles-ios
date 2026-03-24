@@ -15,7 +15,8 @@ progress:
 
 ## Current Phase
 
-**Phase 5: Unified Circle Feed** — Complete (Plans 01 and 02 done, human-verified). Phase 6 (Push Notifications) is next.
+**Phase 6: Push Notifications** — PLANNED (3 plans ready, context + discussion captured). Ready to execute.
+**Phase 5: Unified Circle Feed** — COMPLETE (2/2 plans done, human-verified).
 
 ## What's Done
 
@@ -140,7 +141,7 @@ progress:
 
 ## What's In Progress
 
-Phase 6: Push Notifications — Not yet started. Phase 5 fully complete.
+Phase 6: Push Notifications — PLANNED. 3 plans ready (06-01 iOS APNs pipeline, 06-02 Edge Functions, 06-03 UI integration). Context + discussion captured. Ready to execute.
 
 ## Phase History
 
@@ -159,6 +160,9 @@ Phase 6: Push Notifications — Not yet started. Phase 5 fully complete.
 | Phase 4, Plan 03 | ✓ Complete | MomentCardView + CircleDetailView wired; camera permission edge case tabled |
 | Phase 5, Plan 01 | ✓ Complete | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
 | Phase 5, Plan 02 | ✓ Complete | FeedViewModel + all feed UI + CircleDetailView restructure; human-verified in Simulator |
+| Phase 6, Plan 01 | 📋 Planned | NotificationService, APNs registration, device_tokens table, city/country picker onboarding |
+| Phase 6, Plan 02 | 📋 Planned | Supabase Edge Functions: moment-window cron, member-posted trigger, streak-milestone, peer nudges |
+| Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
 
 ## Active Decisions
 
@@ -191,6 +195,13 @@ Phase 6: Push Notifications — Not yet started. Phase 5 fully complete.
 - MomentFeedCard.isLocked: !hasPostedToday && item.userId != currentUserId (own posts always visible)
 - checkedInCount hardcoded to 0 in CircleDetailView Phase 5; activity_feed-based count deferred
 - ZStack + VStack requires .frame(maxWidth:.infinity, maxHeight:.infinity, alignment:.top) to prevent ScrollView height collapse (confirmed pattern)
+- Phase 6 push notifications: full server-side APNs via Supabase Edge Functions (no local notifications)
+- APNs device tokens stored in new `device_tokens` Supabase table (user_id, device_token, created_at)
+- Prayer time calculation: Adhan Swift library (batoulapps/adhan-swift) via SPM — offline, no API key
+- Location stored server-side (city + timezone + lat/lng) — set in onboarding city picker, no CLLocationManager
+- Notification permission: soft-prompt modal on first circle join → then iOS system requestAuthorization()
+- Community tab badge: local unreadCount in NotificationService, clears on tab open
+- Peer nudge rate limit: nudge_log table UNIQUE(sender_id, target_id, nudge_date) — 1 nudge/sender/recipient/day
 
 ## Blockers
 
@@ -200,4 +211,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 5 complete — feed UI layer built and human-verified in Simulator)*
+*Last updated: 2026-03-24 (Phase 6 planned — 3 plans ready, context captured, ready to execute)*
