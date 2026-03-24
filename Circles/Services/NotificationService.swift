@@ -25,8 +25,18 @@ final class NotificationService {
     static let shared = NotificationService()
 
     var permissionStatus: UNAuthorizationStatus = .notDetermined
+    var unreadCount: Int = 0
 
     private init() {}
+
+    func incrementUnread() {
+        unreadCount += 1
+    }
+
+    func clearUnread() {
+        unreadCount = 0
+        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
+    }
 
     /// Call once after user is authenticated. Checks current status; does NOT prompt.
     func refreshPermissionStatus() async {

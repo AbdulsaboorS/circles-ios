@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 
 @Observable
 @MainActor
@@ -10,6 +11,7 @@ final class CirclesViewModel {
     var showCreateSheet = false
     var showJoinSheet = false
     var pendingCode: String?
+    var shouldShowPermissionPrompt = false
 
     func loadCircles(userId: UUID) async {
         isLoading = true
@@ -29,6 +31,12 @@ final class CirclesViewModel {
                 prayerTime: prayerTime, userId: userId
             )
             circles.insert(circle, at: 0)
+            if circles.count == 1 {
+                await NotificationService.shared.refreshPermissionStatus()
+                if NotificationService.shared.permissionStatus == .notDetermined {
+                    shouldShowPermissionPrompt = true
+                }
+            }
             return circle
         } catch {
             errorMessage = error.localizedDescription
@@ -40,6 +48,12 @@ final class CirclesViewModel {
         do {
             let circle = try await CircleService.shared.joinByInviteCode(code, userId: userId)
             circles.insert(circle, at: 0)
+            if circles.count == 1 {
+                await NotificationService.shared.refreshPermissionStatus()
+                if NotificationService.shared.permissionStatus == .notDetermined {
+                    shouldShowPermissionPrompt = true
+                }
+            }
             return circle
         } catch {
             errorMessage = error.localizedDescription

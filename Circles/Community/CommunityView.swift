@@ -64,6 +64,10 @@ struct CommunityView: View {
                     viewModel.showJoinSheet = true
                 }
             }
+            .sheet(isPresented: $viewModel.shouldShowPermissionPrompt) {
+                NotificationPermissionModal(isPresented: $viewModel.shouldShowPermissionPrompt)
+                    .presentationDetents([.large])
+            }
         }
     }
 
