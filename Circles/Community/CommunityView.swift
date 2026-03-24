@@ -3,6 +3,7 @@ import Supabase
 
 struct CommunityView: View {
     @Environment(AuthManager.self) var auth
+    @Environment(\.pendingInviteCode) var pendingInviteCode
     @State private var viewModel = CirclesViewModel()
 
     var body: some View {
@@ -56,6 +57,12 @@ struct CommunityView: View {
             .sheet(isPresented: $viewModel.showJoinSheet) {
                 JoinCircleView(viewModel: viewModel)
                     .environment(auth)
+            }
+            .onChange(of: pendingInviteCode) { _, code in
+                if let code {
+                    viewModel.pendingCode = code
+                    viewModel.showJoinSheet = true
+                }
             }
         }
     }
