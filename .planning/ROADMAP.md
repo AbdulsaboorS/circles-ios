@@ -97,14 +97,14 @@ Plans:
 - On-time indicator: ⭐ if posted within window [PHASE4-ON-TIME-INDICATOR]
 - Supabase Storage: upload photo to `circle-moments` bucket [PHASE4-STORAGE]
 
-**Status:** In planning
+**Status:** Code complete — awaiting human verification in Simulator (Phase 4 Plan 03 checkpoint)
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans code-complete
 
 Plans:
 - [x] 04-01-PLAN.md — CircleMoment model, Circle model update (momentWindowStart), MomentService singleton (data layer)
 - [x] 04-02-PLAN.md — CameraManager (AVCaptureMultiCamSession), MomentCameraView, MomentPreviewView (camera capture)
-- [ ] 04-03-PLAN.md — CircleDetailView active window banner, Moments grid, reciprocity gate, posting flow (UI integration)
+- [⏸] 04-03-PLAN.md — CircleDetailView active window banner, Moments grid, reciprocity gate, posting flow (UI integration) — awaiting human verification
 
 ---
 
@@ -120,7 +120,13 @@ Plans:
 - Today's Moment is locked behind reciprocity gate until posted [PHASE5-RECIPROCITY-LOCK]
 - Optimistic reaction updates [PHASE5-OPTIMISTIC-REACTIONS]
 
-**Status:** Not started
+**Status:** In planning
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — FeedItem enum + associated types, FeedReaction model, FeedService (fetch + reaction CRUD)
+- [ ] 05-02-PLAN.md — FeedViewModel, feed card views (Moment/CheckIn/Streak), ReactionBar, CircleDetailView restructure
 
 ---
 
@@ -171,4 +177,4 @@ Plans:
 - Android (React Native or Flutter wrapper — TBD)
 
 ---
-*Last updated: 2026-03-23*
+*Last updated: 2026-03-24*
