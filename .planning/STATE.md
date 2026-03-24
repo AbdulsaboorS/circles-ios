@@ -2,9 +2,17 @@
 
 ## Current Phase
 
-**Phase 5: Unified Circle Feed** — Ready to execute (2 plans drafted)
+**Phase 5: Unified Circle Feed** — Plan 01 complete, Plan 02 in queue
 
 ## What's Done
+
+### Phase 5, Plan 01: Feed Data Layer (2026-03-24) ✓
+- FeedItem.swift: enum FeedItem with 3 cases (moment, habitCheckin, streakMilestone); MomentFeedItem, HabitCheckinFeedItem, StreakMilestoneFeedItem structs; Identifiable + Sendable; sortTimestamp computed property
+- FeedReaction.swift: Codable + Identifiable + Sendable; maps habit_reactions table via CodingKeys; static validEmojis [❤️, 🤲, 💪, 🌟, 🫶, ✨]
+- FeedService.swift: @Observable @MainActor singleton; fetchFeedPage (merges activity_feed + circle_moments, resolves display names, sorts desc, paginates); fetchReactions (batch by item_id array); toggleReaction (add/replace/remove semantics)
+- Private row types: ActivityFeedRow, CircleMomentRow, ProfileRow scoped to FeedService.swift
+- Display name fallback: UUID prefix when profiles table unavailable
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 4, Plan 03: Reciprocity Gate + CircleDetailView Integration (2026-03-24) ✓
 - MomentCardView: 3 states (locked with blur/lock.fill, unlocked with AsyncImage, own-unposted LinearGradient)
@@ -94,7 +102,7 @@
 
 ## What's In Progress
 
-Phase 5: Unified Circle Feed — Plans 01 and 02 drafted, ready to execute.
+Phase 5: Unified Circle Feed — Plan 01 complete. Plan 02 (FeedViewModel + feed UI) ready to execute.
 
 ## Phase History
 
@@ -111,7 +119,7 @@ Phase 5: Unified Circle Feed — Plans 01 and 02 drafted, ready to execute.
 | Phase 4, Plan 01 | ✓ Complete | CircleMoment model, Circle.momentWindowStart, MomentService singleton with Storage upload |
 | Phase 4, Plan 02 | ✓ Complete | CameraManager (multi-cam + fallback), MomentCameraView, MomentPreviewView, compositing |
 | Phase 4, Plan 03 | ✓ Complete | MomentCardView + CircleDetailView wired; camera permission edge case tabled |
-| Phase 5, Plan 01 | 📋 Planned | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
+| Phase 5, Plan 01 | ✓ Complete | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
 | Phase 5, Plan 02 | 📋 Planned | FeedViewModel + all feed UI + CircleDetailView restructure + checkpoint |
 
 ## Active Decisions
@@ -149,4 +157,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 5 planned — 2 plans ready, executing in parallel session)*
+*Last updated: 2026-03-24 (Phase 5 Plan 01 complete — feed data layer done, Plan 02 queued)*

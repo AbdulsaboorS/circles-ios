@@ -125,7 +125,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — FeedItem enum + associated types, FeedReaction model, FeedService (fetch + reaction CRUD)
+- [x] 05-01-PLAN.md — FeedItem enum + associated types, FeedReaction model, FeedService (fetch + reaction CRUD)
 - [ ] 05-02-PLAN.md — FeedViewModel, feed card views (Moment/CheckIn/Streak), ReactionBar, CircleDetailView restructure
 
 ---
