@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Environment Key for pending invite code
 
@@ -13,10 +14,32 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - AppDelegate
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Task { @MainActor in
+            guard let userId = AuthManager.sharedForAPNs?.session?.user.id else { return }
+            await NotificationService.shared.handleToken(deviceToken, userId: userId)
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        print("[AppDelegate] APNs registration failed: \(error)")
+    }
+}
+
 // MARK: - App Entry Point
 
 @main
 struct CirclesApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var authManager = AuthManager()
     @State private var pendingInviteCode: String?
 
@@ -27,6 +50,9 @@ struct CirclesApp: App {
                 .environment(\.pendingInviteCode, pendingInviteCode)
                 .onOpenURL { url in
                     handleDeepLink(url)
+                }
+                .onAppear {
+                    AuthManager.sharedForAPNs = authManager
                 }
         }
     }

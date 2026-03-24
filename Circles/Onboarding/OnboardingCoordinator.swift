@@ -1,6 +1,13 @@
 import Foundation
 import Observation
 
+// SQL Migration — run in Supabase Dashboard before Phase 6 executes:
+// ALTER TABLE profiles
+//   ADD COLUMN IF NOT EXISTS city_name text,
+//   ADD COLUMN IF NOT EXISTS timezone text,
+//   ADD COLUMN IF NOT EXISTS latitude double precision,
+//   ADD COLUMN IF NOT EXISTS longitude double precision;
+
 // Tracks onboarding step and state. Drives NavigationStack via path.
 @Observable
 @MainActor
@@ -9,6 +16,7 @@ final class OnboardingCoordinator {
     enum Step: Hashable {
         case ramadanAmounts           // after habits selected
         case aiSuggestions            // after amounts entered
+        case locationPicker           // after AI step-down (last onboarding step)
     }
 
     // Habit selection state
@@ -24,6 +32,12 @@ final class OnboardingCoordinator {
 
     // Saved Habit rows after createHabit calls
     var savedHabits: [Habit] = []
+
+    // Location fields (set by LocationPickerView)
+    var cityName: String = ""
+    var cityTimezone: String = ""   // IANA timezone, e.g. "America/New_York"
+    var cityLatitude: Double = 0
+    var cityLongitude: Double = 0
 
     // Navigation
     var navigationPath: [Step] = []
@@ -72,6 +86,10 @@ final class OnboardingCoordinator {
         navigationPath.append(.aiSuggestions)
     }
 
+    func proceedToLocation() {
+        navigationPath.append(.locationPicker)
+    }
+
     /// Save all habits to Supabase, then write accepted_amount for each, mark onboarding complete.
     /// Two-step per habit:
     ///   1. createHabit — writes ramadan_amount (what user did in Ramadan)
@@ -103,8 +121,34 @@ final class OnboardingCoordinator {
                 created.append(habit)
             }
             savedHabits = created
-            UserDefaults.standard.set(true, forKey: "onboardingComplete_\(userId.uuidString)")
-            isComplete = true
+            // Note: markComplete is NOT called here — location picker step calls
+            // saveLocationAndMarkComplete() after habits are saved.
+            // NavigationStack will push to .locationPicker via proceedToLocation().
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isSaving = false
+    }
+
+    /// Called by LocationPickerView after city is selected. Upserts location to Supabase profiles,
+    /// then marks onboarding complete. Habits must already be saved via finishOnboarding().
+    func saveLocationAndMarkComplete(userId: UUID) async {
+        isSaving = true
+        errorMessage = nil
+        do {
+            if cityLatitude != 0 {
+                try await SupabaseService.shared.client
+                    .from("profiles")
+                    .upsert([
+                        "id": userId.uuidString,
+                        "city_name": cityName,
+                        "timezone": cityTimezone,
+                        "latitude": String(cityLatitude),
+                        "longitude": String(cityLongitude)
+                    ])
+                    .execute()
+            }
+            markComplete(userId: userId)
         } catch {
             errorMessage = error.localizedDescription
         }

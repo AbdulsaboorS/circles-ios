@@ -47,7 +47,13 @@ struct AIStepDownView: View {
                                 ?? coordinator.ramadanAmounts[name]
                                 ?? ""
                         }
-                        Task { await coordinator.finishOnboarding(userId: userId) }
+                        Task {
+                            await coordinator.finishOnboarding(userId: userId)
+                            // Advance to city/location picker (last onboarding step)
+                            if coordinator.errorMessage == nil {
+                                coordinator.proceedToLocation()
+                            }
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(coordinator.isSaving || !allSuggestionsLoaded)

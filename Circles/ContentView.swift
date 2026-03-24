@@ -30,6 +30,8 @@ struct ContentView: View {
                                 RamadanAmountView()
                             case .aiSuggestions:
                                 AIStepDownView()
+                            case .locationPicker:
+                                LocationPickerView()
                             }
                         }
                 }
