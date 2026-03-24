@@ -2,17 +2,17 @@
 
 ## Current Phase
 
-**Phase 2: Habits + Daily Check-in** — Plans 01-03 complete (3/3 plans done; awaiting Task 3 human verification)
+**Phase 2: Habits + Daily Check-in** — COMPLETE (3/3 plans done; all verified in Simulator)
 
 ## What's Done
 
-### Phase 2, Plan 03: HomeViewModel + HomeView + HabitDetailView (2026-03-24) ✓ (Tasks 1-2)
+### Phase 2, Plan 03: HomeViewModel + HomeView + HabitDetailView (2026-03-24) ✓
 - HomeViewModel: @Observable @MainActor, parallel fetch habits/logs/streak, optimistic toggleHabit with revert
 - HomeView: habit list with checkboxes, streak banner, NavigationLink to HabitDetailView, pull-to-refresh
 - HabitDetailView: 28-day LazyVGrid dot calendar, direct Supabase date-range query, stat badges
 - Habit model: added Hashable conformance for navigationDestination
 - BUILD SUCCEEDED, zero errors
-- Task 3 (human verify) pending
+- Human verified: all 9 simulator checks passed
 
 ### Phase 2, Plan 02: Onboarding Flow (2026-03-24) ✓
 - OnboardingCoordinator @Observable with step navigation and habit selection enforcement
@@ -43,7 +43,7 @@
 
 ## What's In Progress
 
-Phase 2, Plan 03 — Task 3: Human verification of full daily check-in flow in Simulator.
+Phase 3: Circles (Create, Join, Member View) — not yet started.
 
 ## Phase History
 
@@ -53,7 +53,7 @@ Phase 2, Plan 03 — Task 3: Human verification of full daily check-in flow in S
 | Phase 1 | ✓ Complete | Auth + 3-tab nav shell, verified in Simulator |
 | Phase 2, Plan 01 | ✓ Complete | Habit/HabitLog/Streak models, HabitService, GeminiService |
 | Phase 2, Plan 02 | ✓ Complete | Onboarding flow: HabitSelection, RamadanAmount, AIStepDown, ContentView routing |
-| Phase 2, Plan 03 | ⏳ Pending verify | HomeViewModel + HomeView + HabitDetailView; awaiting Task 3 human check |
+| Phase 2, Plan 03 | ✓ Complete | HomeViewModel + HomeView + HabitDetailView; verified in Simulator |
 
 ## Active Decisions
 
@@ -73,4 +73,4 @@ Phase 2, Plan 03 — Task 3: Human verification of full daily check-in flow in S
 None.
 
 ---
-*Last updated: 2026-03-24*
+*Last updated: 2026-03-23*
