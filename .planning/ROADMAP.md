@@ -120,13 +120,13 @@ Plans:
 - Today's Moment is locked behind reciprocity gate until posted [PHASE5-RECIPROCITY-LOCK]
 - Optimistic reaction updates [PHASE5-OPTIMISTIC-REACTIONS]
 
-**Status:** In planning
+**Status:** Code complete, awaiting Simulator checkpoint
 
-**Plans:** 2 plans
+**Plans:** 2 plans (2/2 done)
 
 Plans:
 - [x] 05-01-PLAN.md — FeedItem enum + associated types, FeedReaction model, FeedService (fetch + reaction CRUD)
-- [ ] 05-02-PLAN.md — FeedViewModel, feed card views (Moment/CheckIn/Streak), ReactionBar, CircleDetailView restructure
+- [x] 05-02-PLAN.md — FeedViewModel, feed card views (Moment/CheckIn/Streak), ReactionBar, CircleDetailView restructure
 
 ---
 

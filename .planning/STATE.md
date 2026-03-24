@@ -2,9 +2,21 @@
 
 ## Current Phase
 
-**Phase 5: Unified Circle Feed** — Plan 01 complete, Plan 02 in queue
+**Phase 5: Unified Circle Feed** — Plan 02 complete (awaiting human checkpoint), Phase 6 next
 
 ## What's Done
+
+### Phase 5, Plan 02: Feed UI Layer (2026-03-24) ✓
+- FeedViewModel.swift: @Observable @MainActor; loadInitial (parallel feed+moments fetch), loadNextPage, refresh, toggleReaction (optimistic), reactionCount, userHasReacted
+- FeedView.swift: LazyVStack infinite scroll, onAppear trigger at last-3 items, ProgressView during next-page load, empty state
+- MomentFeedCard.swift: full-width 280pt photo, .blur(radius:20) + lock overlay when isLocked (!hasPostedToday && not own post), on-time star badge
+- HabitCheckinRow.swift: compact "[Name] checked in [Habit]" + relative timestamp
+- StreakMilestoneCard.swift: amber-accented 🔥 card with streak count and habit name
+- ReactionBar.swift: 6 emoji chips, amber background when selected, optimistic toggle via FeedViewModel
+- CircleDetailView restructured: List replaced with ScrollView+LazyVStack, members collapsed to summary row with MembersListView sheet, FeedView embedded below Activity label, pull-to-refresh, parallel .task load
+- BUILD SUCCEEDED, zero errors
+- Stub: checkedInCount hardcoded to 0 (deferred to future phase)
+- Awaiting human verification in Simulator
 
 ### Phase 5, Plan 01: Feed Data Layer (2026-03-24) ✓
 - FeedItem.swift: enum FeedItem with 3 cases (moment, habitCheckin, streakMilestone); MomentFeedItem, HabitCheckinFeedItem, StreakMilestoneFeedItem structs; Identifiable + Sendable; sortTimestamp computed property
@@ -102,7 +114,7 @@
 
 ## What's In Progress
 
-Phase 5: Unified Circle Feed — Plan 01 complete. Plan 02 (FeedViewModel + feed UI) ready to execute.
+Phase 5: Unified Circle Feed — Plans 01 and 02 code-complete. Plan 02 awaiting human checkpoint verification in Simulator before Phase 6 begins.
 
 ## Phase History
 
@@ -120,7 +132,7 @@ Phase 5: Unified Circle Feed — Plan 01 complete. Plan 02 (FeedViewModel + feed
 | Phase 4, Plan 02 | ✓ Complete | CameraManager (multi-cam + fallback), MomentCameraView, MomentPreviewView, compositing |
 | Phase 4, Plan 03 | ✓ Complete | MomentCardView + CircleDetailView wired; camera permission edge case tabled |
 | Phase 5, Plan 01 | ✓ Complete | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
-| Phase 5, Plan 02 | 📋 Planned | FeedViewModel + all feed UI + CircleDetailView restructure + checkpoint |
+| Phase 5, Plan 02 | ⏳ Checkpoint | FeedViewModel + all feed UI + CircleDetailView restructure; awaiting Simulator verify |
 
 ## Active Decisions
 
@@ -148,6 +160,10 @@ Phase 5: Unified Circle Feed — Plan 01 complete. Plan 02 (FeedViewModel + feed
 - Timer.scheduledTimer callback uses MainActor.assumeIsolated (fires on main run loop) + windowTimer stored ref for invalidate — avoids sending non-Sendable Timer across actor boundary
 - Peer members with no Moment omitted from grid; own-unposted slot always shown
 - MomentCardData local struct used in momentCards computed property to drive ForEach
+- FeedViewModel per-view @State (not singleton) — each CircleDetailView owns its feed state
+- @Bindable FeedViewModel passed to all feed card views for optimistic reaction updates
+- MomentFeedCard.isLocked: !hasPostedToday && item.userId != currentUserId (own posts always visible)
+- checkedInCount hardcoded to 0 in CircleDetailView Phase 5; activity_feed-based count deferred
 
 ## Blockers
 
@@ -157,4 +173,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 5 Plan 01 complete — feed data layer done, Plan 02 queued)*
+*Last updated: 2026-03-24 (Phase 5 Plan 02 complete — feed UI layer built, awaiting Simulator checkpoint)*
