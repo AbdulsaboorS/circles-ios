@@ -120,7 +120,7 @@ Plans:
 - Today's Moment is locked behind reciprocity gate until posted [PHASE5-RECIPROCITY-LOCK]
 - Optimistic reaction updates [PHASE5-OPTIMISTIC-REACTIONS]
 
-**Status:** Code complete, awaiting Simulator checkpoint
+**Status:** Complete — human-verified in Simulator (2026-03-24)
 
 **Plans:** 2 plans (2/2 done)
 

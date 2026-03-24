@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**Phase 5: Unified Circle Feed** — Plan 02 complete (awaiting human checkpoint), Phase 6 next
+**Phase 5: Unified Circle Feed** — Complete (Plans 01 and 02 done, human-verified). Phase 6 (Push Notifications) is next.
 
 ## What's Done
 
@@ -14,9 +14,10 @@
 - StreakMilestoneCard.swift: amber-accented 🔥 card with streak count and habit name
 - ReactionBar.swift: 6 emoji chips, amber background when selected, optimistic toggle via FeedViewModel
 - CircleDetailView restructured: List replaced with ScrollView+LazyVStack, members collapsed to summary row with MembersListView sheet, FeedView embedded below Activity label, pull-to-refresh, parallel .task load
+- Post-checkpoint fix: .frame(maxWidth:.infinity, maxHeight:.infinity, alignment:.top) on VStack inside ZStack — fixes ScrollView height collapse (2971c26)
 - BUILD SUCCEEDED, zero errors
 - Stub: checkedInCount hardcoded to 0 (deferred to future phase)
-- Awaiting human verification in Simulator
+- Human verified in Simulator: feed working, scrolling works, all items visible
 
 ### Phase 5, Plan 01: Feed Data Layer (2026-03-24) ✓
 - FeedItem.swift: enum FeedItem with 3 cases (moment, habitCheckin, streakMilestone); MomentFeedItem, HabitCheckinFeedItem, StreakMilestoneFeedItem structs; Identifiable + Sendable; sortTimestamp computed property
@@ -114,7 +115,7 @@
 
 ## What's In Progress
 
-Phase 5: Unified Circle Feed — Plans 01 and 02 code-complete. Plan 02 awaiting human checkpoint verification in Simulator before Phase 6 begins.
+Phase 6: Push Notifications — Not yet started. Phase 5 fully complete.
 
 ## Phase History
 
@@ -132,7 +133,7 @@ Phase 5: Unified Circle Feed — Plans 01 and 02 code-complete. Plan 02 awaiting
 | Phase 4, Plan 02 | ✓ Complete | CameraManager (multi-cam + fallback), MomentCameraView, MomentPreviewView, compositing |
 | Phase 4, Plan 03 | ✓ Complete | MomentCardView + CircleDetailView wired; camera permission edge case tabled |
 | Phase 5, Plan 01 | ✓ Complete | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
-| Phase 5, Plan 02 | ⏳ Checkpoint | FeedViewModel + all feed UI + CircleDetailView restructure; awaiting Simulator verify |
+| Phase 5, Plan 02 | ✓ Complete | FeedViewModel + all feed UI + CircleDetailView restructure; human-verified in Simulator |
 
 ## Active Decisions
 
@@ -164,6 +165,7 @@ Phase 5: Unified Circle Feed — Plans 01 and 02 code-complete. Plan 02 awaiting
 - @Bindable FeedViewModel passed to all feed card views for optimistic reaction updates
 - MomentFeedCard.isLocked: !hasPostedToday && item.userId != currentUserId (own posts always visible)
 - checkedInCount hardcoded to 0 in CircleDetailView Phase 5; activity_feed-based count deferred
+- ZStack + VStack requires .frame(maxWidth:.infinity, maxHeight:.infinity, alignment:.top) to prevent ScrollView height collapse (confirmed pattern)
 
 ## Blockers
 
@@ -173,4 +175,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 5 Plan 02 complete — feed UI layer built, awaiting Simulator checkpoint)*
+*Last updated: 2026-03-24 (Phase 5 complete — feed UI layer built and human-verified in Simulator)*

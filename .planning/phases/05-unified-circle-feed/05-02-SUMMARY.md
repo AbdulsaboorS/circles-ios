@@ -43,7 +43,8 @@ metrics:
 | 1 | FeedViewModel with pagination, reaction state, hasPostedToday | 7019999 | FeedViewModel.swift (139 lines) |
 | 2 | Feed item card views and ReactionBar | 1628686 | FeedView.swift (71), MomentFeedCard.swift (91), HabitCheckinRow.swift (45), StreakMilestoneCard.swift (52), ReactionBar.swift (44) |
 | 3 | Restructure CircleDetailView | 02a2a66 | CircleDetailView.swift (305 lines, -171/+144) |
-| 4 | Checkpoint: human-verify | — | Awaiting Simulator verification |
+| 4 | Checkpoint: human-verify | — | Human approved: feed working, scrolling works, all items visible |
+| — | Post-checkpoint fix: VStack frame | 2971c26 | CircleDetailView.swift — .frame(maxWidth:.infinity, maxHeight:.infinity, alignment:.top) fixes ZStack scroll height |
 
 ## What Was Built
 
@@ -74,28 +75,30 @@ metrics:
 
 ## Deviations from Plan
 
-None — plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] ZStack + VStack height collapse broke ScrollView scroll**
+- **Found during:** Post-checkpoint verification (human reported scroll not working)
+- **Issue:** VStack inside ZStack had no explicit frame, collapsing to content height; ScrollView could not track content beyond visible area
+- **Fix:** Added `.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` to VStack inside ZStack in CircleDetailView
+- **Files modified:** `Circles/Circles/Circles/CircleDetailView.swift`
+- **Verification:** User confirmed scrolling works in Simulator after fix
+- **Committed in:** `2971c26`
+
+---
+
+**Total deviations:** 1 auto-fixed (Rule 1 - bug)
+**Impact on plan:** Essential for the scroll experience to work. No scope creep.
 
 ## Build Result
 
 BUILD SUCCEEDED — zero errors, one appintentsmetadataprocessor warning (pre-existing, unrelated to this plan).
 
-## Checkpoint: Human Verify
+## Human Verification
 
-**Status:** Awaiting verification in Simulator.
+**Status:** PASSED (2026-03-24)
 
-**Verification steps:**
-1. Build and run in Simulator (iPhone 17 Pro, iOS 26.3)
-2. Sign in → Community tab → open a circle
-3. Verify members summary row shows "[N] members · [M] checked in today →"
-4. Tap members row → MembersListView sheet opens → dismiss
-5. Scroll down → "Activity" label → FeedView (empty state or items)
-6. Confirm "No activity yet" empty state if no feed data
-7. If habit check-in rows exist: "[Name] checked in [Habit]" + 6 emoji chips
-8. If Moment cards exist: photo or blur+lock if not posted today
-9. Tap emoji chip → count increments optimistically, amber highlight appears
-10. Tap same emoji → count decrements, highlight removed
-11. Pull down → ProgressView → feed reloads
+User confirmed in Simulator: feed is working, scrolling works, all items visible. Post-checkpoint VStack frame fix applied and committed (`2971c26`).
 
 ## Known Stubs
 
@@ -116,3 +119,4 @@ Commits confirmed:
 - 7019999: FeedViewModel
 - 1628686: feed card views
 - 02a2a66: CircleDetailView restructure
+- 2971c26: VStack frame fix (post-checkpoint)
