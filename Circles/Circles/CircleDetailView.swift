@@ -53,6 +53,7 @@ struct CircleDetailView: View {
                 }
 
                 ScrollView {
+
                     LazyVStack(spacing: 0) {
                         // Circle info header
                         if let desc = circle.description, !desc.isEmpty {
@@ -157,6 +158,7 @@ struct CircleDetailView: View {
                     await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .navigationTitle(circle.name)
         .navigationBarTitleDisplayMode(.inline)
