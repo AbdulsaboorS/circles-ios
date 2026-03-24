@@ -103,7 +103,7 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md — CircleMoment model, Circle model update (momentWindowStart), MomentService singleton (data layer)
-- [ ] 04-02-PLAN.md — CameraManager (AVCaptureMultiCamSession), MomentCameraView, MomentPreviewView (camera capture)
+- [x] 04-02-PLAN.md — CameraManager (AVCaptureMultiCamSession), MomentCameraView, MomentPreviewView (camera capture)
 - [ ] 04-03-PLAN.md — CircleDetailView active window banner, Moments grid, reciprocity gate, posting flow (UI integration)
 
 ---

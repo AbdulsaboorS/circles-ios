@@ -2,9 +2,19 @@
 
 ## Current Phase
 
-**Phase 4: Circle Moment (Camera, Post, Reciprocity Gate)** — IN PROGRESS (1/3 plans done)
+**Phase 4: Circle Moment (Camera, Post, Reciprocity Gate)** — IN PROGRESS (2/3 plans done)
 
 ## What's Done
+
+### Phase 4, Plan 02: Camera Capture UI (2026-03-24) ✓
+- CameraManager: @Observable @MainActor NSObject, AVCaptureMultiCamSession + AVCaptureSession fallback
+- checkPermission, setupSession, capturePhoto, compositeImages (25% front inset), stopSession
+- AVCapturePhotoCaptureDelegate: nonisolated; ObjectIdentifier for Swift 6 actor-safe cross-actor dispatch
+- MomentCameraView: full-screen camera, dual viewfinder, permission denied state, flash animation, shutter spring
+- MomentPreviewView: photo review 3:4, caption input, Post Moment CTA with loading state, error handling
+- CameraPreviewRepresentable (UIViewRepresentable) + CameraPreviewView (UIView with layoutSubviews)
+- Auto-fixed: SwiftUI.Circle() qualification; ObjectIdentifier for non-Sendable actor-boundary crossing
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 4, Plan 01: Circle Moment Data Layer (2026-03-24) ✓
 - CircleMoment.swift: Codable, Identifiable, Sendable — maps all 7 circle_moments table columns
@@ -66,7 +76,7 @@
 
 ## What's In Progress
 
-Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — Plan 01 complete; Plans 02 (camera UI) and 03 (reciprocity gate) remaining.
+Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — Plans 01 and 02 complete; Plan 03 (reciprocity gate + CircleDetailView integration) remaining.
 
 ## Phase History
 
@@ -81,6 +91,7 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — Plan 01 complete; Pl
 | Phase 3, Plan 02 | ✓ Complete | CirclesViewModel, CommunityView rewrite, CreateCircleView, JoinCircleView, CircleDetailView with ShareLink |
 | Phase 3, Plan 03 | ✓ Complete | Deep links (circles://join/CODE), tab selection wiring, human verification passed |
 | Phase 4, Plan 01 | ✓ Complete | CircleMoment model, Circle.momentWindowStart, MomentService singleton with Storage upload |
+| Phase 4, Plan 02 | ✓ Complete | CameraManager (multi-cam + fallback), MomentCameraView, MomentPreviewView, compositing |
 
 ## Active Decisions
 
@@ -101,6 +112,8 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — Plan 01 complete; Pl
 - TIMESTAMPTZ columns (momentWindowStart, postedAt) stored as String in Swift models per date-as-string convention
 - MomentService uses circle-moments storage bucket; file path: {circleId}/{userId}_{date}.jpg, upsert=true
 - computeIsOnTime: checks now - windowStart < 1800 seconds (30 min); parses ISO8601 with/without fractional seconds
+- AVCapturePhotoCaptureDelegate is nonisolated; ObjectIdentifier used to identify output across MainActor boundary (non-Sendable AVCapturePhotoOutput cannot be sent across actors)
+- CameraPreviewView (UIView subclass) overrides layoutSubviews to keep AVCaptureVideoPreviewLayer frame in sync with bounds
 
 ## Blockers
 
@@ -110,4 +123,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 4 Plan 01 complete)*
+*Last updated: 2026-03-24 (Phase 4 Plan 02 complete)*
