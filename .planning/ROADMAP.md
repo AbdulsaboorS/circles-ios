@@ -146,10 +146,10 @@ Plans:
 
 **Status:** In planning
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
-- [ ] 06-01-PLAN.md — NotificationService singleton, APNs registration + device token upsert, city/country picker onboarding step
+- [x] 06-01-PLAN.md — NotificationService singleton, APNs registration + device token upsert, city/country picker onboarding step
 - [x] 06-02-PLAN.md — Supabase Edge Functions (moment-window cron, member-posted trigger, streak-milestone, peer-nudge) + shared APNs JWT helper + prayer time calculator
 - [ ] 06-03-PLAN.md — Soft-prompt modal, Community tab badge, nudge buttons in CircleDetailView, notifications-denied note, human verification
 

@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: Executing Phase 06
-last_updated: "2026-03-24T22:51:00Z"
+last_updated: "2026-03-24T22:54:40.884Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Circles iOS — State
@@ -19,6 +19,18 @@ progress:
 **Phase 5: Unified Circle Feed** — COMPLETE (2/2 plans done, human-verified).
 
 ## What's Done
+
+### Phase 6, Plan 01: iOS APNs Pipeline + City Picker Onboarding (2026-03-24) ✓
+
+- DeviceToken.swift: Codable struct mapping device_tokens table (user_id, device_token, created_at)
+- NotificationService.swift: @Observable @MainActor singleton with requestPermission(), handleToken (token → Supabase device_tokens upsert), refreshPermissionStatus(); SQL migration documented in comments
+- CirclesApp.swift: UIApplicationDelegateAdaptor(AppDelegate.self) + didRegisterForRemoteNotificationsWithDeviceToken → NotificationService.shared.handleToken
+- AuthManager.swift: nonisolated(unsafe) static weak var sharedForAPNs bridges AppDelegate → @MainActor session access
+- OnboardingCoordinator: Step.locationPicker, cityName/cityTimezone/cityLatitude/cityLongitude, proceedToLocation(), saveLocationAndMarkComplete() with profiles upsert; SQL migration in comments
+- LocationPickerView: searchable list of 50 bundled cities (offline, no API); selects city → saveLocationAndMarkComplete()
+- AIStepDownView: "Save My Habits" now calls proceedToLocation() after finishOnboarding() succeeds
+- ContentView: .locationPicker case added to navigationDestination switch
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 6, Plan 02: Supabase Edge Functions for Push Notifications (2026-03-24) ✓
 
@@ -151,7 +163,7 @@ progress:
 
 ## What's In Progress
 
-Phase 6: Push Notifications — PLANNED. 3 plans ready (06-01 iOS APNs pipeline, 06-02 Edge Functions, 06-03 UI integration). Context + discussion captured. Ready to execute.
+Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02 (Edge Functions) complete. 06-03 (UI integration) planned.
 
 ## Phase History
 
@@ -170,7 +182,7 @@ Phase 6: Push Notifications — PLANNED. 3 plans ready (06-01 iOS APNs pipeline,
 | Phase 4, Plan 03 | ✓ Complete | MomentCardView + CircleDetailView wired; camera permission edge case tabled |
 | Phase 5, Plan 01 | ✓ Complete | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
 | Phase 5, Plan 02 | ✓ Complete | FeedViewModel + all feed UI + CircleDetailView restructure; human-verified in Simulator |
-| Phase 6, Plan 01 | 📋 Planned | NotificationService, APNs registration, device_tokens table, city/country picker onboarding |
+| Phase 6, Plan 01 | ✓ Complete | NotificationService singleton, AppDelegate APNs adaptor, DeviceToken model, LocationPickerView onboarding step |
 | Phase 6, Plan 02 | ✓ Complete | Supabase Edge Functions: APNs helper, Adhan prayer times, moment-window cron, member-posted trigger, streak-milestone, peer nudges |
 | Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
 
