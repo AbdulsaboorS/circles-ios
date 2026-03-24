@@ -1,3 +1,16 @@
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: milestone
+status: unknown
+last_updated: "2026-03-24T18:41:32.230Z"
+progress:
+  total_phases: 7
+  completed_phases: 5
+  total_plans: 15
+  completed_plans: 12
+---
+
 # Circles iOS — State
 
 ## Current Phase
@@ -7,6 +20,7 @@
 ## What's Done
 
 ### Phase 5, Plan 02: Feed UI Layer (2026-03-24) ✓
+
 - FeedViewModel.swift: @Observable @MainActor; loadInitial (parallel feed+moments fetch), loadNextPage, refresh, toggleReaction (optimistic), reactionCount, userHasReacted
 - FeedView.swift: LazyVStack infinite scroll, onAppear trigger at last-3 items, ProgressView during next-page load, empty state
 - MomentFeedCard.swift: full-width 280pt photo, .blur(radius:20) + lock overlay when isLocked (!hasPostedToday && not own post), on-time star badge
@@ -20,6 +34,7 @@
 - Human verified in Simulator: feed working, scrolling works, all items visible
 
 ### Phase 5, Plan 01: Feed Data Layer (2026-03-24) ✓
+
 - FeedItem.swift: enum FeedItem with 3 cases (moment, habitCheckin, streakMilestone); MomentFeedItem, HabitCheckinFeedItem, StreakMilestoneFeedItem structs; Identifiable + Sendable; sortTimestamp computed property
 - FeedReaction.swift: Codable + Identifiable + Sendable; maps habit_reactions table via CodingKeys; static validEmojis [❤️, 🤲, 💪, 🌟, 🫶, ✨]
 - FeedService.swift: @Observable @MainActor singleton; fetchFeedPage (merges activity_feed + circle_moments, resolves display names, sorts desc, paginates); fetchReactions (batch by item_id array); toggleReaction (add/replace/remove semantics)
@@ -28,6 +43,7 @@
 - BUILD SUCCEEDED, zero errors
 
 ### Phase 4, Plan 03: Reciprocity Gate + CircleDetailView Integration (2026-03-24) ✓
+
 - MomentCardView: 3 states (locked with blur/lock.fill, unlocked with AsyncImage, own-unposted LinearGradient)
 - Locked state: blur(radius:20) + lock.fill + "Post to unlock", onTapGesture opens camera
 - On-time star badge: star.fill amber on top-right of unlocked cards where isOnTime == true
@@ -41,6 +57,7 @@
 - Known issue tabled: camera permission denied → "Open Settings" → return crashes (iOS 26.3 UIKit main-thread enforcement in re-entry path); affects edge case only; full fix deferred post-Phase 5
 
 ### Phase 4, Plan 02: Camera Capture UI (2026-03-24) ✓
+
 - CameraManager: @Observable @MainActor NSObject, AVCaptureMultiCamSession + AVCaptureSession fallback
 - checkPermission, setupSession, capturePhoto, compositeImages (25% front inset), stopSession
 - AVCapturePhotoCaptureDelegate: nonisolated; ObjectIdentifier for Swift 6 actor-safe cross-actor dispatch
@@ -56,6 +73,7 @@
   - BUILD SUCCEEDED, zero errors (commit 2f282cd)
 
 ### Phase 4, Plan 01: Circle Moment Data Layer (2026-03-24) ✓
+
 - CircleMoment.swift: Codable, Identifiable, Sendable — maps all 7 circle_moments table columns
 - Circle.swift: added momentWindowStart: String? (→ moment_window_start TIMESTAMPTZ on circles table)
 - MomentService.swift: @Observable @MainActor singleton — fetchTodayMoments, uploadPhoto, postMoment, computeIsOnTime
@@ -63,6 +81,7 @@
 - BUILD SUCCEEDED, zero errors
 
 ### Phase 3, Plan 02: Circles UI Layer (2026-03-24) ✓
+
 - CirclesViewModel: @Observable @MainActor with loadCircles, createCircle, joinCircle, pendingCode
 - CommunityView rewritten: My Circles list, empty state with Create/Join buttons, NavigationLink to detail, pull-to-refresh
 - CreateCircleView: sheet form with name, description, prayer time wheel picker
@@ -72,6 +91,7 @@
 - BUILD SUCCEEDED, zero errors
 
 ### Phase 3, Plan 01: Circle Data Layer (2026-03-24) ✓
+
 - Circle.swift: Codable, Identifiable, Hashable, Sendable — mirrors halaqas table with invite_code and prayer_time
 - HalaqaMember.swift: Codable, Identifiable, Sendable — mirrors halaqa_members table
 - CircleService.swift: @Observable @MainActor singleton — fetchMyCircles (2-step query), createCircle, joinByInviteCode, fetchMembers
@@ -79,6 +99,7 @@
 - BUILD SUCCEEDED, zero errors
 
 ### Phase 2, Plan 03: HomeViewModel + HomeView + HabitDetailView (2026-03-24) ✓
+
 - HomeViewModel: @Observable @MainActor, parallel fetch habits/logs/streak, optimistic toggleHabit with revert
 - HomeView: habit list with checkboxes, streak banner, NavigationLink to HabitDetailView, pull-to-refresh
 - HabitDetailView: 28-day LazyVGrid dot calendar, direct Supabase date-range query, stat badges
@@ -87,12 +108,14 @@
 - Human verified: all 9 simulator checks passed
 
 ### Phase 2, Plan 02: Onboarding Flow (2026-03-24) ✓
+
 - OnboardingCoordinator @Observable with step navigation and habit selection enforcement
 - HabitSelectionView, RamadanAmountView, AIStepDownView
 - ContentView routing: new users → onboarding, returning users → MainTabView
 - UserDefaults flag for onboarding completion
 
 ### Phase 2, Plan 01: Habits Data Layer (2026-03-24) ✓
+
 - Habit, HabitLog, Streak Codable models with full snake_case CodingKeys
 - HabitService @Observable singleton: fetchActiveHabits, fetchTodayLogs, toggleHabitLog, fetchStreak, createHabit, updateAcceptedAmount
 - GeminiService singleton: Gemini 2.0 Flash REST, AISuggestion decode, Secrets.plist key
@@ -100,6 +123,7 @@
 - Key fix: @Observable (not ObservableObject) — matches Swift 6 SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor
 
 ### Phase 1: Auth + Core Navigation Shell (2026-03-23) ✓
+
 - Sign in with Apple + Google OAuth via Supabase
 - AuthManager (@Observable @MainActor) with session persistence
 - 3-tab navigation shell: Home / Community / Profile
@@ -108,6 +132,7 @@
 - Info.plist: REVERSED_CLIENT_ID + GIDClientID
 
 ### Repo Setup (2026-03-23) ✓
+
 - Xcode 26.3 project at `~/Desktop/Circles`
 - Bundle ID: `app.joinlegacy`
 - Supabase Swift SDK v2.42.0 via SPM
