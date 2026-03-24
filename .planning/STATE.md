@@ -2,23 +2,33 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: unknown
-last_updated: "2026-03-24T18:41:32.230Z"
+status: Executing Phase 06
+last_updated: "2026-03-24T22:51:00Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Circles iOS — State
 
 ## Current Phase
 
-**Phase 6: Push Notifications** — PLANNED (3 plans ready, context + discussion captured). Ready to execute.
+**Phase 6: Push Notifications** — IN PROGRESS (1/3 plans done — 06-01 iOS APNs pipeline, 06-02 Edge Functions complete). Plan 06-03 UI integration remains.
 **Phase 5: Unified Circle Feed** — COMPLETE (2/2 plans done, human-verified).
 
 ## What's Done
+
+### Phase 6, Plan 02: Supabase Edge Functions for Push Notifications (2026-03-24) ✓
+
+- `_shared/apns.ts`: ES256 JWT APNs HTTP/2 helper using Web Crypto API (ECDSA P-256) — no third-party library
+- `_shared/prayer_times.ts`: Pure TS Adhan port (Muslim World League, MWL_FAJR_ANGLE=18, MWL_ISHA_ANGLE=17) — no npm
+- `send-moment-window-notifications`: Cron Edge Function, ±2 min prayer time window, queries circle_members + profiles
+- `send-member-posted-notification`: DB webhook on circle_moments INSERT, post-reciprocity-gate delivery to already-posted members
+- `send-streak-milestone-notification`: Milestones [7, 30, 100]; Islamic copy "MashAllah! 🌟"
+- `send-peer-nudge`: HTTP POST, rate-limited via nudge_log UNIQUE(sender_id, target_id, nudge_date), 23505 → 429
+- Deployment notes: nudge_log migration SQL documented in send-peer-nudge/index.ts; deploy as cron + DB webhook
 
 ### Phase 5, Plan 02: Feed UI Layer (2026-03-24) ✓
 
@@ -161,7 +171,7 @@ Phase 6: Push Notifications — PLANNED. 3 plans ready (06-01 iOS APNs pipeline,
 | Phase 5, Plan 01 | ✓ Complete | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
 | Phase 5, Plan 02 | ✓ Complete | FeedViewModel + all feed UI + CircleDetailView restructure; human-verified in Simulator |
 | Phase 6, Plan 01 | 📋 Planned | NotificationService, APNs registration, device_tokens table, city/country picker onboarding |
-| Phase 6, Plan 02 | 📋 Planned | Supabase Edge Functions: moment-window cron, member-posted trigger, streak-milestone, peer nudges |
+| Phase 6, Plan 02 | ✓ Complete | Supabase Edge Functions: APNs helper, Adhan prayer times, moment-window cron, member-posted trigger, streak-milestone, peer nudges |
 | Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
 
 ## Active Decisions
@@ -196,6 +206,11 @@ Phase 6: Push Notifications — PLANNED. 3 plans ready (06-01 iOS APNs pipeline,
 - checkedInCount hardcoded to 0 in CircleDetailView Phase 5; activity_feed-based count deferred
 - ZStack + VStack requires .frame(maxWidth:.infinity, maxHeight:.infinity, alignment:.top) to prevent ScrollView height collapse (confirmed pattern)
 - Phase 6 push notifications: full server-side APNs via Supabase Edge Functions (no local notifications)
+- APNs JWT built with Web Crypto API ECDSA P-256 (ES256) — no third-party APNs library in Deno
+- Prayer time server-side: pure TS Adhan port, Muslim World League constants (MWL_FAJR_ANGLE=18.0, MWL_ISHA_ANGLE=17.0)
+- Moment-window cron runs every minute; fires push only within ±2 min of user's prayer time
+- Member-posted notification: post-reciprocity-gate — only notifies users who already posted today
+- Peer nudge rate limit: nudge_log UNIQUE(sender_id, target_id, nudge_date); 23505 unique violation → 429 response
 - APNs device tokens stored in new `device_tokens` Supabase table (user_id, device_token, created_at)
 - Prayer time calculation: Adhan Swift library (batoulapps/adhan-swift) via SPM — offline, no API key
 - Location stored server-side (city + timezone + lat/lng) — set in onboarding city picker, no CLLocationManager
@@ -211,4 +226,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 6 planned — 3 plans ready, context captured, ready to execute)*
+*Last updated: 2026-03-24 (Phase 6 Plan 02 complete — Edge Functions built; Plan 06-03 UI integration remains)*
