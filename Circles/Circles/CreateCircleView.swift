@@ -8,43 +8,113 @@ struct CreateCircleView: View {
 
     @State private var name = ""
     @State private var description = ""
-    @State private var selectedPrayerTime = "fajr"
     @State private var isCreating = false
-
-    private let prayerTimes = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
+    @State private var localError: String?
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color(hex: "0D1021").ignoresSafeArea()
 
-                Form {
-                    Section("Circle Info") {
-                        TextField("Circle name", text: $name)
-                            .textInputAutocapitalization(.words)
-                            .foregroundStyle(.white)
-                            .listRowBackground(Color.white.opacity(0.08))
+                VStack(spacing: 20) {
+                    VStack(spacing: 12) {
+                        // Name field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Circle Name")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                                .textCase(.uppercase)
+                                .tracking(0.8)
 
-                        TextField("What's this circle about?", text: $description)
-                            .textInputAutocapitalization(.sentences)
-                            .foregroundStyle(.white)
-                            .listRowBackground(Color.white.opacity(0.08))
+                            TextField("e.g. Ramadan Squad", text: $name)
+                                .textInputAutocapitalization(.words)
+                                .foregroundStyle(.white)
+                                .padding(14)
+                                .background(Color.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .tint(Color(hex: "E8834B"))
+                                .colorScheme(.dark)
+                        }
+
+                        // Description field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Description (optional)")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                                .textCase(.uppercase)
+                                .tracking(0.8)
+
+                            TextField("What's this circle about?", text: $description, axis: .vertical)
+                                .textInputAutocapitalization(.sentences)
+                                .foregroundStyle(.white)
+                                .lineLimit(3...5)
+                                .padding(14)
+                                .background(Color.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .tint(Color(hex: "E8834B"))
+                                .colorScheme(.dark)
+                        }
                     }
-                    .foregroundStyle(.white.opacity(0.6))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
 
-                    Section("Circle Moment Prayer") {
-                        Picker("Prayer Time", selection: $selectedPrayerTime) {
-                            ForEach(prayerTimes, id: \.self) { prayer in
-                                Text(prayer.capitalized).tag(prayer)
+                    if let error = localError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                    }
+
+                    Spacer()
+
+                    // Create button
+                    Button {
+                        Task {
+                            isCreating = true
+                            localError = nil
+                            viewModel.errorMessage = nil
+                            guard let userId = auth.session?.user.id else {
+                                localError = "Not signed in."
+                                isCreating = false
+                                return
+                            }
+                            let result = await viewModel.createCircle(
+                                name: name.trimmingCharacters(in: .whitespaces),
+                                description: description.isEmpty ? nil : description,
+                                prayerTime: nil,
+                                userId: userId
+                            )
+                            if result != nil {
+                                dismiss()
+                            } else {
+                                localError = viewModel.errorMessage ?? "Something went wrong. Try again."
+                            }
+                            isCreating = false
+                        }
+                    } label: {
+                        ZStack {
+                            if isCreating {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Create Circle")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
                             }
                         }
-                        .pickerStyle(.wheel)
-                        .listRowBackground(Color.white.opacity(0.08))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating
+                                ? Color(hex: "E8834B").opacity(0.4)
+                                : Color(hex: "E8834B")
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
-                    .foregroundStyle(.white.opacity(0.6))
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
                 }
-                .scrollContentBackground(.hidden)
-                .foregroundStyle(.white)
             }
             .navigationTitle("New Circle")
             .navigationBarTitleDisplayMode(.inline)
@@ -54,26 +124,6 @@ struct CreateCircleView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(Color(hex: "E8834B"))
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Create") {
-                        Task {
-                            isCreating = true
-                            if let userId = auth.session?.user.id {
-                                let result = await viewModel.createCircle(
-                                    name: name.trimmingCharacters(in: .whitespaces),
-                                    description: description.isEmpty ? nil : description,
-                                    prayerTime: selectedPrayerTime,
-                                    userId: userId
-                                )
-                                if result != nil { dismiss() }
-                            }
-                            isCreating = false
-                        }
-                    }
-                    .foregroundStyle(Color(hex: "E8834B"))
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
-                    .fontWeight(.semibold)
                 }
             }
         }

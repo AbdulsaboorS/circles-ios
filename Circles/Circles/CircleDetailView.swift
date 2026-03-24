@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CircleDetailView: View {
     let circle: Circle
-    @State private var members: [HalaqaMember] = []
+    @State private var members: [CircleMember] = []
     @State private var isLoading = true
 
     private var inviteURL: URL {
@@ -20,20 +20,6 @@ struct CircleDetailView: View {
                         Text(desc)
                             .foregroundStyle(.white.opacity(0.8))
                             .listRowBackground(Color.white.opacity(0.06))
-                    }
-                    if let prayer = circle.prayerTime, !prayer.isEmpty {
-                        HStack {
-                            Text("Circle Moment")
-                                .foregroundStyle(.white.opacity(0.6))
-                            Spacer()
-                            Text(prayer.capitalized)
-                                .foregroundStyle(Color(hex: "E8834B"))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color(hex: "E8834B").opacity(0.15))
-                                .clipShape(Capsule())
-                        }
-                        .listRowBackground(Color.white.opacity(0.06))
                     }
                 }
 

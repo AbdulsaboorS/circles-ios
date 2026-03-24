@@ -127,15 +127,6 @@ struct CommunityView: View {
                             .foregroundStyle(.white.opacity(0.6))
                             .lineLimit(1)
                     }
-                    if let prayer = circle.prayerTime, !prayer.isEmpty {
-                        Text(prayer.capitalized)
-                            .font(.caption)
-                            .foregroundStyle(Color(hex: "E8834B"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color(hex: "E8834B").opacity(0.15))
-                            .clipShape(Capsule())
-                    }
                 }
                 .padding(.vertical, 4)
             }

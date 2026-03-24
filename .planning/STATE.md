@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**Phase 3: Circles (Create, Join, Member View)** — IN PROGRESS (2/3 plans done)
+**Phase 3: Circles (Create, Join, Member View)** — COMPLETE (3/3 plans done; all 6 simulator checks passed)
 
 ## What's Done
 
@@ -59,7 +59,7 @@
 
 ## What's In Progress
 
-Phase 3: Circles (Create, Join, Member View) — data layer (Plan 01) and UI views (Plan 02) complete. Plan 03 (Invite Link deep-link + Circle Moment integration) is next.
+Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — not yet started.
 
 ## Phase History
 
@@ -72,6 +72,7 @@ Phase 3: Circles (Create, Join, Member View) — data layer (Plan 01) and UI vie
 | Phase 2, Plan 03 | ✓ Complete | HomeViewModel + HomeView + HabitDetailView; verified in Simulator |
 | Phase 3, Plan 01 | ✓ Complete | Circle + HalaqaMember models, CircleService singleton, naming collision fix |
 | Phase 3, Plan 02 | ✓ Complete | CirclesViewModel, CommunityView rewrite, CreateCircleView, JoinCircleView, CircleDetailView with ShareLink |
+| Phase 3, Plan 03 | ✓ Complete | Deep links (circles://join/CODE), tab selection wiring, human verification passed |
 
 ## Active Decisions
 
@@ -86,6 +87,9 @@ Phase 3: Circles (Create, Join, Member View) — data layer (Plan 01) and UI vie
 - Capture @MainActor coordinator state before withTaskGroup (Swift 6 actor isolation — task closures are non-isolated)
 - import Supabase required in every file accessing session?.user.id (Auth module not re-exported by SwiftUI)
 - Circle model name shadows SwiftUI's Circle shape — qualify as SwiftUI.Circle() at all shape call sites
+- New `circles` + `circle_members` tables (not Legacy `halaqas` — too many unknown constraints)
+- Moment timing is platform-wide (BeReal-style) — no prayer_time on circles
+- RLS recursion avoided via SECURITY DEFINER function `auth_user_circle_ids()`
 
 ## Blockers
 
