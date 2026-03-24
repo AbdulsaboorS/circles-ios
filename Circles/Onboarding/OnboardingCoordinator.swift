@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 // SQL Migration — run in Supabase Dashboard before Phase 6 executes:
 // ALTER TABLE profiles

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Supabase
 
 // MARK: - Environment Key for pending invite code
 

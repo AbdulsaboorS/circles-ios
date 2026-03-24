@@ -2,6 +2,7 @@ import Foundation
 import UserNotifications
 import UIKit
 import Observation
+import Supabase
 
 // MARK: - SQL Migration (run in Supabase Dashboard SQL Editor before Phase 6 executes)
 //
