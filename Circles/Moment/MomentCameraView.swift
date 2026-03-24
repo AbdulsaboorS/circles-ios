@@ -26,15 +26,6 @@ struct MomentCameraView: View {
         .ignoresSafeArea()
         .task {
             cameraManager.checkPermission()
-            try? await Task.sleep(for: .milliseconds(500))
-            if cameraManager.permissionGranted {
-                cameraManager.setupSession()
-            }
-        }
-        .onChange(of: cameraManager.permissionGranted) { _, granted in
-            if granted {
-                cameraManager.setupSession()
-            }
         }
         .onChange(of: cameraManager.capturedImage) { _, image in
             if let image {
