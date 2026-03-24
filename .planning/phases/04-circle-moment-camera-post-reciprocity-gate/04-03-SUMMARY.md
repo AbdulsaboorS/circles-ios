@@ -70,6 +70,17 @@ Three rendering states based on `moment`, `isOwnPost`, and `hasPostedToday`:
 - **Files modified:** `Circles/Circles/CircleDetailView.swift`
 - **Commit:** `ccd8ee0`
 
+## Known Issues (Tabled)
+
+### Camera permission denied → "Open Settings" → return crashes app
+
+- **Symptom:** If camera permission was previously denied, the "Open Settings" button is shown. Tapping it crashes the app with `__abort_with_payload` on a concurrent queue (Thread 14).
+- **Root cause:** iOS 26.3 strictly enforces UIKit-on-main-thread. The `UIApplication.shared.open(url)` call (and/or a subsequent permission-change callback triggering `setupSession`) fires from a background/concurrent queue context.
+- **Partial fix applied:** Wrapped `UIApplication.shared.open(url)` in `Task { @MainActor in }` in `MomentCameraView.swift`, but a second crash remains in the re-entry path after returning from Settings.
+- **Impact:** Edge case only — affects users who deny camera permission on first prompt and then try to re-enable. Users who grant permission on first prompt are unaffected.
+- **To test normally:** Run `Device → Erase All Content and Settings` in Simulator to reset permission state, then relaunch. The native "Allow Camera?" prompt will appear and the normal flow works.
+- **Resolution:** Needs a full `axiom:camera-capture` skill-guided audit of the permission re-entry path. Tabled until post-Phase 5.
+
 ## Known Stubs
 
 None — all data paths are wired. `MomentCardView.onTapLocked` opens the camera. `CircleDetailView` posts through `MomentService.postMoment` and refreshes the moments array. The `hasPostedToday` gate is live data from the `moments` array.

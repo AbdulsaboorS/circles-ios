@@ -2,6 +2,7 @@
 
 ## Current Phase
 
+**Phase 5: Unified Circle Feed** — PLANNED (2 plans ready, executing in parallel session)
 **Phase 4: Circle Moment (Camera, Post, Reciprocity Gate)** — AWAITING HUMAN VERIFICATION (3/3 plans code complete, Task 2 checkpoint pending)
 
 ## What's Done
@@ -27,6 +28,11 @@
 - CameraPreviewRepresentable (UIViewRepresentable) + CameraPreviewView (UIView with layoutSubviews)
 - Auto-fixed: SwiftUI.Circle() qualification; ObjectIdentifier for non-Sendable actor-boundary crossing
 - BUILD SUCCEEDED, zero errors
+- **Post-checkpoint fix (2026-03-24):** Crash on first camera permission grant fixed:
+  - Root cause 1: `setupSession()` called twice (from both `.onChange` and `.task` post-sleep) → AVFoundation abort on double session start
+  - Root cause 2: Session config (`beginConfiguration`/`addInput`/`commitConfiguration`) was on `@MainActor`; `startRunning()` on background
+  - Fix: moved ALL AVFoundation work to dedicated `sessionQueue` (nonisolated DispatchQueue); added `isSessionSetUp` guard; `checkPermission()` now calls `setupSession()` internally; `@preconcurrency import AVFoundation` for Swift 6 Sendable warnings
+  - BUILD SUCCEEDED, zero errors (commit 2f282cd)
 
 ### Phase 4, Plan 01: Circle Moment Data Layer (2026-03-24) ✓
 - CircleMoment.swift: Codable, Identifiable, Sendable — maps all 7 circle_moments table columns
@@ -105,6 +111,8 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — All 3 plans code-com
 | Phase 4, Plan 01 | ✓ Complete | CircleMoment model, Circle.momentWindowStart, MomentService singleton with Storage upload |
 | Phase 4, Plan 02 | ✓ Complete | CameraManager (multi-cam + fallback), MomentCameraView, MomentPreviewView, compositing |
 | Phase 4, Plan 03 | ⏸ Checkpoint | MomentCardView + CircleDetailView wired; awaiting human verification in Simulator |
+| Phase 5, Plan 01 | 📋 Planned | FeedItem enum, FeedReaction model, FeedService (paginated fetch + reaction CRUD) |
+| Phase 5, Plan 02 | 📋 Planned | FeedViewModel + all feed UI + CircleDetailView restructure + checkpoint |
 
 ## Active Decisions
 
@@ -127,6 +135,8 @@ Phase 4: Circle Moment (Camera, Post, Reciprocity Gate) — All 3 plans code-com
 - computeIsOnTime: checks now - windowStart < 1800 seconds (30 min); parses ISO8601 with/without fractional seconds
 - AVCapturePhotoCaptureDelegate is nonisolated; ObjectIdentifier used to identify output across MainActor boundary (non-Sendable AVCapturePhotoOutput cannot be sent across actors)
 - CameraPreviewView (UIView subclass) overrides layoutSubviews to keep AVCaptureVideoPreviewLayer frame in sync with bounds
+- All AVFoundation session work runs on dedicated `nonisolated let sessionQueue = DispatchQueue(label:)` — never on MainActor/main thread; properties updated back to MainActor via `Task { @MainActor in }`
+- `@preconcurrency import AVFoundation` used in CameraManager to treat AVFoundation Sendable errors as warnings (Apple hasn't fully annotated AVFoundation for Sendable yet)
 - Timer.scheduledTimer callback uses MainActor.assumeIsolated (fires on main run loop) + windowTimer stored ref for invalidate — avoids sending non-Sendable Timer across actor boundary
 - Peer members with no Moment omitted from grid; own-unposted slot always shown
 - MomentCardData local struct used in momentCards computed property to drive ForEach
@@ -139,4 +149,4 @@ None.
 - `import Supabase` required in every view accessing `auth.session?.user.id` — confirmed pattern, added to active decisions
 - `.environment(auth)` must be passed explicitly when presenting sheets (does not propagate automatically)
 
-*Last updated: 2026-03-24 (Phase 4 Plan 03 checkpoint — awaiting human verification)*
+*Last updated: 2026-03-24 (Phase 5 planned — 2 plans ready, executing in parallel session)*
