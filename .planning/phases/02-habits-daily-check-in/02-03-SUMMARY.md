@@ -106,6 +106,10 @@ The parallel 02-02 agent had already written `HomeView.swift` as a Rule 3 pre-fi
 
 None — HabitDetailView replaces the stub created by the 02-02 agent. All rendered data comes from live Supabase queries.
 
+## UI Deferred
+
+**User feedback: UI needs improvement.** All functionality verified and working, but the visual design of HomeView, HabitDetailView, and the onboarding screens does not meet the desired quality bar. UI polish is intentionally deferred — the plan is to complete all functional phases first, then do a dedicated UI pass across the app once the full feature set is in place.
+
 ---
 *Phase: 02-habits-daily-check-in*
 *Completed: 2026-03-24 (Tasks 1-2; Task 3 pending human verify)*
