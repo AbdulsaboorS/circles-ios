@@ -1,17 +1,13 @@
-//
-//  CirclesApp.swift
-//  Circles
-//
-//  Created by Abdulsaboor Shaikh on 3/23/26.
-//
-
 import SwiftUI
 
 @main
 struct CirclesApp: App {
+    @State private var authManager = AuthManager()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(authManager)
         }
     }
 }

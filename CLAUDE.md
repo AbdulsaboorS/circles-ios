@@ -100,6 +100,14 @@ New tables (to be added via migration):
 - SQL migrations run via Supabase MCP or Dashboard
 - Claude writes the Swift code; backend migrations handled separately
 
+## Skills in Use
+
+- **GSD** — project lifecycle (phases, roadmap, STATE.md, execution)
+- **Axiom** — iOS/Swift domain patterns (auto-invoked during implementation)
+- **Superpowers** — execution discipline (TDD, debugging, code review)
+
+They coexist. GSD drives what to build, Axiom/Superpowers shape how.
+
 ## GSD Tracking
 
 - `.planning/PROJECT.md` — product context, requirements, decisions

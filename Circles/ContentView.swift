@@ -1,24 +1,22 @@
-//
-//  ContentView.swift
-//  Circles
-//
-//  Created by Abdulsaboor Shaikh on 3/23/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @Environment(AuthManager.self) private var auth
 
-#Preview {
-    ContentView()
+    var body: some View {
+        Group {
+            if auth.isLoading {
+                ZStack {
+                    Color(hex: "0D1021").ignoresSafeArea()
+                    ProgressView()
+                        .tint(Color(hex: "E8834B"))
+                        .scaleEffect(1.5)
+                }
+            } else if auth.isAuthenticated {
+                MainTabView()
+            } else {
+                AuthView()
+            }
+        }
+    }
 }

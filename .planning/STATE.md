@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**Phase 1: Auth + Core Navigation Shell** — Not started
+**Phase 1: Auth + Core Navigation Shell** — Wave 5 (human verification pending)
 
 ## What's Done
 
@@ -22,7 +22,22 @@
 
 ## What's In Progress
 
-Nothing — clean start.
+**Phase 1 — Waves 1-4 complete, awaiting Wave 5 human verification in Simulator.**
+
+Files written:
+- `Circles/Services/SupabaseService.swift`
+- `Circles/Auth/AuthManager.swift`
+- `Circles/Auth/AuthView.swift`
+- `Circles/Navigation/MainTabView.swift`
+- `Circles/Home/HomeView.swift`
+- `Circles/Community/CommunityView.swift`
+- `Circles/Profile/ProfileView.swift`
+- `Circles/Extensions/Color+Hex.swift`
+- `Circles/ContentView.swift` (replaced)
+- `Circles/CirclesApp.swift` (replaced)
+- `Circles/Info.plist` (REVERSED_CLIENT_ID added)
+
+Build: SUCCEEDED (iPhone 17 simulator, iOS 26)
 
 ## Phase History
 

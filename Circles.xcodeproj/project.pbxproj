@@ -6,13 +6,32 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		1D44E4A52F71F35500103B4C /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 1D44E4A42F71F35500103B4C /* GoogleSignIn */; };
+		1D44E4A72F71F35500103B4C /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 1D44E4A62F71F35500103B4C /* GoogleSignInSwift */; };
+		AA000001000000000000AA01 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = AA000001000000000000AA00 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		1DE49BE32F7110F50082EC8F /* Circles.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Circles.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AA000002000000000000AA02 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1DE49BE22F7110F50082EC8F /* Circles */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1DE49BE52F7110F50082EC8F /* Circles */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA000002000000000000AA02 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 			path = Circles;
 			sourceTree = "<group>";
 		};
@@ -23,6 +42,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D44E4A52F71F35500103B4C /* GoogleSignIn in Frameworks */,
+				1D44E4A72F71F35500103B4C /* GoogleSignInSwift in Frameworks */,
+				AA000001000000000000AA01 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +87,9 @@
 			);
 			name = Circles;
 			packageProductDependencies = (
+				1D44E4A42F71F35500103B4C /* GoogleSignIn */,
+				1D44E4A62F71F35500103B4C /* GoogleSignInSwift */,
+				AA000001000000000000AA00 /* Supabase */,
 			);
 			productName = Circles;
 			productReference = 1DE49BE32F7110F50082EC8F /* Circles.app */;
@@ -96,6 +121,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1D44E4A02F7115F000103B4C /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				1D44E4A32F71F35500103B4C /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1DE49BE42F7110F50082EC8F /* Products */;
@@ -254,11 +280,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Circles/Circles.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = ZP3C82Z88J;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Circles/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -276,7 +304,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -286,11 +314,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Circles/Circles.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = ZP3C82Z88J;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Circles/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -308,7 +338,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -345,7 +375,33 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		1D44E4A32F71F35500103B4C /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1D44E4A42F71F35500103B4C /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1D44E4A32F71F35500103B4C /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		1D44E4A62F71F35500103B4C /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1D44E4A32F71F35500103B4C /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+		AA000001000000000000AA00 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1D44E4A02F7115F000103B4C /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1DE49BDB2F7110F40082EC8F /* Project object */;
 }
