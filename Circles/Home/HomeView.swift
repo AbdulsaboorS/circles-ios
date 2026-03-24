@@ -3,69 +3,115 @@ import Supabase
 
 struct HomeView: View {
     @Environment(AuthManager.self) private var auth
+    @State private var viewModel = HomeViewModel()
 
-    private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 0..<6:   return "Peaceful Night"
-        case 6..<12:  return "Good Morning"
-        case 12..<15: return "Peaceful Afternoon"
-        case 15..<18: return "Blessed Asr"
-        case 18..<21: return "Blessed Evening"
-        default:      return "Peaceful Night"
-        }
-    }
-
-    private var greetingEmoji: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 0..<6:   return "🌙"
-        case 6..<12:  return "☀️"
-        case 12..<15: return "🕌"
-        case 15..<18: return "🤲"
-        case 18..<21: return "🌅"
-        default:      return "🌙"
-        }
-    }
-
-    private var firstName: String {
-        let fullName = auth.session?.user.userMetadata["full_name"]?.stringValue
-                    ?? auth.session?.user.email?.components(separatedBy: "@").first
-                    ?? "Friend"
-        return fullName.components(separatedBy: " ").first ?? fullName
+    private var todayFormatted: String {
+        let f = DateFormatter()
+        f.dateStyle = .full
+        f.timeStyle = .none
+        return f.string(from: Date())
     }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color(hex: "0D1021").ignoresSafeArea()
-
-                VStack(spacing: 32) {
-                    Spacer()
-
-                    VStack(spacing: 8) {
-                        Text("\(greeting), \(firstName) \(greetingEmoji)")
-                            .font(.system(.title, design: .serif, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-
-                        Text("Your habits await")
+            List {
+                // Greeting header
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Assalamu Alaikum")
+                            .font(.title2.bold())
+                        Text(todayFormatted)
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 32)
+                    .listRowSeparator(.hidden)
+                }
 
-                    VStack(spacing: 16) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 64))
-                            .foregroundStyle(Color(hex: "E8834B").opacity(0.8))
-
-                        Text("Habits coming in Phase 2")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.4))
+                // Streak banner
+                if let streak = viewModel.streak, streak.currentStreak > 0 {
+                    Section {
+                        HStack(spacing: 12) {
+                            Text("🔥")
+                                .font(.title)
+                            VStack(alignment: .leading) {
+                                Text("\(streak.currentStreak) day streak")
+                                    .font(.headline)
+                                Text("Best: \(streak.longestStreak) days")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
                     }
+                }
 
-                    Spacer()
+                // Habits
+                Section("Today's Habits") {
+                    if viewModel.isLoading {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                    } else if viewModel.habits.isEmpty {
+                        Text("No habits yet. Complete onboarding to add habits.")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    } else {
+                        ForEach(viewModel.habits) { habit in
+                            HabitRow(
+                                habit: habit,
+                                isCompleted: viewModel.isCompleted(habitId: habit.id),
+                                onToggle: {
+                                    guard let userId = auth.session?.user.id else { return }
+                                    Task { await viewModel.toggleHabit(habit, userId: userId) }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Home")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: Habit.self) { habit in
+                HabitDetailView(habit: habit)
+            }
+            .refreshable {
+                guard let userId = auth.session?.user.id else { return }
+                await viewModel.loadAll(userId: userId)
+            }
+            .task {
+                guard let userId = auth.session?.user.id else { return }
+                await viewModel.loadAll(userId: userId)
+            }
+            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") { viewModel.errorMessage = nil }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
+            }
+        }
+    }
+}
+
+private struct HabitRow: View {
+    let habit: Habit
+    let isCompleted: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        NavigationLink(value: habit) {
+            HStack(spacing: 12) {
+                Button(action: onToggle) {
+                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundStyle(isCompleted ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                Text(habit.icon).font(.title3)
+                Text(habit.name).font(.body)
+                Spacer()
+                if let goal = habit.acceptedAmount, !goal.isEmpty {
+                    Text(goal)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
