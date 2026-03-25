@@ -160,7 +160,7 @@ Plans:
 **Goal:** Establish the full design system — color tokens (light + dark mode), typography (New York serif + SF Pro), reusable SwiftUI components (cards, buttons, chips, background blobs), app icon design, sunrise/sunset auto dark mode logic.
 **Requirements**: TBD
 **Depends on:** Phase 6
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 06.1-01-PLAN.md — DesignTokens.swift (color + font tokens) + ThemeManager (sunrise/sunset auto dark mode)
