@@ -9,71 +9,92 @@ struct MomentFeedCard: View {
     var isLocked: Bool { !hasPostedToday && item.userId != currentUserId }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header row: name + star + timestamp
-            HStack {
-                Text(item.userName)
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(.white)
-                if item.isOnTime {
+        AppCard {
+            VStack(spacing: 0) {
+                // Photo with caption + lock overlays
+                ZStack(alignment: .bottom) {
+                    AsyncImage(url: URL(string: item.photoUrl)) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.white.opacity(0.05)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 280)
+                    .clipped()
+                    .blur(radius: isLocked ? 20 : 0)
+
+                    if isLocked {
+                        VStack(spacing: 8) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.white)
+                            Text("Post your Moment to see theirs")
+                                .font(.appSubheadline)
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    // Caption + username gradient overlay (D-20)
+                    if !isLocked {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.userName)
+                                .font(.appCaptionMedium)
+                                .foregroundStyle(.white)
+                            if let caption = item.caption, !caption.isEmpty {
+                                Text(caption)
+                                    .font(.appCaption)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .lineLimit(2)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(
+                            LinearGradient(
+                                colors: [.clear, .black.opacity(0.6)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
+                }
+
+                // Reaction bar
+                ReactionBar(
+                    itemId: item.id, itemType: "moment",
+                    currentUserId: currentUserId, viewModel: viewModel
+                )
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if item.isOnTime {
+                HStack(spacing: 4) {
                     Image(systemName: "star.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(hex: "E8834B"))
+                        .foregroundStyle(Color.accent)
+                    Text(relativeTimestamp(item.postedAt))
+                        .font(.appCaption)
+                        .foregroundStyle(Color.textSecondary)
                 }
-                Spacer()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(10)
+            } else {
                 Text(relativeTimestamp(item.postedAt))
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .font(.appCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(10)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-
-            // Photo area
-            ZStack {
-                AsyncImage(url: URL(string: item.photoUrl)) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.white.opacity(0.05)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 280)
-                .clipped()
-                .blur(radius: isLocked ? 20 : 0)
-
-                if isLocked {
-                    VStack(spacing: 8) {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white)
-                        Text("Post your Moment to see theirs")
-                            .font(.subheadline)
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                }
-            }
-
-            // Caption (if present)
-            if let caption = item.caption, !caption.isEmpty {
-                Text(caption)
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-            }
-
-            // Reaction bar
-            ReactionBar(
-                itemId: item.id, itemType: "moment",
-                currentUserId: currentUserId, viewModel: viewModel
-            )
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
         }
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private func relativeTimestamp(_ iso: String) -> String {

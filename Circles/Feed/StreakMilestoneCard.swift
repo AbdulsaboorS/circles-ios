@@ -6,35 +6,35 @@ struct StreakMilestoneCard: View {
     @Bindable var viewModel: FeedViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("🔥")
-                    .font(.title2)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(item.userName) hit a \(item.streakDays)-day streak!")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                    Text(item.habitName)
-                        .font(.caption)
-                        .foregroundStyle(Color(hex: "E8834B"))
+        AppCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("🔥")
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(item.userName) hit a \(item.streakDays)-day streak!")
+                            .font(.appSubheadline).fontWeight(.semibold)
+                            .foregroundStyle(Color.textPrimary)
+                        Text(item.habitName)
+                            .font(.appCaption)
+                            .foregroundStyle(Color.accent)
+                    }
+                    Spacer()
+                    Text(relativeTimestamp(item.achievedAt))
+                        .font(.appCaption)
+                        .foregroundStyle(Color.textSecondary)
                 }
-                Spacer()
-                Text(relativeTimestamp(item.achievedAt))
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+                ReactionBar(
+                    itemId: item.id, itemType: "streak_milestone",
+                    currentUserId: currentUserId, viewModel: viewModel
+                )
             }
-            ReactionBar(
-                itemId: item.id, itemType: "streak_milestone",
-                currentUserId: currentUserId, viewModel: viewModel
-            )
+            .padding(12)
         }
-        .padding(12)
-        .background(Color(hex: "E8834B").opacity(0.12))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "E8834B").opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.accent.opacity(0.35), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func relativeTimestamp(_ iso: String) -> String {

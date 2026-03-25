@@ -6,28 +6,28 @@ struct HabitCheckinRow: View {
     @Bindable var viewModel: FeedViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("\(item.userName) checked in ")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
-                + Text(item.habitName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                Spacer()
-                Text(relativeTimestamp(item.checkedAt))
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+        AppCard {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("\(item.userName) checked in ")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.textPrimary)
+                    + Text(item.habitName)
+                        .font(.appSubheadline).fontWeight(.semibold)
+                        .foregroundStyle(Color.textPrimary)
+                    Spacer()
+                    Text(relativeTimestamp(item.checkedAt))
+                        .font(.appCaption)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                ReactionBar(
+                    itemId: item.id, itemType: "habit_checkin",
+                    currentUserId: currentUserId, viewModel: viewModel
+                )
             }
-            ReactionBar(
-                itemId: item.id, itemType: "habit_checkin",
-                currentUserId: currentUserId, viewModel: viewModel
-            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func relativeTimestamp(_ iso: String) -> String {

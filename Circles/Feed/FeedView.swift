@@ -23,7 +23,7 @@ struct FeedView: View {
             if viewModel.isLoadingNextPage {
                 HStack {
                     Spacer()
-                    ProgressView().tint(Color(hex: "E8834B"))
+                    ProgressView().tint(Color.accent)
                     Spacer()
                 }
                 .padding(.vertical, 12)
@@ -33,11 +33,11 @@ struct FeedView: View {
             if viewModel.items.isEmpty && !viewModel.isLoadingInitial {
                 VStack(spacing: 12) {
                     Text("No activity yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.textSecondary)
                     Text("Check in to your habits or post a Moment to get started.")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(.appCaption)
+                        .foregroundStyle(Color.textSecondary.opacity(0.6))
                         .multilineTextAlignment(.center)
                 }
                 .padding(.vertical, 40)
