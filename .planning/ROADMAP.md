@@ -172,10 +172,13 @@ Plans:
 **Goal:** Full visual redesign of HomeView, CommunityView (My Circles + Public Explore with bubble layout), CircleDetailView, and FeedView using the new design system. Adds is_public field to circles schema.
 **Requirements**: TBD
 **Depends on:** Phase 06.1
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 06.2 to break down)
+- [ ] 06.2-01-PLAN.md — Circle model isPublic field, CircleService.fetchPublicCircles(), Supabase migration SQL
+- [ ] 06.2-02-PLAN.md — HomeView full redesign: AppBackground, time-aware greeting, streak AppCard, habit AppCards, Community Circles preview
+- [ ] 06.2-03-PLAN.md — Feed cards redesign: MomentFeedCard, HabitCheckinRow, StreakMilestoneCard, FeedView token colors
+- [ ] 06.2-04-PLAN.md — CommunityView segmented picker + bubble Explore grid; CircleDetailView members strip + feed-first layout; human verification
 
 ### Phase 06.3: Secondary Screens Redesign (INSERTED)
 
@@ -216,4 +219,4 @@ Plans:
 - Android (React Native or Flutter wrapper — TBD)
 
 ---
-*Last updated: 2026-03-24*
+*Last updated: 2026-03-25*
