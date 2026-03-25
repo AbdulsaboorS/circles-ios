@@ -42,18 +42,21 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct CirclesApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var authManager = AuthManager()
+    @State private var themeManager = ThemeManager.shared
     @State private var pendingInviteCode: String?
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(authManager)
+                .environment(themeManager)
                 .environment(\.pendingInviteCode, pendingInviteCode)
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
                 .onAppear {
                     AuthManager.sharedForAPNs = authManager
+                    themeManager.scheduleAutoSwitch()
                 }
         }
     }

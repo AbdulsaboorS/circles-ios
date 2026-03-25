@@ -20,7 +20,7 @@ struct MainTabView: View {
                 .tabItem { Label("Profile", systemImage: "person.circle.fill") }
                 .tag(2)
         }
-        .tint(Color(hex: "E8834B"))
+        .tint(Color.accent)
         .onChange(of: pendingInviteCode) { _, code in
             if code != nil {
                 selectedTab = 1

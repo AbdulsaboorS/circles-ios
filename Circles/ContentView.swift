@@ -3,6 +3,7 @@ import Supabase
 
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
+    @Environment(ThemeManager.self) private var themeManager
     @State private var onboardingCoordinator = OnboardingCoordinator()
 
     var body: some View {
@@ -42,5 +43,6 @@ struct ContentView: View {
                 MainTabView()
             }
         }
+        .preferredColorScheme(themeManager.colorScheme)
     }
 }
