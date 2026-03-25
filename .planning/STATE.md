@@ -21,6 +21,19 @@ progress:
 
 ## What's Done
 
+### Phase 6, Plan 03: Push Notification UI + Onboarding Profile Setup (2026-03-24) ✓
+
+- NotificationPermissionModal: navy soft-prompt sheet, fires once after first circle join/create (circles.count == 1)
+- CirclesViewModel: shouldShowPermissionPrompt triggers modal after createCircle/joinCircle
+- MainTabView: Community tab badge from NotificationService.unreadCount; clears on tab open
+- CircleDetailView: "Moment" + "Habit" amber pill nudge buttons for non-self members → send-peer-nudge Edge Function; notifications-denied inline note; contentShape(Rectangle()) fix on members row
+- ProfileSetupView: NEW first onboarding screen — name + Brother/Sister gender chips; saves to profiles.preferred_name + profiles.gender
+- HabitService: createHabit now upserts (onConflict: user_id,name) — fixes duplicate constraint on onboarding re-run
+- ProfileView dev tools (#if DEBUG): "Reset Account" clears onboarding flag + signs out; "Test Badge +1" increments unreadCount
+- Supabase migrations applied via MCP: device_tokens table (RLS), nudge_log table, profiles location columns (city_name, timezone, latitude, longitude)
+- Onboarding flow order: ProfileSetupView → HabitSelectionView → RamadanAmountView → AIStepDownView → LocationPickerView
+- BUILD SUCCEEDED, zero errors
+
 ### Phase 6, Plan 01: iOS APNs Pipeline + City Picker Onboarding (2026-03-24) ✓
 
 - DeviceToken.swift: Codable struct mapping device_tokens table (user_id, device_token, created_at)
