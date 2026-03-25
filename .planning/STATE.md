@@ -2,20 +2,21 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: Executing Phase 06
-last_updated: "2026-03-24T22:54:40.884Z"
+status: Phase 6 Complete — ready for Phase 06.1 or Phase 7
+last_updated: "2026-03-24"
 progress:
-  total_phases: 7
-  completed_phases: 5
-  total_plans: 15
-  completed_plans: 14
+  total_phases: 10
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 15
 ---
 
 # Circles iOS — State
 
 ## Current Phase
 
-**Phase 6: Push Notifications** — IN PROGRESS (1/3 plans done — 06-01 iOS APNs pipeline, 06-02 Edge Functions complete). Plan 06-03 UI integration remains.
+**Phase 6: Push Notifications** — COMPLETE (3/3 plans done; Supabase migrations applied via MCP).
+**Next: Phase 06.1 (UI Design System Foundation) or Phase 7 (App Store Polish).**
 **Phase 5: Unified Circle Feed** — COMPLETE (2/2 plans done, human-verified).
 
 ## What's Done
@@ -185,6 +186,9 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 | Phase 6, Plan 01 | ✓ Complete | NotificationService singleton, AppDelegate APNs adaptor, DeviceToken model, LocationPickerView onboarding step |
 | Phase 6, Plan 02 | ✓ Complete | Supabase Edge Functions: APNs helper, Adhan prayer times, moment-window cron, member-posted trigger, streak-milestone, peer nudges |
 | Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
+| Phase 06.1, Plan 01 | 📋 Planned | DesignTokens.swift (color + font tokens, semantic aliases) + ThemeManager (sunrise/sunset auto dark mode, ThemeMode enum) |
+| Phase 06.1, Plan 02 | 📋 Planned | AppBackground.swift — animated breathing blob background (Wave 1, parallel with 06.1-01) |
+| Phase 06.1, Plan 03 | 📋 Planned | AppCard, PrimaryButton, ChipButton, SectionHeader components + AppIconView + wire ThemeManager into CirclesApp/ContentView/MainTabView |
 
 ## Active Decisions
 
