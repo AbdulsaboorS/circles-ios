@@ -45,3 +45,6 @@ fastlane/test_output
 .env
 .env.local
 Secrets.plist
+
+# Claude Code agent worktrees
+.claude/worktrees/
