@@ -155,6 +155,38 @@ Plans:
 
 ---
 
+### Phase 06.1: UI Design System Foundation (INSERTED)
+
+**Goal:** Establish the full design system — color tokens (light + dark mode), typography (New York serif + SF Pro), reusable SwiftUI components (cards, buttons, chips, background blobs), app icon design, sunrise/sunset auto dark mode logic.
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06.1-01-PLAN.md — DesignTokens.swift (color + font tokens) + ThemeManager (sunrise/sunset auto dark mode)
+- [ ] 06.1-02-PLAN.md — AppBackground animated blob view
+- [ ] 06.1-03-PLAN.md — Reusable components (AppCard, PrimaryButton, ChipButton, SectionHeader, AppIconView) + wire ThemeManager into app root
+
+### Phase 06.2: Core Screens Redesign (INSERTED)
+
+**Goal:** Full visual redesign of HomeView, CommunityView (My Circles + Public Explore with bubble layout), CircleDetailView, and FeedView using the new design system. Adds is_public field to circles schema.
+**Requirements**: TBD
+**Depends on:** Phase 06.1
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 06.2 to break down)
+
+### Phase 06.3: Secondary Screens Redesign (INSERTED)
+
+**Goal:** Full visual redesign of Profile, Onboarding, Camera/Moment, HabitDetailView (28-day heatmap + notes journal + AI plan), all loading/empty/error states, and a final polish pass across all screens.
+**Requirements**: TBD
+**Depends on:** Phase 06.2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 06.3 to break down)
+
 ## Phase 7: App Store Polish + Submission
 
 **Goal:** App is production-ready and passes Apple review.
