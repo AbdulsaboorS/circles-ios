@@ -4,35 +4,24 @@ import Supabase
 struct CircleDetailView: View {
     let circle: Circle
 
-    // Feed state
     @State private var feedViewModel = FeedViewModel()
-
-    // Members state
     @State private var members: [CircleMember] = []
     @State private var checkedInCount = 0
     @State private var isLoadingMembers = true
     @State private var showMembersSheet = false
-
-    // Moment window state
     @State private var windowSecondsRemaining: Int = 0
     @State private var windowTimer: Timer?
-
-    // Camera / post state
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
     @State private var showPreview = false
 
     @Environment(AuthManager.self) private var auth
 
-    // MARK: - Computed Properties
-
     private var inviteURL: URL {
         URL(string: "https://joinlegacy.app/join/\(circle.inviteCode ?? "")")!
     }
 
-    private var isWindowActive: Bool {
-        windowSecondsRemaining > 0
-    }
+    private var isWindowActive: Bool { windowSecondsRemaining > 0 }
 
     private var countdownText: String {
         let mins = windowSecondsRemaining / 60
@@ -40,133 +29,38 @@ struct CircleDetailView: View {
         return String(format: "%02d:%02d remaining", mins, secs)
     }
 
-    // MARK: - Body
-
     var body: some View {
         ZStack {
-            Color(hex: "0D1021").ignoresSafeArea()
+            AppBackground()
 
             VStack(spacing: 0) {
-                // Active window banner
-                if isWindowActive {
-                    momentBanner
-                }
-
                 ScrollView {
-
                     LazyVStack(spacing: 0) {
-                        // Circle info header
-                        if let desc = circle.description, !desc.isEmpty {
-                            Text(desc)
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.8))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(Color.white.opacity(0.06))
-                                .padding(.horizontal, 16)
-                                .padding(.top, 12)
-                        }
 
-                        // Invite section
-                        VStack(alignment: .leading, spacing: 0) {
-                            if let code = circle.inviteCode {
-                                HStack {
-                                    Text("Code:")
-                                        .foregroundStyle(.white.opacity(0.6))
-                                    Text(code)
-                                        .font(.system(.body, design: .monospaced))
-                                        .foregroundStyle(.white)
-                                        .fontWeight(.semibold)
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(Color.white.opacity(0.06))
-                                .padding(.horizontal, 16)
-                                .padding(.top, 12)
-                            }
-
-                            ShareLink(item: inviteURL) {
-                                Label("Invite Friends", systemImage: "square.and.arrow.up")
-                                    .foregroundStyle(Color(hex: "E8834B"))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(Color.white.opacity(0.06))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                        }
-
-                        // Notifications-off inline note (shown when permission is denied)
-                        if NotificationService.shared.permissionStatus == .denied {
-                            HStack(spacing: 8) {
-                                Image(systemName: "bell.slash.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(Color(hex: "E8834B").opacity(0.8))
-                                Text("Notifications off — turn on in Settings to get Moment alerts")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.55))
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.04))
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                        }
-
-                        // Members summary row
-                        Button {
-                            showMembersSheet = true
-                        } label: {
-                            HStack {
-                                Text("\(members.count) members · \(checkedInCount) checked in today")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.75))
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.4))
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(0.06))
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .sheet(isPresented: $showMembersSheet) {
-                            MembersListView(
-                                members: members,
-                                currentUserId: auth.session?.user.id,
-                                senderId: auth.session?.user.id,
-                                circleId: circle.id
-                            )
-                        }
-
-                        // Activity section label
-                        Text("Activity")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.4))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
+                        membersStrip
                             .padding(.top, 12)
 
-                        // Initial load indicator
-                        if feedViewModel.isLoadingInitial {
-                            HStack {
-                                Spacer()
-                                ProgressView().tint(Color(hex: "E8834B"))
-                                Spacer()
-                            }
-                            .padding(.vertical, 24)
+                        if isWindowActive {
+                            momentBanner
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
                         }
 
-                        // Feed
+                        if NotificationService.shared.permissionStatus == .denied {
+                            notificationsDeniedNote
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+                        }
+
+                        SectionHeader(title: "Activity")
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+
+                        if feedViewModel.isLoadingInitial {
+                            HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
+                                .padding(.vertical, 24)
+                        }
+
                         if let userId = auth.session?.user.id {
                             FeedView(
                                 circleId: circle.id,
@@ -181,34 +75,31 @@ struct CircleDetailView: View {
                     guard let userId = auth.session?.user.id else { return }
                     await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .navigationTitle(circle.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color(hex: "0D1021"), for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                ShareLink(item: inviteURL) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(Color.accent)
+                }
+            }
+        }
         .task {
             guard let userId = auth.session?.user.id else { return }
-
-            // Refresh notification permission status for inline note
             await NotificationService.shared.refreshPermissionStatus()
-
-            // Load members and feed in parallel
             async let membersFetch = CircleService.shared.fetchMembers(circleId: circle.id)
             members = (try? await membersFetch) ?? []
-            checkedInCount = 0  // Phase 5: no per-member check-in status yet; wired in future phase
+            checkedInCount = 0
             isLoadingMembers = false
-
-            // Start window countdown timer if window is active
             startWindowTimer()
-
-            // Load feed
             await feedViewModel.loadInitial(circleId: circle.id, currentUserId: userId)
         }
-        .onDisappear {
-            windowTimer?.invalidate()
-        }
+        .onDisappear { windowTimer?.invalidate() }
         .fullScreenCover(isPresented: $showCamera) {
             MomentCameraView(circleId: circle.id) { image in
                 capturedImage = image
@@ -229,7 +120,6 @@ struct CircleDetailView: View {
                             caption: caption,
                             windowStart: circle.momentWindowStart
                         )
-                        // Refresh feed to update reciprocity gate and show new Moment
                         await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
                     },
                     onRetake: {
@@ -243,7 +133,43 @@ struct CircleDetailView: View {
         }
     }
 
-    // MARK: - Moment Banner
+    // MARK: - Members Strip (D-16)
+
+    private var membersStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("\(members.count) Members")
+                    .font(.appCaptionMedium)
+                    .foregroundStyle(Color.textSecondary)
+                Spacer()
+                Button { showMembersSheet = true } label: {
+                    Text("See All")
+                        .font(.appCaption)
+                        .foregroundStyle(Color.accent)
+                }
+                .sheet(isPresented: $showMembersSheet) {
+                    MembersListView(
+                        members: members,
+                        currentUserId: auth.session?.user.id,
+                        senderId: auth.session?.user.id,
+                        circleId: circle.id
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(members) { member in
+                        MemberAvatarChip(member: member)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    // MARK: - Moment Banner (D-17)
 
     private var momentBanner: some View {
         HStack {
@@ -251,7 +177,7 @@ struct CircleDetailView: View {
                 .font(.system(size: 16))
                 .foregroundStyle(.white)
             Text("POST YOUR MOMENT")
-                .font(.headline.weight(.semibold))
+                .font(.appCaptionMedium)
                 .foregroundStyle(.white)
             Spacer()
             Text(countdownText)
@@ -259,12 +185,28 @@ struct CircleDetailView: View {
                 .foregroundStyle(.white)
         }
         .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(Color(hex: "E8834B"))
-        .onTapGesture {
-            showCamera = true
-        }
+        .padding(.horizontal, 14)
+        .background(Color.accent)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture { showCamera = true }
         .accessibilityLabel("Post your Moment, \(countdownText). Tap to open camera.")
+    }
+
+    // MARK: - Notifications Denied Note
+
+    private var notificationsDeniedNote: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bell.slash.fill")
+                .font(.appCaption)
+                .foregroundStyle(Color.accent.opacity(0.8))
+            Text("Notifications off — turn on in Settings to get Moment alerts")
+                .font(.appCaption)
+                .foregroundStyle(Color.textSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Nudge
@@ -283,7 +225,6 @@ struct CircleDetailView: View {
                     ])
                 )
         } catch {
-            // Rate-limited (429) or network error — fail silently; no UX disruption
             print("[CircleDetailView] Nudge failed: \(error)")
         }
     }
@@ -292,7 +233,6 @@ struct CircleDetailView: View {
 
     private func startWindowTimer() {
         guard let windowStartStr = circle.momentWindowStart else { return }
-
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         var startDate = formatter.date(from: windowStartStr)
@@ -300,14 +240,11 @@ struct CircleDetailView: View {
             formatter.formatOptions = [.withInternetDateTime]
             startDate = formatter.date(from: windowStartStr)
         }
-        guard let startDate = startDate else { return }
-
+        guard let startDate else { return }
         let elapsed = Date().timeIntervalSince(startDate)
         let remaining = 1800 - elapsed
         guard remaining > 0 else { return }
-
         windowSecondsRemaining = Int(remaining)
-
         windowTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             MainActor.assumeIsolated {
                 if self.windowSecondsRemaining > 0 {
@@ -321,6 +258,42 @@ struct CircleDetailView: View {
     }
 }
 
+// MARK: - MemberAvatarChip (D-16)
+
+private struct MemberAvatarChip: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let member: CircleMember
+
+    private var initials: String {
+        String(member.userId.uuidString.prefix(2)).uppercased()
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                if colorScheme == .dark {
+                    SwiftUI.Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 44, height: 44)
+                } else {
+                    SwiftUI.Circle()
+                        .fill(Color.white)
+                        .shadow(color: .black.opacity(0.08), radius: 4)
+                        .frame(width: 44, height: 44)
+                }
+                Text(initials)
+                    .font(.appCaptionMedium)
+                    .foregroundStyle(Color.accent)
+            }
+            if member.role == "admin" {
+                Text("Admin")
+                    .font(Font.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.accent)
+            }
+        }
+    }
+}
+
 // MARK: - Members List Sheet
 
 private struct MembersListView: View {
@@ -328,53 +301,47 @@ private struct MembersListView: View {
     let currentUserId: UUID?
     let senderId: UUID?
     let circleId: UUID
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            Color(hex: "0D1021").ignoresSafeArea()
+            (colorScheme == .dark ? Color.darkBackground : Color.lightBackground)
+                .ignoresSafeArea()
             List(members) { member in
                 HStack {
                     Text(member.userId.uuidString.prefix(8))
                         .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.textPrimary)
                     Spacer()
                     if member.role == "admin" {
                         Text("Admin")
-                            .font(.caption)
-                            .foregroundStyle(Color(hex: "E8834B"))
+                            .font(.appCaption)
+                            .foregroundStyle(Color.accent)
                             .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Color(hex: "E8834B").opacity(0.15))
+                            .background(Color.accent.opacity(0.15))
                             .clipShape(Capsule())
                     }
-                    // Nudge buttons — only for other members, not self
                     if member.userId != currentUserId {
                         HStack(spacing: 6) {
                             Button {
-                                Task {
-                                    await sendNudge(to: member.userId, type: "moment", circleId: circleId)
-                                }
+                                Task { await sendNudge(to: member.userId, type: "moment", circleId: circleId) }
                             } label: {
                                 Text("Moment")
                                     .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(Color(hex: "E8834B"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(hex: "E8834B").opacity(0.15))
+                                    .foregroundStyle(Color.accent)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(Color.accent.opacity(0.15))
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
-
                             Button {
-                                Task {
-                                    await sendNudge(to: member.userId, type: "habit", circleId: circleId)
-                                }
+                                Task { await sendNudge(to: member.userId, type: "habit", circleId: circleId) }
                             } label: {
                                 Text("Habit")
                                     .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(Color(hex: "E8834B"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(hex: "E8834B").opacity(0.15))
+                                    .foregroundStyle(Color.accent)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(Color.accent.opacity(0.15))
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
