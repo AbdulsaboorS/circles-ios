@@ -134,6 +134,7 @@ struct CircleDetailView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .background(Color.white.opacity(0.06))
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 16)

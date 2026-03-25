@@ -41,7 +41,48 @@ struct ProfileView: View {
                             .cornerRadius(12)
                     }
                     .padding(.horizontal, 32)
+
+                    #if DEBUG
+                    VStack(spacing: 12) {
+                        Text("DEV TOOLS")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.3))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 32)
+
+                        Button {
+                            if let userId = auth.session?.user.id {
+                                UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(userId.uuidString)")
+                            }
+                            Task { await auth.signOut() }
+                        } label: {
+                            Text("Reset Account (re-run onboarding)")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.orange.opacity(0.8))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.orange.opacity(0.08))
+                                .cornerRadius(10)
+                        }
+                        .padding(.horizontal, 32)
+
+                        Button {
+                            NotificationService.shared.incrementUnread()
+                        } label: {
+                            Text("Test Badge +1")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.blue.opacity(0.8))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.blue.opacity(0.08))
+                                .cornerRadius(10)
+                        }
+                        .padding(.horizontal, 32)
+                    }
                     .padding(.bottom, 32)
+                    #else
+                    .padding(.bottom, 32)
+                    #endif
                 }
             }
         }
