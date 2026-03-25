@@ -230,6 +230,24 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 - Community tab badge: local unreadCount in NotificationService, clears on tab open
 - Peer nudge rate limit: nudge_log table UNIQUE(sender_id, target_id, nudge_date) — 1 nudge/sender/recipient/day
 
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 06.1 inserted after Phase 6: UI Design System Foundation — color tokens, typography (New York serif + SF Pro), reusable components, app icon, sunrise/sunset auto dark mode
+- Phase 06.2 inserted after Phase 6: Core Screens Redesign — HomeView, CommunityView (My Circles + Public Explore), CircleDetailView, FeedView; adds is_public to circles schema
+- Phase 06.3 inserted after Phase 6: Secondary Screens Redesign — Profile, Onboarding, Camera/Moment, HabitDetailView (heatmap + notes journal + AI plan), loading/empty/error states, polish pass
+- Phase 7 (App Store Polish + Submission) remains as final phase, to be executed after 06.3
+
+### UI Redesign Design Direction (2026-03-24)
+- Dark mode: deep near-black background + forest green organic blob shapes + glassmorphism cards + amber/gold CTA accent
+- Light mode: warm cream background + warm beige blob shapes + white cards + same amber accent
+- Typography: New York serif for greeting headers, SF Pro for body
+- Habit detail chip → 28-day heatmap + notes journal + AI step-down plan (notes field on habit_logs)
+- Community tab: My Circles + Public Explore (is_public flag on circles, bubble/card browse layout)
+- Dark/light mode: auto-switch at user's sunrise/sunset (using Adhan + stored lat/lng from Phase 6), manual toggle in Settings
+- Islamic illustrations: to be sourced by user before Phase 06.2; SF Symbol placeholders until then
+- App icon redesign: part of Phase 06.1
+
 ## Blockers
 
 None.
