@@ -104,9 +104,8 @@ New tables (to be added via migration):
 
 - **GSD** — project lifecycle (phases, roadmap, STATE.md, execution)
 - **Axiom** — iOS/Swift domain patterns (auto-invoked during implementation)
-- **Superpowers** — execution discipline (TDD, debugging, code review)
 
-They coexist. GSD drives what to build, Axiom/Superpowers shape how.
+GSD drives what to build, Axiom shapes how.
 
 ## GSD Tracking
 
