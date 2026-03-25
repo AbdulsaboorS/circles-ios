@@ -118,7 +118,10 @@ See ROADMAP.md for detailed phase breakdown.
 - Phase 4: Circle Moment (camera, post, reciprocity gate)
 - Phase 5: Unified Circle Feed
 - Phase 6: Push Notifications
+- Phase 06.1: UI Design System Foundation — COMPLETE (2026-03-24). DesignTokens.swift, ThemeManager (NOAA solar auto dark/light), AppBackground animated blobs, Components (AppCard/PrimaryButton/ChipButton/SectionHeader), AppIconView Islamic tessellation, app root wired.
+- Phase 06.2: Core Screens Redesign (next)
+- Phase 06.3: Secondary Screens Redesign
 - Phase 7: App Store Polish + Submission
 
 ---
-*Last updated: 2026-03-23*
+*Last updated: 2026-03-24*
