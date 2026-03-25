@@ -165,7 +165,7 @@ Plans:
 Plans:
 - [x] 06.1-01-PLAN.md — DesignTokens.swift (color + font tokens) + ThemeManager (sunrise/sunset auto dark mode)
 - [x] 06.1-02-PLAN.md — AppBackground animated blob view
-- [ ] 06.1-03-PLAN.md — Reusable components (AppCard, PrimaryButton, ChipButton, SectionHeader, AppIconView) + wire ThemeManager into app root
+- [x] 06.1-03-PLAN.md — Reusable components (AppCard, PrimaryButton, ChipButton, SectionHeader, AppIconView) + wire ThemeManager into app root
 
 ### Phase 06.2: Core Screens Redesign (INSERTED)
 

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: Executing Phase 06.1
-last_updated: "2026-03-25T04:01:09.436Z"
+status: Phase 06.1 Complete — Ready for Phase 06.2
+last_updated: "2026-03-25T04:08:04.222Z"
 progress:
   total_phases: 10
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Circles iOS — State
@@ -31,6 +31,15 @@ progress:
 - ThemeManager.scheduleAutoSwitch(): reads cityLatitude/cityLongitude from UserDefaults; NOAA solar algorithm for sunrise/sunset; 6am-8pm heuristic fallback
 - Deviation: Adhan not in iOS SPM (only in TS Edge Functions); replaced with pure Swift SolarCalculator (NOAA algorithm)
 - BUILD SUCCEEDED, zero errors
+
+### Phase 06.1, Plan 03: Reusable Components + ThemeManager Wiring (2026-03-25) ✓
+
+- Components.swift: AppCard (.ultraThinMaterial dark / white+shadow light, cornerRadius 16), PrimaryButton (Color.accent fill, 52pt, loading state, cornerRadius 14), ChipButton (Capsule pill, filled/outlined variants), SectionHeader (New York serif headline, adaptive text colors)
+- AppIconView.swift: Canvas-based 8-pointed Islamic star tessellation on #0E0B08 background with #E8834B amber stars, Apple icon corner radius
+- CirclesApp.swift: @State themeManager = ThemeManager.shared; .environment(themeManager) injected; scheduleAutoSwitch() called in .onAppear
+- ContentView.swift: @Environment(ThemeManager.self); .preferredColorScheme(themeManager.colorScheme) at root Group
+- MainTabView.swift: .tint(Color.accent) — hardcoded Color(hex: "E8834B") replaced
+- BUILD SUCCEEDED, zero errors — Phase 06.1 design system foundation complete
 
 ### Phase 06.1, Plan 02: AppBackground — Animated Blob Background (2026-03-25) ✓
 
@@ -197,7 +206,7 @@ progress:
 
 ## What's In Progress
 
-Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02 (Edge Functions) complete. 06-03 (UI integration) planned.
+Phase 06.1: UI Design System Foundation — COMPLETE (3/3 plans done). Next: Phase 06.2 (Core Screens Redesign).
 
 ## Phase History
 
@@ -221,7 +230,7 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 | Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
 | Phase 06.1, Plan 01 | ✓ Complete | DesignTokens.swift (color + font tokens, semantic aliases) + ThemeManager (NOAA solar algorithm, ThemeMode enum) |
 | Phase 06.1, Plan 02 | ✓ Complete | AppBackground.swift — dual-blob breathing background; @Environment colorScheme; BUILD SUCCEEDED |
-| Phase 06.1, Plan 03 | 📋 Planned | AppCard, PrimaryButton, ChipButton, SectionHeader components + AppIconView + wire ThemeManager into CirclesApp/ContentView/MainTabView |
+| Phase 06.1, Plan 03 | ✓ Complete | AppCard, PrimaryButton, ChipButton, SectionHeader + AppIconView + ThemeManager wired into CirclesApp/ContentView/MainTabView; BUILD SUCCEEDED |
 
 ## Active Decisions
 
@@ -248,6 +257,7 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 - `@preconcurrency import AVFoundation` used in CameraManager to treat AVFoundation Sendable errors as warnings (Apple hasn't fully annotated AVFoundation for Sendable yet)
 - Timer.scheduledTimer callback uses MainActor.assumeIsolated (fires on main run loop) + windowTimer stored ref for invalidate — avoids sending non-Sendable Timer across actor boundary
 - AppBackground uses @Environment(\\.colorScheme) directly (not ThemeManager) — works before ThemeManager is wired in; safe for Wave 1 parallel execution
+- AppCard/SectionHeader/ChipButton use @Environment(\\.colorScheme) directly (not ThemeManager) — consistent pattern; avoids requiring ThemeManager in environment for isolated component use
 - Blob animation: two ellipses with different durations (4s/5s) + 1.2s delay offset — never in sync, produces organic meditative feel
 - Peer members with no Moment omitted from grid; own-unposted slot always shown
 - MomentCardData local struct used in momentCards computed property to drive ForEach
