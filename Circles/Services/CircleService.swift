@@ -36,6 +36,17 @@ final class CircleService {
             .value
     }
 
+    func fetchPublicCircles() async throws -> [Circle] {
+        try await client
+            .from("circles")
+            .select()
+            .eq("is_public", value: true)
+            .order("created_at", ascending: false)
+            .limit(50)
+            .execute()
+            .value
+    }
+
     func createCircle(name: String, description: String?, prayerTime: String?, userId: UUID) async throws -> Circle {
         let inviteCode = generateInviteCode()
         let row: [String: AnyJSON] = [
