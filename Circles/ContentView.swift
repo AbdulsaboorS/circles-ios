@@ -23,9 +23,11 @@ struct ContentView: View {
                     get: { onboardingCoordinator.navigationPath },
                     set: { onboardingCoordinator.navigationPath = $0 }
                 )) {
-                    HabitSelectionView()
+                    ProfileSetupView()
                         .navigationDestination(for: OnboardingCoordinator.Step.self) { step in
                             switch step {
+                            case .habitSelection:
+                                HabitSelectionView()
                             case .ramadanAmounts:
                                 RamadanAmountView()
                             case .aiSuggestions:

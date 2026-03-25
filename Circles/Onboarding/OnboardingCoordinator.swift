@@ -15,10 +15,15 @@ import Supabase
 final class OnboardingCoordinator {
 
     enum Step: Hashable {
+        case habitSelection           // after profile setup
         case ramadanAmounts           // after habits selected
         case aiSuggestions            // after amounts entered
         case locationPicker           // after AI step-down (last onboarding step)
     }
+
+    // Profile fields (set by ProfileSetupView — first onboarding screen)
+    var fullName: String = ""
+    var gender: String = ""           // "brother" or "sister"
 
     // Habit selection state
     var selectedHabitNames: Set<String> = []
@@ -76,6 +81,10 @@ final class OnboardingCoordinator {
         let custom = customHabitName.trimmingCharacters(in: .whitespaces)
         if !custom.isEmpty { names.append(custom) }
         return names
+    }
+
+    func proceedToHabits() {
+        navigationPath.append(.habitSelection)
     }
 
     func proceedToAmounts() {
@@ -137,16 +146,19 @@ final class OnboardingCoordinator {
         isSaving = true
         errorMessage = nil
         do {
+            var profileFields: [String: String] = ["id": userId.uuidString]
+            if !fullName.isEmpty { profileFields["full_name"] = fullName }
+            if !gender.isEmpty  { profileFields["gender"] = gender }
             if cityLatitude != 0 {
+                profileFields["city_name"] = cityName
+                profileFields["timezone"] = cityTimezone
+                profileFields["latitude"] = String(cityLatitude)
+                profileFields["longitude"] = String(cityLongitude)
+            }
+            if profileFields.count > 1 {
                 try await SupabaseService.shared.client
                     .from("profiles")
-                    .upsert([
-                        "id": userId.uuidString,
-                        "city_name": cityName,
-                        "timezone": cityTimezone,
-                        "latitude": String(cityLatitude),
-                        "longitude": String(cityLongitude)
-                    ])
+                    .upsert(profileFields)
                     .execute()
             }
             markComplete(userId: userId)

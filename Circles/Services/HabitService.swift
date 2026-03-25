@@ -35,7 +35,7 @@ final class HabitService {
         ]
         return try await client
             .from("habits")
-            .insert(row)
+            .upsert(row, onConflict: "user_id,name")
             .select()
             .single()
             .execute()
