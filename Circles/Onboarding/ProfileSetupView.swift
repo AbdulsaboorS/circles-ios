@@ -52,11 +52,11 @@ struct ProfileSetupView: View {
                                 .textCase(.uppercase)
 
                             HStack(spacing: 12) {
-                                GenderChip(label: "Brother", isSelected: selectedGender == "brother") {
-                                    selectedGender = "brother"
+                                GenderChip(label: "Brother", isSelected: selectedGender == "Brother") {
+                                    selectedGender = "Brother"
                                 }
-                                GenderChip(label: "Sister", isSelected: selectedGender == "sister") {
-                                    selectedGender = "sister"
+                                GenderChip(label: "Sister", isSelected: selectedGender == "Sister") {
+                                    selectedGender = "Sister"
                                 }
                             }
                         }

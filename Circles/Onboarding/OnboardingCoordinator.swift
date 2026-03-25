@@ -147,7 +147,7 @@ final class OnboardingCoordinator {
         errorMessage = nil
         do {
             var profileFields: [String: String] = ["id": userId.uuidString]
-            if !fullName.isEmpty { profileFields["full_name"] = fullName }
+            if !fullName.isEmpty { profileFields["preferred_name"] = fullName }
             if !gender.isEmpty  { profileFields["gender"] = gender }
             if cityLatitude != 0 {
                 profileFields["city_name"] = cityName
