@@ -92,13 +92,10 @@ extension Color {
 // MARK: - Typography Tokens (D-04, D-05)
 
 extension Font {
-    // MARK: New York serif — D-04 — greeting headers and hero text
-    /// 34pt New York serif, scales relative to .largeTitle
-    static let appHeroTitle  = Font.custom("NewYork", size: 34, relativeTo: .largeTitle)
-    /// 28pt New York serif, scales relative to .title
-    static let appTitle      = Font.custom("NewYork", size: 28, relativeTo: .title)
-    /// 22pt New York serif, scales relative to .title2
-    static let appHeadline   = Font.custom("NewYork", size: 22, relativeTo: .title2)
+    // MARK: Serif headers — D-04
+    static let appHeroTitle  = Font.system(size: 34, weight: .regular, design: .serif)
+    static let appTitle      = Font.system(size: 28, weight: .regular, design: .serif)
+    static let appHeadline   = Font.system(size: 22, weight: .semibold, design: .serif)
 
     // MARK: SF Pro — D-05 — body, labels, UI
     static let appBody          = Font.system(size: 17, weight: .regular,  design: .default)

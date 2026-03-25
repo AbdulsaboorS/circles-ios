@@ -28,7 +28,7 @@ final class ThemeManager {
     var colorScheme: ColorScheme = .dark
 
     /// Current mode — persisted to UserDefaults on change.
-    var mode: ThemeMode = .auto {
+    var mode: ThemeMode = .alwaysLight {
         didSet {
             UserDefaults.standard.set(mode.rawValue, forKey: "themeMode")
             applyMode()

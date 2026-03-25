@@ -3,9 +3,13 @@ import Supabase
 
 struct HomeView: View {
     @Environment(AuthManager.self) private var auth
+    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = HomeViewModel()
     @State private var publicCircles: [Circle] = []
     @State private var isLoadingPublicCircles = false
+    @State private var preferredName: String = "Friend"
+
+    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     private let islamicQuotes = [
         "Verily, with hardship comes ease.",
@@ -17,15 +21,8 @@ struct HomeView: View {
 
     private var todayFormatted: String {
         let f = DateFormatter()
-        f.dateStyle = .full
-        f.timeStyle = .none
+        f.dateFormat = "EEEE, MMMM d"
         return f.string(from: Date())
-    }
-
-    private var firstName: String {
-        guard let email = auth.session?.user.email else { return "Friend" }
-        let prefix = email.split(separator: "@").first.map(String.init) ?? "Friend"
-        return prefix.prefix(1).uppercased() + prefix.dropFirst()
     }
 
     private var greetingText: String {
@@ -39,12 +36,9 @@ struct HomeView: View {
         }
     }
 
-    private var greetingEmoji: String {
+    private var greetingSymbol: String {
         let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5...16: return "☀️"
-        default:     return "🌙"
-        }
+        return (hour >= 5 && hour <= 16) ? "sun.max.fill" : "moon.fill"
     }
 
     private var islamicQuote: String {
@@ -58,9 +52,9 @@ struct HomeView: View {
                 AppBackground()
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         greetingHeader
-                        streakCard
+                        heartProgressCard
                         habitsSection
                         communitySection
                     }
@@ -69,7 +63,7 @@ struct HomeView: View {
                     .padding(.bottom, 32)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(true)
             .navigationDestination(for: Habit.self) { habit in
                 HabitDetailView(habit: habit)
             }
@@ -77,11 +71,13 @@ struct HomeView: View {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadAll(userId: userId)
                 await loadPublicCircles()
+                await loadPreferredName(userId: userId)
             }
             .task {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadAll(userId: userId)
                 await loadPublicCircles()
+                await loadPreferredName(userId: userId)
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") { viewModel.errorMessage = nil }
@@ -91,78 +87,108 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Greeting Header (D-04)
+    // MARK: - Greeting Header
 
     private var greetingHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("\(greetingText), \(firstName) \(greetingEmoji)")
-                .font(.appHeroTitle)
-                .foregroundStyle(Color.textPrimary)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(greetingText), \(preferredName)")
+                    .font(.appHeroTitle)
+                    .foregroundStyle(colors.textPrimary)
+                Image(systemName: greetingSymbol)
+                    .font(.system(size: 22))
+                    .foregroundStyle(Color.accent)
+            }
             Text(todayFormatted)
                 .font(.appCaption)
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(colors.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 8)
     }
 
-    // MARK: - Streak Card (D-05)
+    // MARK: - Heart Progress Card
 
-    @ViewBuilder
-    private var streakCard: some View {
-        if let streak = viewModel.streak, streak.currentStreak > 0 {
-            AppCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("🔥")
-                            .font(.appTitle)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(streak.currentStreak) day streak")
-                                .font(.appHeadline)
-                                .foregroundStyle(Color.textPrimary)
-                            Text("Best: \(streak.longestStreak) days")
-                                .font(.appCaption)
-                                .foregroundStyle(Color.textSecondary)
-                        }
-                        Spacer()
-                    }
-                    Text(islamicQuote)
-                        .font(.appCaption)
-                        .foregroundStyle(Color.accent)
-                        .italic()
+    private var heartProgressCard: some View {
+        AppCard {
+            VStack(spacing: 16) {
+                Text("Heart Progress")
+                    .font(.appHeadline)
+                    .foregroundStyle(colors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Glowing heart
+                ZStack {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 90))
+                        .foregroundStyle(Color.accent.opacity(0.25))
+                        .blur(radius: 22)
+
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 80))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(red: 0.98, green: 0.76, blue: 0.45), Color.accent],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 }
-                .padding(16)
+                .padding(.vertical, 4)
+
+                Text("\(viewModel.streak?.currentStreak ?? 0) Day Streak")
+                    .font(.appHeadline)
+                    .foregroundStyle(Color.accent)
+
+                Text(islamicQuote)
+                    .font(.appCaption)
+                    .italic()
+                    .foregroundStyle(colors.textSecondary)
+                    .multilineTextAlignment(.center)
+
+                Button(action: {}) {
+                    Text("Share Light")
+                        .font(.appCaptionMedium)
+                        .foregroundStyle(colors.textSecondary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .overlay(Capsule().stroke(colors.textSecondary.opacity(0.35), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
             }
+            .padding(20)
         }
     }
 
-    // MARK: - Habits Section (D-06, D-07)
+    // MARK: - Habits Section
 
     private var habitsSection: some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Daily Intentions")
             if viewModel.isLoading {
                 HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
             } else if viewModel.habits.isEmpty {
                 Text("Complete onboarding to add habits.")
                     .font(.appCaption)
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(colors.textSecondary)
             } else {
-                ForEach(viewModel.habits) { habit in
-                    HabitCardView(
-                        habit: habit,
-                        isCompleted: viewModel.isCompleted(habitId: habit.id),
-                        onToggle: {
-                            guard let userId = auth.session?.user.id else { return }
-                            Task { await viewModel.toggleHabit(habit, userId: userId) }
-                        }
-                    )
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(viewModel.habits) { habit in
+                        HabitCardView(
+                            habit: habit,
+                            isCompleted: viewModel.isCompleted(habitId: habit.id),
+                            onToggle: {
+                                guard let userId = auth.session?.user.id else { return }
+                                Task { await viewModel.toggleHabit(habit, userId: userId) }
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 
-    // MARK: - Community Circles Section (D-08)
+    // MARK: - Community Section
 
     @ViewBuilder
     private var communitySection: some View {
@@ -178,10 +204,10 @@ struct HomeView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(circle.name)
                                         .font(.appSubheadline)
-                                        .foregroundStyle(Color.textPrimary)
+                                        .foregroundStyle(colors.textPrimary)
                                     Text("Public Circle")
                                         .font(.appCaption)
-                                        .foregroundStyle(Color.textSecondary)
+                                        .foregroundStyle(colors.textSecondary)
                                 }
                                 Spacer()
                                 NavigationLink(destination: CircleDetailView(circle: circle)) {
@@ -201,55 +227,69 @@ struct HomeView: View {
 
     // MARK: - Data
 
+    private func loadPreferredName(userId: UUID) async {
+        struct ProfileName: Decodable { let preferred_name: String? }
+        let rows: [ProfileName] = (try? await SupabaseService.shared.client
+            .from("profiles")
+            .select("preferred_name")
+            .eq("id", value: userId.uuidString)
+            .limit(1)
+            .execute()
+            .value) ?? []
+        if let name = rows.first?.preferred_name, !name.isEmpty {
+            preferredName = name
+        }
+    }
+
     private func loadPublicCircles() async {
         isLoadingPublicCircles = true
         do {
             publicCircles = try await CircleService.shared.fetchPublicCircles()
-        } catch {
-            // Silently fail — community section simply stays hidden
-        }
+        } catch {}
         isLoadingPublicCircles = false
     }
 }
 
-// MARK: - HabitCardView (D-06)
+// MARK: - HabitCardView
 
 private struct HabitCardView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let habit: Habit
     let isCompleted: Bool
     let onToggle: () -> Void
 
+    private var colors: AppColors { AppColors.resolve(colorScheme) }
+
     private var habitSymbol: String {
         let n = habit.name.lowercased()
         if n.contains("quran") || n.contains("qur") { return "book.fill" }
-        if n.contains("salah") || n.contains("salat") || n.contains("prayer") { return "hands.sparkles.fill" }
-        if n.contains("dhikr") || n.contains("zikr") { return "circle.hexagongrid.fill" }
+        if n.contains("salah") || n.contains("salat") || n.contains("masjid") || n.contains("prayer") { return "building.columns.fill" }
+        if n.contains("dhikr") || n.contains("zikr") { return "circle.grid.3x3.fill" }
         if n.contains("fast") || n.contains("sawm") { return "moon.stars.fill" }
-        if n.contains("sadaqah") || n.contains("charity") { return "gift.fill" }
+        if n.contains("sadaqah") || n.contains("charity") { return "hands.sparkles.fill" }
         return "star.fill"
     }
 
     var body: some View {
         NavigationLink(value: habit) {
             AppCard {
-                HStack(spacing: 14) {
-                    Image(systemName: habitSymbol)
-                        .font(.system(size: 22))
-                        .foregroundStyle(Color.accent)
-                        .frame(width: 36, height: 36)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(habit.name)
-                            .font(.appSubheadline)
-                            .foregroundStyle(Color.textPrimary)
-                        if let goal = habit.acceptedAmount, !goal.isEmpty {
-                            Text(goal)
-                                .font(.appCaption)
-                                .foregroundStyle(Color.textSecondary)
-                        }
+                VStack(alignment: .leading, spacing: 10) {
+                    ZStack {
+                        SwiftUI.Circle()
+                            .fill(Color.accent.opacity(0.12))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: habitSymbol)
+                            .font(.system(size: 22))
+                            .foregroundStyle(Color.accent)
                     }
 
-                    Spacer()
+                    Text(habit.name)
+                        .font(.appSubheadline)
+                        .foregroundStyle(colors.textPrimary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 4)
 
                     ChipButton(
                         label: isCompleted ? "Done" : "Check In",
@@ -259,6 +299,7 @@ private struct HabitCardView: View {
                     )
                 }
                 .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
