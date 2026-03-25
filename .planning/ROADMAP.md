@@ -160,11 +160,11 @@ Plans:
 **Goal:** Establish the full design system — color tokens (light + dark mode), typography (New York serif + SF Pro), reusable SwiftUI components (cards, buttons, chips, background blobs), app icon design, sunrise/sunset auto dark mode logic.
 **Requirements**: TBD
 **Depends on:** Phase 6
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 06.1-01-PLAN.md — DesignTokens.swift (color + font tokens) + ThemeManager (sunrise/sunset auto dark mode)
-- [ ] 06.1-02-PLAN.md — AppBackground animated blob view
+- [x] 06.1-02-PLAN.md — AppBackground animated blob view
 - [ ] 06.1-03-PLAN.md — Reusable components (AppCard, PrimaryButton, ChipButton, SectionHeader, AppIconView) + wire ThemeManager into app root
 
 ### Phase 06.2: Core Screens Redesign (INSERTED)

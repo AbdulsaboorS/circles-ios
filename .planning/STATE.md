@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: Phase 6 Complete — ready for Phase 06.1 or Phase 7
-last_updated: "2026-03-24"
+status: Executing Phase 06.1
+last_updated: "2026-03-25T03:55:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Circles iOS — State
@@ -20,6 +20,15 @@ progress:
 **Phase 5: Unified Circle Feed** — COMPLETE (2/2 plans done, human-verified).
 
 ## What's Done
+
+### Phase 06.1, Plan 02: AppBackground — Animated Blob Background (2026-03-25) ✓
+
+- AppBackground.swift: standalone SwiftUI View; two Ellipse blobs with Gaussian blur at opposite corners
+- Primary blob: top-left, 75% screen width, 4s easeInOut animation, blur radius 100
+- Secondary blob: bottom-right, 55% screen width, 5s easeInOut animation with 1.2s delay (inverted scale for organic feel), blur radius 80
+- Dark mode: #0E0B08 background, #1A3A2A blobs; Light mode: #F5F0E8 background, #EDE0C8 blobs
+- Uses @Environment(\\.colorScheme) directly — no ThemeManager dependency (safe for Wave 1 parallel development)
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 6, Plan 03: Push Notification UI + Onboarding Profile Setup (2026-03-24) ✓
 
@@ -200,7 +209,7 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 | Phase 6, Plan 02 | ✓ Complete | Supabase Edge Functions: APNs helper, Adhan prayer times, moment-window cron, member-posted trigger, streak-milestone, peer nudges |
 | Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
 | Phase 06.1, Plan 01 | 📋 Planned | DesignTokens.swift (color + font tokens, semantic aliases) + ThemeManager (sunrise/sunset auto dark mode, ThemeMode enum) |
-| Phase 06.1, Plan 02 | 📋 Planned | AppBackground.swift — animated breathing blob background (Wave 1, parallel with 06.1-01) |
+| Phase 06.1, Plan 02 | ✓ Complete | AppBackground.swift — dual-blob breathing background; @Environment colorScheme; BUILD SUCCEEDED |
 | Phase 06.1, Plan 03 | 📋 Planned | AppCard, PrimaryButton, ChipButton, SectionHeader components + AppIconView + wire ThemeManager into CirclesApp/ContentView/MainTabView |
 
 ## Active Decisions
@@ -227,6 +236,8 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 - All AVFoundation session work runs on dedicated `nonisolated let sessionQueue = DispatchQueue(label:)` — never on MainActor/main thread; properties updated back to MainActor via `Task { @MainActor in }`
 - `@preconcurrency import AVFoundation` used in CameraManager to treat AVFoundation Sendable errors as warnings (Apple hasn't fully annotated AVFoundation for Sendable yet)
 - Timer.scheduledTimer callback uses MainActor.assumeIsolated (fires on main run loop) + windowTimer stored ref for invalidate — avoids sending non-Sendable Timer across actor boundary
+- AppBackground uses @Environment(\\.colorScheme) directly (not ThemeManager) — works before ThemeManager is wired in; safe for Wave 1 parallel execution
+- Blob animation: two ellipses with different durations (4s/5s) + 1.2s delay offset — never in sync, produces organic meditative feel
 - Peer members with no Moment omitted from grid; own-unposted slot always shown
 - MomentCardData local struct used in momentCards computed property to drive ForEach
 - FeedViewModel per-view @State (not singleton) — each CircleDetailView owns its feed state
@@ -250,12 +261,14 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 ## Accumulated Context
 
 ### Roadmap Evolution
+
 - Phase 06.1 inserted after Phase 6: UI Design System Foundation — color tokens, typography (New York serif + SF Pro), reusable components, app icon, sunrise/sunset auto dark mode
 - Phase 06.2 inserted after Phase 6: Core Screens Redesign — HomeView, CommunityView (My Circles + Public Explore), CircleDetailView, FeedView; adds is_public to circles schema
 - Phase 06.3 inserted after Phase 6: Secondary Screens Redesign — Profile, Onboarding, Camera/Moment, HabitDetailView (heatmap + notes journal + AI plan), loading/empty/error states, polish pass
 - Phase 7 (App Store Polish + Submission) remains as final phase, to be executed after 06.3
 
 ### UI Redesign Design Direction (2026-03-24)
+
 - Dark mode: deep near-black background + forest green organic blob shapes + glassmorphism cards + amber/gold CTA accent
 - Light mode: warm cream background + warm beige blob shapes + white cards + same amber accent
 - Typography: New York serif for greeting headers, SF Pro for body
