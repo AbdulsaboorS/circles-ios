@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: Executing Phase 06.1
-last_updated: "2026-03-25T03:55:00.000Z"
+last_updated: "2026-03-25T04:01:09.436Z"
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Circles iOS — State
@@ -20,6 +20,17 @@ progress:
 **Phase 5: Unified Circle Feed** — COMPLETE (2/2 plans done, human-verified).
 
 ## What's Done
+
+### Phase 06.1, Plan 01: Design Tokens + ThemeManager (2026-03-25) ✓
+
+- DesignTokens.swift: primitive Color tokens (#0E0B08 dark, #F5F0E8 light, #E8834B accent, #1A3A2A darkBlob, #EDE0C8 lightBlob, text variants, lightCardSurface)
+- AppColors semantic resolver: AppColors.resolve(_ scheme: ColorScheme) returns adaptive token set
+- D-07 static alias extensions: Color.appBackground, cardSurface, textPrimary, textSecondary, blobPrimary, blobSecondary
+- Font tokens: appHeroTitle/appTitle/appHeadline (New York serif, D-04) + appBody/appSubheadline/appCaption/appCaptionMedium (SF Pro, D-05)
+- ThemeManager.shared: @Observable @MainActor singleton with colorScheme: ColorScheme and ThemeMode enum (auto/alwaysLight/alwaysDark)
+- ThemeManager.scheduleAutoSwitch(): reads cityLatitude/cityLongitude from UserDefaults; NOAA solar algorithm for sunrise/sunset; 6am-8pm heuristic fallback
+- Deviation: Adhan not in iOS SPM (only in TS Edge Functions); replaced with pure Swift SolarCalculator (NOAA algorithm)
+- BUILD SUCCEEDED, zero errors
 
 ### Phase 06.1, Plan 02: AppBackground — Animated Blob Background (2026-03-25) ✓
 
@@ -208,7 +219,7 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 | Phase 6, Plan 01 | ✓ Complete | NotificationService singleton, AppDelegate APNs adaptor, DeviceToken model, LocationPickerView onboarding step |
 | Phase 6, Plan 02 | ✓ Complete | Supabase Edge Functions: APNs helper, Adhan prayer times, moment-window cron, member-posted trigger, streak-milestone, peer nudges |
 | Phase 6, Plan 03 | 📋 Planned | Soft-prompt modal, Community tab badge, nudge buttons, notifications-denied note, human verification |
-| Phase 06.1, Plan 01 | 📋 Planned | DesignTokens.swift (color + font tokens, semantic aliases) + ThemeManager (sunrise/sunset auto dark mode, ThemeMode enum) |
+| Phase 06.1, Plan 01 | ✓ Complete | DesignTokens.swift (color + font tokens, semantic aliases) + ThemeManager (NOAA solar algorithm, ThemeMode enum) |
 | Phase 06.1, Plan 02 | ✓ Complete | AppBackground.swift — dual-blob breathing background; @Environment colorScheme; BUILD SUCCEEDED |
 | Phase 06.1, Plan 03 | 📋 Planned | AppCard, PrimaryButton, ChipButton, SectionHeader components + AppIconView + wire ThemeManager into CirclesApp/ContentView/MainTabView |
 
@@ -257,6 +268,9 @@ Phase 6: Push Notifications — IN PROGRESS. 06-01 (iOS APNs pipeline) and 06-02
 - Notification permission: soft-prompt modal on first circle join → then iOS system requestAuthorization()
 - Community tab badge: local unreadCount in NotificationService, clears on tab open
 - Peer nudge rate limit: nudge_log table UNIQUE(sender_id, target_id, nudge_date) — 1 nudge/sender/recipient/day
+- Adhan Swift SPM NOT in iOS project — only TS Adhan port used in Edge Functions; ThemeManager uses pure Swift NOAA solar calculator
+- DesignTokens.swift uses static Color extensions + AppColors resolver (no xcassets Color Sets — incompatible with programmatic switching)
+- ThemeManager uses .preferredColorScheme() at root ContentView; D-07 semantic static aliases default to dark, adaptive via AppColors.resolve(colorScheme)
 
 ## Accumulated Context
 
