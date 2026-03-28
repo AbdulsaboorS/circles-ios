@@ -34,7 +34,8 @@ struct StreakMilestoneFeedItem: Identifiable, Sendable {
 
 // MARK: - Unified feed item enum
 
-enum FeedItem: Identifiable, Sendable {
+enum FeedItem: Identifiable, Sendable, Equatable {
+    public static func == (lhs: FeedItem, rhs: FeedItem) -> Bool { lhs.id == rhs.id }
     case moment(MomentFeedItem)
     case habitCheckin(HabitCheckinFeedItem)
     case streakMilestone(StreakMilestoneFeedItem)
@@ -53,6 +54,22 @@ enum FeedItem: Identifiable, Sendable {
         case .moment(let item): return item.postedAt
         case .habitCheckin(let item): return item.checkedAt
         case .streakMilestone(let item): return item.achievedAt
+        }
+    }
+
+    var circleId: UUID {
+        switch self {
+        case .moment(let item): return item.circleId
+        case .habitCheckin(let item): return item.circleId
+        case .streakMilestone(let item): return item.circleId
+        }
+    }
+
+    var postType: String {
+        switch self {
+        case .moment:           return "moment"
+        case .habitCheckin:     return "habit_checkin"
+        case .streakMilestone:  return "streak_milestone"
         }
     }
 }

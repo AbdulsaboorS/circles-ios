@@ -63,11 +63,21 @@ struct CircleDetailView: View {
                         }
 
                         if let userId = auth.session?.user.id {
-                            FeedView(
-                                circleIds: [circle.id],
-                                currentUserId: userId,
-                                viewModel: feedViewModel
-                            )
+                            ZStack {
+                                FeedView(
+                                    circleIds: [circle.id],
+                                    currentUserId: userId,
+                                    viewModel: feedViewModel
+                                )
+                                if DailyMomentService.shared.isGateActive {
+                                    ReciprocityGateView(
+                                        prayerName: DailyMomentService.shared.prayerDisplayName
+                                    ) {
+                                        showCamera = true
+                                    }
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                }
+                            }
                         }
                     }
                     .padding(.bottom, 24)
@@ -124,6 +134,7 @@ struct CircleDetailView: View {
                             caption: caption,
                             windowStart: circle.momentWindowStart
                         )
+                        DailyMomentService.shared.markPostedToday()
                         await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
                     },
                     onRetake: {

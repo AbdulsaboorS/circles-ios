@@ -4,6 +4,7 @@ struct HabitCheckinRow: View {
     let item: HabitCheckinFeedItem
     let currentUserId: UUID
     @Bindable var viewModel: FeedViewModel
+    var onComment: (() -> Void)? = nil
 
     var body: some View {
         AppCard {
@@ -20,10 +21,21 @@ struct HabitCheckinRow: View {
                         .font(.appCaption)
                         .foregroundStyle(Color.textSecondary)
                 }
-                ReactionBar(
-                    itemId: item.id, itemType: "habit_checkin",
-                    currentUserId: currentUserId, viewModel: viewModel
-                )
+                HStack {
+                    ReactionBar(
+                        itemId: item.id, itemType: "habit_checkin",
+                        currentUserId: currentUserId, viewModel: viewModel
+                    )
+                    Spacer()
+                    if let onComment {
+                        Button(action: onComment) {
+                            Image(systemName: "bubble.left")
+                                .font(.system(size: 15))
+                                .foregroundStyle(Color.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)

@@ -7,6 +7,10 @@ struct CommunityView: View {
     @State private var viewModel = CirclesViewModel()
     @State private var feedViewModel = FeedViewModel()
     @State private var selectedPage = 0
+    @State private var showGlobalCamera = false
+    @State private var globalCapturedImage: UIImage? = nil
+    @State private var showGlobalPreview = false
+    private var momentService = DailyMomentService.shared
 
     var body: some View {
         NavigationStack {
@@ -56,6 +60,42 @@ struct CommunityView: View {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadCircles(userId: userId)
                 await loadGlobalFeed()
+                await DailyMomentService.shared.load(userId: userId)
+            }
+            .fullScreenCover(isPresented: $showGlobalCamera) {
+                if let circleId = viewModel.circles.first?.id {
+                    MomentCameraView(circleId: circleId) { image in
+                        globalCapturedImage = image
+                        showGlobalCamera = false
+                        showGlobalPreview = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showGlobalPreview) {
+                if let image = globalCapturedImage,
+                   let circleId = viewModel.circles.first?.id {
+                    MomentPreviewView(
+                        image: image,
+                        onPost: { caption in
+                            guard let userId = auth.session?.user.id else { return }
+                            _ = try await MomentService.shared.postMoment(
+                                image: image,
+                                circleId: circleId,
+                                userId: userId,
+                                caption: caption,
+                                windowStart: viewModel.circles.first?.momentWindowStart
+                            )
+                            DailyMomentService.shared.markPostedToday()
+                            await loadGlobalFeed()
+                        },
+                        onRetake: {
+                            showGlobalPreview = false
+                            globalCapturedImage = nil
+                            showGlobalCamera = true
+                        }
+                    )
+                    .environment(auth)
+                }
             }
             .onChange(of: viewModel.circles) { _, circles in
                 // Reload global feed when circles change (joined/created a new one)
@@ -142,19 +182,27 @@ struct CommunityView: View {
                 }
                 .padding(.horizontal, 32)
             } else {
-                ScrollView {
-                    if let userId = auth.session?.user.id {
-                        FeedView(
-                            circleIds: viewModel.circles.map { $0.id },
-                            currentUserId: userId,
-                            viewModel: feedViewModel
-                        )
-                        .padding(.top, 8)
-                        .padding(.bottom, 24)
+                ZStack {
+                    ScrollView {
+                        if let userId = auth.session?.user.id {
+                            FeedView(
+                                circleIds: viewModel.circles.map { $0.id },
+                                currentUserId: userId,
+                                viewModel: feedViewModel
+                            )
+                            .padding(.top, 8)
+                            .padding(.bottom, 24)
+                        }
                     }
-                }
-                .refreshable {
-                    await loadGlobalFeed()
+                    .refreshable {
+                        await loadGlobalFeed()
+                    }
+
+                    if momentService.isGateActive {
+                        ReciprocityGateView(prayerName: momentService.prayerDisplayName) {
+                            showGlobalCamera = true
+                        }
+                    }
                 }
             }
         }

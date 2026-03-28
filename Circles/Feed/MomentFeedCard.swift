@@ -5,6 +5,7 @@ struct MomentFeedCard: View {
     let currentUserId: UUID
     let hasPostedToday: Bool
     @Bindable var viewModel: FeedViewModel
+    var onComment: (() -> Void)? = nil
 
     var isLocked: Bool { !hasPostedToday && item.userId != currentUserId }
 
@@ -62,38 +63,45 @@ struct MomentFeedCard: View {
                     }
                 }
 
-                // Reaction bar
-                ReactionBar(
-                    itemId: item.id, itemType: "moment",
-                    currentUserId: currentUserId, viewModel: viewModel
-                )
+                // Reaction bar + comment
+                HStack {
+                    ReactionBar(
+                        itemId: item.id, itemType: "moment",
+                        currentUserId: currentUserId, viewModel: viewModel
+                    )
+                    Spacer()
+                    if let onComment {
+                        Button(action: onComment) {
+                            Image(systemName: "bubble.left")
+                                .font(.system(size: 16))
+                                .foregroundStyle(Color.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
             }
         }
         .overlay(alignment: .topTrailing) {
-            if item.isOnTime {
-                HStack(spacing: 4) {
+            HStack(spacing: 4) {
+                if item.isOnTime {
                     Image(systemName: "star.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: 10))
                         .foregroundStyle(Color.accent)
-                    Text(relativeTimestamp(item.postedAt))
+                    Text("Posted at \(DailyMomentService.shared.prayerDisplayName)")
+                        .font(.appCaption)
+                        .foregroundStyle(Color.accent)
+                } else {
+                    Text("Posted late")
                         .font(.appCaption)
                         .foregroundStyle(Color.textSecondary)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(10)
-            } else {
-                Text(relativeTimestamp(item.postedAt))
-                    .font(.appCaption)
-                    .foregroundStyle(Color.textSecondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(10)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .padding(10)
         }
     }
 

@@ -5,6 +5,8 @@ struct FeedView: View {
     let currentUserId: UUID
     @Bindable var viewModel: FeedViewModel
 
+    @State private var commentingOnItem: FeedItem? = nil
+
     var body: some View {
         LazyVStack(spacing: 10) {
             ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { index, item in
@@ -31,19 +33,31 @@ struct FeedView: View {
             // Empty feed state
             if viewModel.items.isEmpty && !viewModel.isLoadingInitial {
                 VStack(spacing: 12) {
-                    Text("No activity yet")
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.accent.opacity(0.5))
+                    Text("No moments yet.")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.textSecondary)
-                    Text("Check in to your habits or post a Moment to get started.")
+                    Text("Be the first to post today.")
                         .font(.appCaption)
                         .foregroundStyle(Color.textSecondary.opacity(0.6))
-                        .multilineTextAlignment(.center)
                 }
                 .padding(.vertical, 40)
                 .padding(.horizontal, 24)
             }
         }
         .padding(.horizontal, 16)
+        .sheet(item: $commentingOnItem) { item in
+            CommentDrawerView(
+                postId: item.id,
+                postType: item.postType,
+                circleId: item.circleId,
+                currentUserId: currentUserId
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     @ViewBuilder
@@ -53,18 +67,22 @@ struct FeedView: View {
             MomentFeedCard(
                 item: m, currentUserId: currentUserId,
                 hasPostedToday: viewModel.hasPostedToday,
-                viewModel: viewModel
+                viewModel: viewModel,
+                onComment: { commentingOnItem = item }
             )
         case .habitCheckin(let h):
             HabitCheckinRow(
                 item: h, currentUserId: currentUserId,
-                viewModel: viewModel
+                viewModel: viewModel,
+                onComment: { commentingOnItem = item }
             )
         case .streakMilestone(let s):
             StreakMilestoneCard(
                 item: s, currentUserId: currentUserId,
-                viewModel: viewModel
+                viewModel: viewModel,
+                onComment: { commentingOnItem = item }
             )
         }
     }
 }
+
