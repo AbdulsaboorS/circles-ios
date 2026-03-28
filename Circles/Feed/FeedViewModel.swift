@@ -24,24 +24,27 @@ final class FeedViewModel {
 
     // MARK: - Public API
 
-    func loadInitial(circleId: UUID, currentUserId: UUID) async {
+    /// Load first page. Pass `[circle.id]` for a single-circle feed or all circle IDs for global.
+    /// When `singleCircleId` is provided, also checks reciprocity gate for that circle.
+    func loadInitial(circleIds: [UUID], currentUserId: UUID, singleCircleId: UUID? = nil) async {
         guard !isLoadingInitial else { return }
         isLoadingInitial = true
         errorMessage = nil
         currentPage = 0
         hasMorePages = true
         do {
-            async let pageFetch = FeedService.shared.fetchFeedPage(circleId: circleId, page: 0, pageSize: pageSize)
-            async let momentsFetch = MomentService.shared.fetchTodayMoments(circleId: circleId)
-            let (firstPage, todayMoments) = try await (pageFetch, momentsFetch)
-
+            let firstPage = try await FeedService.shared.fetchFeedPage(circleIds: circleIds, page: 0, pageSize: pageSize)
             items = firstPage
             hasMorePages = firstPage.count == pageSize
 
-            // Determine reciprocity gate state
-            hasPostedToday = todayMoments.contains { $0.userId == currentUserId }
+            // Reciprocity gate: only relevant for single-circle views
+            if let cid = singleCircleId {
+                let todayMoments = try await MomentService.shared.fetchTodayMoments(circleId: cid)
+                hasPostedToday = todayMoments.contains { $0.userId == currentUserId }
+            } else {
+                hasPostedToday = true // no gate on global feed
+            }
 
-            // Load reactions for first page
             if !firstPage.isEmpty {
                 let ids = firstPage.map { $0.id }
                 reactions = Dictionary(grouping: try await FeedService.shared.fetchReactions(itemIds: ids), by: { $0.itemId })
@@ -52,17 +55,16 @@ final class FeedViewModel {
         isLoadingInitial = false
     }
 
-    func loadNextPage(circleId: UUID) async {
+    func loadNextPage(circleIds: [UUID]) async {
         guard !isLoadingNextPage, hasMorePages else { return }
         isLoadingNextPage = true
         do {
             let nextPage = currentPage + 1
-            let newItems = try await FeedService.shared.fetchFeedPage(circleId: circleId, page: nextPage, pageSize: pageSize)
+            let newItems = try await FeedService.shared.fetchFeedPage(circleIds: circleIds, page: nextPage, pageSize: pageSize)
             currentPage = nextPage
             items.append(contentsOf: newItems)
             hasMorePages = newItems.count == pageSize
 
-            // Load reactions for newly fetched items
             if !newItems.isEmpty {
                 let ids = newItems.map { $0.id }
                 let newReactions = try await FeedService.shared.fetchReactions(itemIds: ids)
@@ -76,10 +78,10 @@ final class FeedViewModel {
         isLoadingNextPage = false
     }
 
-    func refresh(circleId: UUID, currentUserId: UUID) async {
+    func refresh(circleIds: [UUID], currentUserId: UUID, singleCircleId: UUID? = nil) async {
         items = []
         reactions = [:]
-        await loadInitial(circleId: circleId, currentUserId: currentUserId)
+        await loadInitial(circleIds: circleIds, currentUserId: currentUserId, singleCircleId: singleCircleId)
     }
 
     // MARK: - Optimistic Reaction Toggle

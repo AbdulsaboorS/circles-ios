@@ -8,124 +8,124 @@ struct CreateCircleView: View {
 
     @State private var name = ""
     @State private var description = ""
+    @State private var genderSetting = "mixed"
     @State private var isCreating = false
     @State private var localError: String?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "0D1021").ignoresSafeArea()
+                AppBackground()
 
-                VStack(spacing: 20) {
-                    VStack(spacing: 12) {
-                        // Name field
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Circle Name")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.5))
-                                .textCase(.uppercase)
-                                .tracking(0.8)
-
-                            TextField("e.g. Ramadan Squad", text: $name)
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Name
+                        fieldSection(label: "Circle Name") {
+                            TextField("e.g. Fajr Squad", text: $name)
                                 .textInputAutocapitalization(.words)
-                                .foregroundStyle(.white)
+                                .font(.appSubheadline)
+                                .foregroundStyle(colors.textPrimary)
                                 .padding(14)
-                                .background(Color.white.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .tint(Color(hex: "E8834B"))
-                                .colorScheme(.dark)
+                                .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                                .tint(Color.accent)
                         }
 
-                        // Description field
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Description (optional)")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.5))
-                                .textCase(.uppercase)
-                                .tracking(0.8)
-
+                        // Description
+                        fieldSection(label: "Description (optional)") {
                             TextField("What's this circle about?", text: $description, axis: .vertical)
                                 .textInputAutocapitalization(.sentences)
-                                .foregroundStyle(.white)
+                                .font(.appSubheadline)
+                                .foregroundStyle(colors.textPrimary)
                                 .lineLimit(3...5)
                                 .padding(14)
-                                .background(Color.white.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .tint(Color(hex: "E8834B"))
-                                .colorScheme(.dark)
+                                .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                                .tint(Color.accent)
                         }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
 
-                    if let error = localError {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                    }
+                        // Gender Setting
+                        fieldSection(label: "Circle Setting") {
+                            HStack(spacing: 8) {
+                                ForEach([("Mixed", "mixed"), ("Brothers", "brothers"), ("Sisters", "sisters")], id: \.1) { label, value in
+                                    Button {
+                                        genderSetting = value
+                                    } label: {
+                                        Text(label)
+                                            .font(.appCaptionMedium)
+                                            .foregroundStyle(genderSetting == value ? .white : Color.accent)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 10)
+                                            .background(
+                                                genderSetting == value ? Color.accent : Color.accent.opacity(0.1),
+                                                in: RoundedRectangle(cornerRadius: 10)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
 
-                    Spacer()
+                        if let error = localError {
+                            Text(error)
+                                .font(.appCaption)
+                                .foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                        }
 
-                    // Create button
-                    Button {
-                        Task {
-                            isCreating = true
-                            localError = nil
-                            viewModel.errorMessage = nil
-                            guard let userId = auth.session?.user.id else {
-                                localError = "Not signed in."
+                        Spacer(minLength: 20)
+
+                        PrimaryButton(title: "Create Circle", isLoading: isCreating) {
+                            Task {
+                                isCreating = true
+                                localError = nil
+                                viewModel.errorMessage = nil
+                                guard let userId = auth.session?.user.id else {
+                                    localError = "Not signed in."
+                                    isCreating = false
+                                    return
+                                }
+                                let result = await viewModel.createCircle(
+                                    name: name.trimmingCharacters(in: .whitespaces),
+                                    description: description.isEmpty ? nil : description,
+                                    prayerTime: nil,
+                                    userId: userId
+                                )
+                                if result != nil {
+                                    dismiss()
+                                } else {
+                                    localError = viewModel.errorMessage ?? "Something went wrong. Try again."
+                                }
                                 isCreating = false
-                                return
-                            }
-                            let result = await viewModel.createCircle(
-                                name: name.trimmingCharacters(in: .whitespaces),
-                                description: description.isEmpty ? nil : description,
-                                prayerTime: nil,
-                                userId: userId
-                            )
-                            if result != nil {
-                                dismiss()
-                            } else {
-                                localError = viewModel.errorMessage ?? "Something went wrong. Try again."
-                            }
-                            isCreating = false
-                        }
-                    } label: {
-                        ZStack {
-                            if isCreating {
-                                ProgressView().tint(.white)
-                            } else {
-                                Text("Create Circle")
-                                    .font(.headline)
-                                    .foregroundStyle(.white)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating
-                                ? Color(hex: "E8834B").opacity(0.4)
-                                : Color(hex: "E8834B")
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .padding(.bottom, 32)
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
+                    .padding(.top, 16)
                 }
             }
             .navigationTitle("New Circle")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color(hex: "0D1021"), for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Color(hex: "E8834B"))
+                        .foregroundStyle(Color.accent)
                 }
             }
+        }
+    }
+
+    private func fieldSection<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.appCaption)
+                .foregroundStyle(colors.textSecondary)
+                .textCase(.uppercase)
+                .tracking(0.6)
+            content()
         }
     }
 }

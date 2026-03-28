@@ -5,9 +5,8 @@ struct CommunityView: View {
     @Environment(AuthManager.self) var auth
     @Environment(\.pendingInviteCode) var pendingInviteCode
     @State private var viewModel = CirclesViewModel()
-    @State private var selectedTab = 0
-    @State private var publicCircles: [Circle] = []
-    @State private var isLoadingPublicCircles = false
+    @State private var feedViewModel = FeedViewModel()
+    @State private var selectedPage = 0
 
     var body: some View {
         NavigationStack {
@@ -15,22 +14,24 @@ struct CommunityView: View {
                 AppBackground()
 
                 VStack(spacing: 0) {
-                    Picker("", selection: $selectedTab) {
-                        Text("My Circles").tag(0)
-                        Text("Explore").tag(1)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
+                    // Feed | Circles segmented control
+                    pageSelector
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
 
-                    if selectedTab == 0 {
-                        myCirclesContent
-                    } else {
-                        exploreContent
+                    // Swipeable pages
+                    TabView(selection: $selectedPage) {
+                        globalFeedPage
+                            .tag(0)
+                        circlesPage
+                            .tag(1)
                     }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .animation(.easeInOut(duration: 0.25), value: selectedPage)
                 }
             }
-            .navigationTitle("Community")
+            .navigationTitle("Circles")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -52,15 +53,13 @@ struct CommunityView: View {
                 }
             }
             .task {
-                if let userId = auth.session?.user.id {
-                    await viewModel.loadCircles(userId: userId)
-                }
-                await loadPublicCircles()
+                guard let userId = auth.session?.user.id else { return }
+                await viewModel.loadCircles(userId: userId)
+                await loadGlobalFeed()
             }
-            .onChange(of: selectedTab) { _, tab in
-                if tab == 1 && publicCircles.isEmpty {
-                    Task { await loadPublicCircles() }
-                }
+            .onChange(of: viewModel.circles) { _, circles in
+                // Reload global feed when circles change (joined/created a new one)
+                Task { await loadGlobalFeed() }
             }
             .sheet(isPresented: $viewModel.showCreateSheet) {
                 CreateCircleView(viewModel: viewModel)
@@ -83,184 +82,116 @@ struct CommunityView: View {
         }
     }
 
-    // MARK: - My Circles (D-11)
+    // MARK: - Page Selector
 
-    private var myCirclesContent: some View {
+    private var pageSelector: some View {
+        HStack(spacing: 0) {
+            pageTab(title: "Feed", index: 0)
+            pageTab(title: "Circles", index: 1)
+        }
+        .background(Color.accent.opacity(0.08), in: Capsule())
+        .padding(3)
+        .background(Color.black.opacity(0.04), in: Capsule())
+    }
+
+    private func pageTab(title: String, index: Int) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                selectedPage = index
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: selectedPage == index ? .semibold : .regular))
+                .foregroundStyle(selectedPage == index ? Color.white : Color(hex: "6B5B45"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
+                .background(
+                    selectedPage == index
+                        ? Color.accent
+                        : Color.clear,
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Global Feed Page
+
+    private var globalFeedPage: some View {
         Group {
-            if viewModel.isLoading {
-                Spacer()
-                ProgressView().tint(Color.accent)
-                Spacer()
+            if feedViewModel.isLoadingInitial {
+                VStack {
+                    Spacer()
+                    ProgressView().tint(Color.accent)
+                    Spacer()
+                }
             } else if viewModel.circles.isEmpty {
-                myCirclesEmptyState
+                VStack(spacing: 16) {
+                    Spacer()
+                    Image(systemName: "moon.stars.fill")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Color.accent.opacity(0.6))
+                    Text("No activity yet")
+                        .font(.system(size: 20, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color(hex: "1A1209"))
+                    Text("Join or create a circle to see your feed.")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color(hex: "6B5B45"))
+                        .multilineTextAlignment(.center)
+                    Spacer()
+                }
+                .padding(.horizontal, 32)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(viewModel.circles) { circle in
-                            NavigationLink(destination: CircleDetailView(circle: circle)) {
-                                AppCard {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(circle.name)
-                                                .font(.appSubheadline)
-                                                .foregroundStyle(Color.textPrimary)
-                                            if let desc = circle.description, !desc.isEmpty {
-                                                Text(desc)
-                                                    .font(.appCaption)
-                                                    .foregroundStyle(Color.textSecondary)
-                                                    .lineLimit(1)
-                                            }
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.appCaption)
-                                            .foregroundStyle(Color.textSecondary)
-                                    }
-                                    .padding(14)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    if let userId = auth.session?.user.id {
+                        FeedView(
+                            circleIds: viewModel.circles.map { $0.id },
+                            currentUserId: userId,
+                            viewModel: feedViewModel
+                        )
+                        .padding(.top, 8)
+                        .padding(.bottom, 24)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
                 }
                 .refreshable {
-                    if let userId = auth.session?.user.id {
-                        await viewModel.loadCircles(userId: userId)
-                    }
+                    await loadGlobalFeed()
                 }
             }
         }
     }
 
-    private var myCirclesEmptyState: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "person.2.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accent.opacity(0.7))
-            VStack(spacing: 8) {
-                Text("Your Circles")
-                    .font(.appHeadline)
-                    .foregroundStyle(Color.textPrimary)
-                Text("Create or join a circle to get started")
-                    .font(.appSubheadline)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            VStack(spacing: 12) {
-                PrimaryButton(title: "Create a Circle") {
-                    viewModel.showCreateSheet = true
-                }
-                Button {
-                    viewModel.showJoinSheet = true
-                } label: {
-                    Text("Join with Code")
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.accent, lineWidth: 1.5)
-                        )
-                }
-            }
-            .padding(.horizontal, 32)
-            Spacer()
-        }
-        .padding(.horizontal, 32)
-    }
+    // MARK: - Circles Page
 
-    // MARK: - Public Explore (D-12)
-
-    private var exploreContent: some View {
+    private var circlesPage: some View {
         Group {
-            if isLoadingPublicCircles {
-                Spacer()
-                ProgressView().tint(Color.accent)
-                Spacer()
-            } else if publicCircles.isEmpty {
-                VStack(spacing: 12) {
+            if viewModel.isLoading {
+                VStack {
                     Spacer()
-                    Text("No public circles yet")
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color.textSecondary)
-                    Text("Create a circle and make it public to appear here.")
-                        .font(.appCaption)
-                        .foregroundStyle(Color.textSecondary.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+                    ProgressView().tint(Color.accent)
                     Spacer()
                 }
+            } else if viewModel.circles.isEmpty {
+                MyCirclesEmptyView(
+                    onCreateCircle: { viewModel.showCreateSheet = true },
+                    onJoinCircle:   { viewModel.showJoinSheet = true }
+                )
             } else {
-                ScrollView {
-                    LazyVGrid(
-                        columns: [GridItem(.flexible()), GridItem(.flexible())],
-                        spacing: 12
-                    ) {
-                        ForEach(Array(publicCircles.enumerated()), id: \.element.id) { index, circle in
-                            NavigationLink(destination: CircleDetailView(circle: circle)) {
-                                BubbleCircleCard(circle: circle, isOffset: index % 2 == 1)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
-                }
+                MyCirclesView(
+                    circles: viewModel.circles,
+                    onCreateCircle: { viewModel.showCreateSheet = true },
+                    onJoinCircle:   { viewModel.showJoinSheet = true }
+                )
             }
         }
     }
 
-    // MARK: - Data
+    // MARK: - Helpers
 
-    private func loadPublicCircles() async {
-        isLoadingPublicCircles = true
-        publicCircles = (try? await CircleService.shared.fetchPublicCircles()) ?? []
-        isLoadingPublicCircles = false
-    }
-}
-
-// MARK: - BubbleCircleCard (D-12)
-
-private struct BubbleCircleCard: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let circle: Circle
-    let isOffset: Bool
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                if colorScheme == .dark {
-                    SwiftUI.Circle()
-                        .fill(.ultraThinMaterial)
-                } else {
-                    SwiftUI.Circle()
-                        .fill(Color.white)
-                        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 2)
-                }
-                Text(String(circle.name.prefix(2)).uppercased())
-                    .font(.appHeadline)
-                    .foregroundStyle(Color.accent)
-            }
-            .frame(width: 80, height: 80)
-
-            Text(circle.name)
-                .font(.appCaptionMedium)
-                .foregroundStyle(Color.textPrimary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-
-            Text("Public")
-                .font(.appCaption)
-                .foregroundStyle(Color.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .padding(.horizontal, 8)
-        .padding(.top, isOffset ? 24 : 0)
+    private func loadGlobalFeed() async {
+        guard let userId = auth.session?.user.id,
+              !viewModel.circles.isEmpty else { return }
+        let ids = viewModel.circles.map { $0.id }
+        await feedViewModel.loadInitial(circleIds: ids, currentUserId: userId)
     }
 }
 

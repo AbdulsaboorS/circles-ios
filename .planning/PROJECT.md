@@ -1,127 +1,141 @@
-# Circles — Islamic Social Accountability App
+# Circles — Product Vision & Requirements (v2.3)
 
-## Product Vision
+**Date:** 2026-03-26
+**Status:** Finalized for Execution (Private MVP)
 
-Circles is a native iOS app for Muslim Gen Z and millennials that gives existing Islamic accountability groups (halaqas, MSA chapters, friend groups) a dedicated digital home. The core mechanic: a small circle of trusted people, a daily habit layer, and a "Circle Moment" — a BeReal-style daily check-in anchored to a chosen prayer time.
+---
 
-**Core insight:** Muslims already structure their days around salah. The prayer-time anchor gives a daily social check-in ritual a pre-existing behavioral hook no secular app can replicate.
+## Vision
 
-## App Name
+The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeReal" for your closest circle.
 
-**Circles** — subtitle TBD for App Store (e.g., "Circles: Islamic Accountability"). Keeps "Circles" branding from Legacy web while differentiating from "Circles - Know Your People" (secular social app, App Store id6753855763) via subtitle and positioning.
+**One-sentence pitch:** A private accountability space where your circle keeps each other consistent on daily habits through a shared daily moment anchored to prayer.
 
-Alternative if App Store rejects: **Halaqa** — the exact Arabic word for an Islamic accountability circle.
+---
+
+## Foundational Principles (Non-Negotiables)
+
+1. **Privacy over Virality** — There is no "Public" mode. If it isn't in a circle, it doesn't exist for other users.
+2. **Connection over Competition** — No leaderboards, no like counts. We celebrate presence, not performance.
+3. **Muslim-Native UX** — Every notification, label, and interaction should feel like it was built by a Muslim, for a Muslim.
+4. **Low-Friction Accountability** — Habit logging takes less than 3 seconds. The AI handles planning; the user handles the doing.
+
+**Anti-patterns:** No leaderboards, no public profiles, no follower counts, no shaming mechanics.
+
+---
 
 ## Core Mechanics
 
-### 1. Small Accountability Circles
-- Max 10-12 members per circle (MVP)
-- Private by default — invite-only
-- Invite link is the primary onboarding entry point
-- Multiple circles per user supported
-- Circle name, description, chosen prayer time (Fajr / Dhuhr / Asr / Maghrib / Isha)
+### A. The Circle Moment (The Heartbeat)
+- System-controlled daily trigger: server picks one prayer globally as the "Moment of the Day" (e.g., Asr)
+- Push notification fires relative to each user's **local** prayer time (rolling wave effect via Aladhan API)
+- 30-minute capture window: photo + optional caption (max 100 chars)
+- **Reciprocity Gate**: Gate activates the moment the window OPENS. Feed (Global + per-Circle) is blurred until user posts. No exceptions.
+- On-time indicator: "Posted at Asr" badge if posted within window
+- Late posts: allowed, tagged "Posted late" — no streak penalty, no shame
+- One post = unlocks feed across ALL circles simultaneously
+- Text-only fallback if camera unavailable (stored as `circle_moments` row with null `photo_url`)
 
-### 2. Daily Habit Tracking
-- Each user tracks 2-5 personal habits
-- Daily check-in with streak tracking + grace day system
-- Habit types: salah, Quran, dhikr, fasting, tahajjud, sadaqah, custom
-- AI-powered personalized 28-day "step-down" plan per habit (Gemini 2.0 Flash — reused from Legacy backend)
-- Circle members see each other's check-in status (name + ✓/✗, not the habit detail)
+### B. Dual-Track Habit System
+- **Accountable Habits**: Linked to a specific circle. Completions broadcast to that circle's feed only. A habit can be accountable in multiple circles independently.
+- **Personal Habits**: Private-only. Never broadcast. No one else sees these.
+- Users can convert a Personal habit → Accountable at any time
+- AI generates 28-day roadmap per habit in background (Gemini 2.0 Flash)
+- Refinement guardrail: 3 AI re-generations per habit per week (DB-tracked)
 
-### 3. Circle Moment (BeReal-style)
-- Each circle picks one prayer time as their "Moment time"
-- At that prayer time, all members get a push notification: "Your circle's Moment is starting"
-- 30-minute window to post: a photo (front/back camera) + optional caption
-- **Reciprocity gate:** you must post your Moment to see your circle's Moments today
-- On-time indicator: ⭐ "Posted at Asr" shown if posted within the window
-- Late posts still allowed — no shame, just no star
-- Miss it entirely: no streak break, it's optional but sticky
+### C. Circle Core Habits
+- Amir selects 2-3 "Core Habits" that define the circle's mission
+- Members must pick at least 1 core habit to join
+- Core habits displayed on circle card and detail view
 
-### 4. Unified Circle Feed
-- Single feed per circle, reverse-chronological
-- Three item types: Circle Moments (photo posts), habit check-ins, streak milestones
-- Reactions on each item (limited set: 5-7 Islamic-context reactions)
-- No comments on Moments (MVP) — keeps feed clean
+### D. The "Amir" (Leader) Flow — under 60 seconds
+1. **Circle Identity**: Name + gender setting (Brothers / Sisters / Mixed)
+2. **Core Mission**: Select 2-3 habits from curated Islamic list
+3. **Prayer Sync**: Location (Aladhan-based prayer time)
+4. **Soul Gate** (hard lock): Must trigger native share sheet before onboarding completes. AI roadmap generates in background during this step.
+5. **Landing**: Home tab — Daily Intentions
 
-### 5. Invite-as-Onboarding
-- Invite link is the first thing a new user sees
-- Tapping an invite link → download prompt → sign up → land directly in the circle
-- No cold-start discovery needed
+### E. The "Member" (Joiner) Flow
+1. **Rich Circle Preview**: Unauthenticated. Shows circle name, member count, group streak. Zero personal data.
+2. **Sign-In**: Google / Apple
+3. **Habit Alignment**: "Ahmad is tracking Fajr and Quran. Which will you do?" Must select ≥ 1.
+4. **Prayer Sync**: Location
+5. **Landing**: Global Feed (Circles tab)
 
-## Target User
+### F. Navigation Structure
+- **App entry**: Circles tab (Global Feed) — maximizes social activation
+- **Circles tab**: Two sub-views
+  - View 1: Global Feed — unified chronological feed from all circles (photo moments + habit check-ins + milestones). Reciprocity gated.
+  - View 2: My Circles — scrollable list of Circle Cards (name, member avatars, group streak flame)
+- **Home tab**: Daily Intentions only — personal habit check-ins, no social feed
+- **Profile tab**: Identity (photo, name, member since), impact stats (total days, best streak, circle count), habit badges grid, settings
 
-Muslim Gen Z and millennials (ages 15-35), primarily diaspora (US, UK, Canada, France, Germany). Existing accountability networks: MSA chapters, Ramadan halaqa groups, friend circles. High smartphone use, skeptical of preachy apps, want something authentically theirs.
+### G. Comment Drawer (MVP)
+- Tapping any feed item opens a slide-up comment drawer
+- Comments are circle-specific and entirely private to that group
+- Push notifications for new comments
+- No global moderation (trusted circles self-moderate)
 
-## Backend
+### H. Social Interactions
+- **Reactions**: 6 curated non-competitive icons (👍 ❤️ 🔥 🙌 🤲 💡). No counts — show face pile of who reacted.
+- **Nudge**: Tap nudge icon next to a member who hasn't posted → friendly push notification: "Humza is waiting for your moment!"
+- **Group Streak**: Displayed on circle cards. Increments when all members post their moment on the same day.
 
-Supabase (reused from Legacy web app):
-- Existing tables: `habits`, `habit_logs`, `shawwal_fasts`, `streaks`, `halaqas`, `halaqa_members`, `habit_reactions`, `activity_feed`
-- New tables needed: `circle_moments`, `circle_moment_reactions`, prayer time per circle
-- Supabase Storage: photo bucket for Circle Moments
-- Auth: Google OAuth (existing) + Sign in with Apple (required for App Store)
+### I. Profile & Identity
+- Profile photo (MVP) — powers face piles, member boards, reaction identity
+- PHPicker → Supabase Storage (avatars bucket) → `profiles.avatar_url`
+- Impact stats: Total Days, Best Streak, Circle Count
+- Habit badges grid with individual streak per habit
+- Settings: name, location, notification preferences, theme mode, sign out
 
-## Tech Stack
-
-- **Language / UI**: Swift 6, SwiftUI
-- **Backend**: Supabase Swift SDK (via SPM)
-- **AI**: Gemini 2.0 Flash via REST (reuse Legacy API endpoints or call directly)
-- **Auth**: Supabase + Sign in with Apple
-- **Push Notifications**: APNs via Supabase Edge Functions or direct APNs
-- **Storage**: Supabase Storage (photos)
-- **Deploy**: App Store (primary), TestFlight (beta)
-
-## Apple Developer
-
-- Account enrolled ($99/year)
-- Bundle ID: `app.joinlegacy`
-- Xcode 26.3
-
-## Key Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| Native Swift over Capacitor | App Store approval, performance, native camera/APNs access |
-| Supabase reused from Legacy | Existing auth, tables, RLS carry over — no backend rebuild |
-| Invite-as-onboarding | Eliminates cold start; trust is pre-existing from offline relationships |
-| Reciprocity gate on Moments | Proven BeReal mechanic — post to see others; FOMO → action |
-| Prayer-time anchor for Moment | Habit stacking on pre-existing Muslim daily structure — best behavioral trigger |
-| No comment threads (MVP) | Keeps feed low-maintenance; reduces moderation surface |
-| Sign in with Apple required | App Store guideline: required if Google OAuth offered |
-| Max 10-12 per circle (MVP) | Maintains intimacy; halaqas traditionally 4-12 people |
-
-## Differentiation vs. Competitors
-
-- **vs. Pillars**: Pillars is a solo prayer utility. Circles is a social network built on salah timing.
-- **vs. Muslamica**: Muslamica is broad Islamic social media. Circles is intimate, accountability-first.
-- **vs. BeReal**: BeReal had random triggers. Circle Moment is anchored to prayer — deeper cultural meaning, better retention hook.
-- **vs. HabitShare**: HabitShare is passive checkmarks. Circles has a visual shared moment.
-- **vs. "Circles - Know Your People"**: That's a secular novelty app. Circles is an accountability tool for Muslims with an Islamic habit layer.
-
-## What's Out of Scope (v1.0)
-
-- Real-time chat / DMs
-- Public profiles or discovery feed
-- Leaderboards or rankings
-- Payments / subscriptions
-- Circle Moment comments (deferred to v1.1)
-- Web version (Legacy web = marketing site only)
-- Android
-
-## Phases (MVP → Launch)
-
-See ROADMAP.md for detailed phase breakdown.
-
-**High-level:**
-- Phase 1: Auth + Core Navigation Shell
-- Phase 2: Habits + Daily Check-in
-- Phase 3: Circles (create, join, member view)
-- Phase 4: Circle Moment (camera, post, reciprocity gate)
-- Phase 5: Unified Circle Feed
-- Phase 6: Push Notifications
-- Phase 06.1: UI Design System Foundation — COMPLETE (2026-03-24). DesignTokens.swift, ThemeManager (NOAA solar auto dark/light), AppBackground animated blobs, Components (AppCard/PrimaryButton/ChipButton/SectionHeader), AppIconView Islamic tessellation, app root wired.
-- Phase 06.2: Core Screens Redesign (next)
-- Phase 06.3: Secondary Screens Redesign
-- Phase 7: App Store Polish + Submission
+### J. Muslim-Native Copy Guidelines
+- "Daily Intentions" not "Tasks"
+- "Posted late" not "Failed" or "Missed"
+- "No worries, consistency is a journey. Try again for Isha?" not "You missed your goal."
+- Notifications: spiritual, supportive tone throughout
 
 ---
-*Last updated: 2026-03-24*
+
+## Technical Architecture
+
+### Stack
+- **Language / UI**: Swift 6, SwiftUI
+- **Backend**: Supabase (shared with Legacy web)
+- **AI**: Gemini 2.0 Flash REST API
+- **Auth**: Supabase (Google OAuth + Sign in with Apple)
+- **Push**: APNs via Supabase Edge Functions
+- **Storage**: Supabase Storage (circle-moments bucket, avatars bucket)
+- **Prayer Times**: Aladhan API (replaces NOAA solar calculator for prayer-specific logic)
+- **Bundle ID**: `app.joinlegacy` | **Xcode**: 26.3 | **iOS target**: 17.0+
+
+### Security (RLS)
+- Users can only read/write `circle_moments` and `habit_logs` if they have an active membership in the relevant `circle_id`
+- Gender-lock enforcement: if circle `gender_setting = 'sisters'`, invite link shows "Sisters-only circle" confirmation before join is allowed
+- Rich Circle Preview: RLS relaxed only for `circles.name`, `circles.member_count`, `circles.group_streak_days` for unauthenticated reads. Zero personal data exposed.
+
+### Database Schema (v2.3)
+
+**Modified tables:**
+- `habits` → add `is_accountable BOOLEAN DEFAULT false`, `circle_id UUID REFERENCES circles(id)`
+- `circles` → add `gender_setting TEXT DEFAULT 'mixed'`, `group_streak_days INT DEFAULT 0`, `core_habits JSONB`
+- `profiles` → add `avatar_url TEXT`
+
+**New tables:**
+- `comments` — id, post_id, post_type, circle_id, user_id, text, created_at
+- `habit_plans` — id, habit_id, user_id, milestones JSONB, week_number INT, refinement_count INT DEFAULT 0, created_at
+- `daily_moments` — id, prayer_name TEXT, date DATE UNIQUE (server picks one prayer per day)
+
+---
+
+## What's Out of Scope (v2.3 MVP)
+- Real-time chat / DMs
+- Public profiles or discovery
+- Leaderboards or rankings
+- Payments / subscriptions
+- Web version
+- Android
+- Circle Moment video
+
+---
+
+*Last updated: 2026-03-26 — v2.3 pivot finalized*

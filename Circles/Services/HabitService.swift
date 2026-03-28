@@ -82,6 +82,47 @@ final class HabitService {
             .execute()
     }
 
+    // MARK: - Accountable Habit Creation
+
+    /// Create a habit linked to a circle (is_accountable = true).
+    /// Used by Amir onboarding when setting up circle core habits.
+    func createAccountableHabit(userId: UUID, name: String, icon: String, circleId: UUID) async throws -> Habit {
+        let row: [String: AnyJSON] = [
+            "user_id": .string(userId.uuidString),
+            "name": .string(name),
+            "icon": .string(icon),
+            "is_active": .bool(true),
+            "is_accountable": .bool(true),
+            "circle_id": .string(circleId.uuidString),
+            "ramadan_amount": .string("daily")
+        ]
+        return try await client
+            .from("habits")
+            .upsert(row, onConflict: "user_id,name")
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    // MARK: - Accountable Habit Broadcast
+
+    /// Insert a habit_checkin event into activity_feed for accountable habits.
+    /// Only called when completed = true and habit.circleId is set.
+    /// Fire-and-forget — feed is additive, no rollback on failure.
+    func broadcastHabitCompletion(habitId: UUID, habitName: String, circleId: UUID, userId: UUID) async throws {
+        let row: [String: AnyJSON] = [
+            "circle_id":  .string(circleId.uuidString),
+            "user_id":    .string(userId.uuidString),
+            "event_type": .string("habit_checkin"),
+            "habit_name": .string(habitName)
+        ]
+        try await client
+            .from("activity_feed")
+            .insert(row)
+            .execute()
+    }
+
     // MARK: - Streaks
 
     /// Fetch the streak row for a user. Returns nil if no streak row exists yet.

@@ -36,24 +36,48 @@ final class CircleService {
             .value
     }
 
-    func fetchPublicCircles() async throws -> [Circle] {
-        try await client
-            .from("circles")
-            .select()
-            .eq("is_public", value: true)
-            .order("created_at", ascending: false)
-            .limit(50)
-            .execute()
-            .value
-    }
-
-    func createCircle(name: String, description: String?, prayerTime: String?, userId: UUID) async throws -> Circle {
+    /// Full Amir onboarding circle creation — includes gender setting and core habits.
+    func createCircleForAmir(
+        name: String,
+        description: String? = nil,
+        genderSetting: String,
+        coreHabits: [String],
+        userId: UUID
+    ) async throws -> Circle {
         let inviteCode = generateInviteCode()
         let row: [String: AnyJSON] = [
             "name": .string(name),
             "description": .string(description ?? ""),
             "created_by": .string(userId.uuidString),
-            "invite_code": .string(inviteCode)
+            "invite_code": .string(inviteCode),
+            "gender_setting": .string(genderSetting),
+            "core_habits": .array(coreHabits.map { .string($0) })
+        ]
+        let circle: Circle = try await client
+            .from("circles")
+            .insert(row)
+            .select()
+            .single()
+            .execute()
+            .value
+        let memberRow: [String: AnyJSON] = [
+            "circle_id": .string(circle.id.uuidString),
+            "user_id": .string(userId.uuidString),
+            "role": .string("admin")
+        ]
+        try await client.from("circle_members").insert(memberRow).execute()
+        return circle
+    }
+
+    /// Standard circle creation from CommunityView (optional gender setting).
+    func createCircle(name: String, description: String?, prayerTime: String?, userId: UUID, genderSetting: String = "mixed") async throws -> Circle {
+        let inviteCode = generateInviteCode()
+        let row: [String: AnyJSON] = [
+            "name": .string(name),
+            "description": .string(description ?? ""),
+            "created_by": .string(userId.uuidString),
+            "invite_code": .string(inviteCode),
+            "gender_setting": .string(genderSetting)
         ]
         let circle: Circle = try await client
             .from("circles")
@@ -76,7 +100,7 @@ final class CircleService {
         return circle
     }
 
-    func joinByInviteCode(_ code: String, userId: UUID) async throws -> Circle {
+    func fetchCircleByCode(_ code: String) async throws -> Circle {
         let results: [Circle] = try await client
             .from("circles")
             .select()
@@ -85,8 +109,13 @@ final class CircleService {
             .execute()
             .value
         guard let circle = results.first else {
-            throw URLError(.resourceUnavailable)
+            throw CircleError.notFound
         }
+        return circle
+    }
+
+    func joinByInviteCode(_ code: String, userId: UUID) async throws -> Circle {
+        let circle = try await fetchCircleByCode(code)
         let memberRow: [String: AnyJSON] = [
             "circle_id": .string(circle.id.uuidString),
             "user_id": .string(userId.uuidString),
@@ -113,5 +142,21 @@ final class CircleService {
     private func generateInviteCode() -> String {
         let chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         return String((0..<8).map { _ in chars.randomElement()! })
+    }
+}
+
+
+enum CircleError: LocalizedError {
+    case notFound
+    case genderMismatch(circleName: String, genderSetting: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notFound:
+            return "Circle not found. Check the invite code and try again."
+        case .genderMismatch(let name, let setting):
+            let label = setting == "brothers" ? "brothers-only" : "sisters-only"
+            return "'\(name)' is a \(label) circle."
+        }
     }
 }

@@ -1,8 +1,14 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @State private var selectedTab = 0
+    var initialTab: Int = 1             // Circles by default; Amir onboarding passes 0 (Home)
+    @State private var selectedTab: Int
     @Environment(\.pendingInviteCode) var pendingInviteCode
+
+    init(initialTab: Int = 1) {
+        self.initialTab = initialTab
+        _selectedTab = State(initialValue: initialTab)
+    }
     private var notifService = NotificationService.shared
 
     var body: some View {
@@ -12,7 +18,7 @@ struct MainTabView: View {
                 .tag(0)
 
             CommunityView()
-                .tabItem { Label("Community", systemImage: "person.2.fill") }
+                .tabItem { Label("Circles", systemImage: "person.2.fill") }
                 .badge(notifService.unreadCount > 0 ? notifService.unreadCount : 0)
                 .tag(1)
 

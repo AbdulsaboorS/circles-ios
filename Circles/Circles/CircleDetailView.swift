@@ -6,6 +6,7 @@ struct CircleDetailView: View {
 
     @State private var feedViewModel = FeedViewModel()
     @State private var members: [CircleMember] = []
+    @State private var memberProfiles: [UUID: Profile] = [:]
     @State private var checkedInCount = 0
     @State private var isLoadingMembers = true
     @State private var showMembersSheet = false
@@ -63,7 +64,7 @@ struct CircleDetailView: View {
 
                         if let userId = auth.session?.user.id {
                             FeedView(
-                                circleId: circle.id,
+                                circleIds: [circle.id],
                                 currentUserId: userId,
                                 viewModel: feedViewModel
                             )
@@ -73,7 +74,7 @@ struct CircleDetailView: View {
                 }
                 .refreshable {
                     guard let userId = auth.session?.user.id else { return }
-                    await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
+                    await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -96,8 +97,11 @@ struct CircleDetailView: View {
             members = (try? await membersFetch) ?? []
             checkedInCount = 0
             isLoadingMembers = false
+            // Load profiles for avatar display
+            let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: members.map { $0.userId })) ?? []
+            memberProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
             startWindowTimer()
-            await feedViewModel.loadInitial(circleId: circle.id, currentUserId: userId)
+            await feedViewModel.loadInitial(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
         }
         .onDisappear { windowTimer?.invalidate() }
         .fullScreenCover(isPresented: $showCamera) {
@@ -120,7 +124,7 @@ struct CircleDetailView: View {
                             caption: caption,
                             windowStart: circle.momentWindowStart
                         )
-                        await feedViewModel.refresh(circleId: circle.id, currentUserId: userId)
+                        await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
                     },
                     onRetake: {
                         showPreview = false
@@ -161,7 +165,11 @@ struct CircleDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(members) { member in
-                        MemberAvatarChip(member: member)
+                        MemberAvatarChip(
+                            member: member,
+                            avatarUrl: memberProfiles[member.userId]?.avatarUrl,
+                            displayName: memberProfiles[member.userId]?.preferredName ?? ""
+                        )
                     }
                 }
                 .padding(.horizontal, 16)
@@ -258,35 +266,21 @@ struct CircleDetailView: View {
     }
 }
 
-// MARK: - MemberAvatarChip (D-16)
+// MARK: - MemberAvatarChip
 
 private struct MemberAvatarChip: View {
-    @Environment(\.colorScheme) private var colorScheme
     let member: CircleMember
-
-    private var initials: String {
-        String(member.userId.uuidString.prefix(2)).uppercased()
-    }
+    /// Populated by CircleDetailView after fetching profiles
+    var avatarUrl: String? = nil
+    var displayName: String = ""
 
     var body: some View {
         VStack(spacing: 4) {
-            ZStack {
-                if colorScheme == .dark {
-                    SwiftUI.Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 44, height: 44)
-                } else {
-                    SwiftUI.Circle()
-                        .fill(Color.white)
-                        .shadow(color: .black.opacity(0.08), radius: 4)
-                        .frame(width: 44, height: 44)
-                }
-                Text(initials)
-                    .font(.appCaptionMedium)
-                    .foregroundStyle(Color.accent)
-            }
+            AvatarView(avatarUrl: avatarUrl, name: displayName.isEmpty ? member.userId.uuidString : displayName, size: 44)
+                .shadow(color: .black.opacity(0.06), radius: 3)
+
             if member.role == "admin" {
-                Text("Admin")
+                Text("Amir")
                     .font(Font.system(size: 9, weight: .medium))
                     .foregroundStyle(Color.accent)
             }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FeedView: View {
-    let circleId: UUID
+    let circleIds: [UUID]
     let currentUserId: UUID
     @Bindable var viewModel: FeedViewModel
 
@@ -10,10 +10,9 @@ struct FeedView: View {
             ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { index, item in
                 feedItemView(for: item)
                     .onAppear {
-                        // Trigger next page when last 3 items come into view
                         if index >= viewModel.items.count - 3 {
                             Task {
-                                await viewModel.loadNextPage(circleId: circleId)
+                                await viewModel.loadNextPage(circleIds: circleIds)
                             }
                         }
                     }

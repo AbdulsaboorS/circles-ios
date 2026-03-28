@@ -5,8 +5,6 @@ struct HomeView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel = HomeViewModel()
-    @State private var publicCircles: [Circle] = []
-    @State private var isLoadingPublicCircles = false
     @State private var preferredName: String = "Friend"
 
     private var colors: AppColors { AppColors.resolve(colorScheme) }
@@ -56,7 +54,6 @@ struct HomeView: View {
                         greetingHeader
                         heartProgressCard
                         habitsSection
-                        communitySection
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -70,13 +67,11 @@ struct HomeView: View {
             .refreshable {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadAll(userId: userId)
-                await loadPublicCircles()
                 await loadPreferredName(userId: userId)
             }
             .task {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadAll(userId: userId)
-                await loadPublicCircles()
                 await loadPreferredName(userId: userId)
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
@@ -163,63 +158,73 @@ struct HomeView: View {
     // MARK: - Habits Section
 
     private var habitsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Daily Intentions")
+        VStack(alignment: .leading, spacing: 20) {
             if viewModel.isLoading {
                 HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
             } else if viewModel.habits.isEmpty {
-                Text("Complete onboarding to add habits.")
-                    .font(.appCaption)
-                    .foregroundStyle(colors.textSecondary)
+                VStack(spacing: 8) {
+                    Image(systemName: "moon.stars.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.accent.opacity(0.6))
+                    Text("No intentions yet.")
+                        .font(.appSubheadline)
+                        .foregroundStyle(colors.textSecondary)
+                    Text("Complete onboarding to begin your journey.")
+                        .font(.appCaption)
+                        .foregroundStyle(colors.textSecondary.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
             } else {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(viewModel.habits) { habit in
-                        HabitCardView(
-                            habit: habit,
-                            isCompleted: viewModel.isCompleted(habitId: habit.id),
-                            onToggle: {
-                                guard let userId = auth.session?.user.id else { return }
-                                Task { await viewModel.toggleHabit(habit, userId: userId) }
-                            }
-                        )
-                    }
+                let accountable = viewModel.habits.filter { $0.isAccountable && $0.circleId != nil }
+                let personal = viewModel.habits.filter { !$0.isAccountable || $0.circleId == nil }
+
+                if !accountable.isEmpty {
+                    habitGroup(
+                        title: "Shared Intentions",
+                        subtitle: "Visible to your circles",
+                        icon: "person.2.fill",
+                        habits: accountable
+                    )
+                }
+                if !personal.isEmpty {
+                    habitGroup(
+                        title: "Personal Intentions",
+                        subtitle: "Private to you",
+                        icon: "lock.fill",
+                        habits: personal
+                    )
                 }
             }
         }
     }
 
-    // MARK: - Community Section
-
-    @ViewBuilder
-    private var communitySection: some View {
-        if isLoadingPublicCircles || !publicCircles.isEmpty {
-            VStack(spacing: 12) {
-                SectionHeader(title: "Community Circles", subtitle: "Discover public circles")
-                if isLoadingPublicCircles {
-                    HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
-                } else {
-                    ForEach(publicCircles.prefix(3)) { circle in
-                        AppCard {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(circle.name)
-                                        .font(.appSubheadline)
-                                        .foregroundStyle(colors.textPrimary)
-                                    Text("Public Circle")
-                                        .font(.appCaption)
-                                        .foregroundStyle(colors.textSecondary)
-                                }
-                                Spacer()
-                                NavigationLink(destination: CircleDetailView(circle: circle)) {
-                                    Image(systemName: "chevron.right")
-                                        .font(.appCaption)
-                                        .foregroundStyle(Color.accent)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(14)
+    private func habitGroup(title: String, subtitle: String, icon: String, habits: [Habit]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.accent)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.appCaptionMedium)
+                        .foregroundStyle(colors.textPrimary)
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(colors.textSecondary)
+                }
+            }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(habits) { habit in
+                    HabitCardView(
+                        habit: habit,
+                        isCompleted: viewModel.isCompleted(habitId: habit.id),
+                        onToggle: {
+                            guard let userId = auth.session?.user.id else { return }
+                            Task { await viewModel.toggleHabit(habit, userId: userId) }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -239,14 +244,6 @@ struct HomeView: View {
         if let name = rows.first?.preferred_name, !name.isEmpty {
             preferredName = name
         }
-    }
-
-    private func loadPublicCircles() async {
-        isLoadingPublicCircles = true
-        do {
-            publicCircles = try await CircleService.shared.fetchPublicCircles()
-        } catch {}
-        isLoadingPublicCircles = false
     }
 }
 

@@ -58,6 +58,7 @@ final class HomeViewModel {
                 userId: userId,
                 date: todayString,
                 completed: newCompleted,
+                notes: nil,
                 createdAt: Date()
             )
             todayLogs.append(placeholder)
@@ -70,10 +71,18 @@ final class HomeViewModel {
                 date: todayString,
                 completed: newCompleted
             )
-            // Refresh streak after a toggle so streak count stays accurate
             streak = try await HabitService.shared.fetchStreak(userId: userId)
+
+            // Broadcast to circle feed if this is an accountable habit being completed
+            if newCompleted, habit.isAccountable, let circleId = habit.circleId {
+                try? await HabitService.shared.broadcastHabitCompletion(
+                    habitId: habit.id,
+                    habitName: habit.name,
+                    circleId: circleId,
+                    userId: userId
+                )
+            }
         } catch {
-            // Revert optimistic change
             if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
                 todayLogs[idx].completed = !newCompleted
             }

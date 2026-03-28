@@ -60,24 +60,27 @@ final class FeedService {
 
     // MARK: - Paginated Feed Fetch
 
-    /// Returns up to `pageSize` FeedItems for `circleId`, newest first.
-    /// `page` is 0-indexed. Merges activity_feed rows and circle_moments rows,
-    /// sorts by timestamp descending, then slices the page window.
-    func fetchFeedPage(circleId: UUID, page: Int, pageSize: Int = 20) async throws -> [FeedItem] {
-        // 1. Fetch all activity_feed rows for this circle
+    /// Returns up to `pageSize` FeedItems across one or more circles, newest first.
+    /// Pass a single-element array for per-circle feeds (CircleDetailView),
+    /// or the full list of the user's circle IDs for the global community feed.
+    func fetchFeedPage(circleIds: [UUID], page: Int, pageSize: Int = 20) async throws -> [FeedItem] {
+        guard !circleIds.isEmpty else { return [] }
+        let idStrings = circleIds.map { $0.uuidString }
+
+        // 1. Fetch activity_feed rows for these circles
         let activityRows: [ActivityFeedRow] = try await client
             .from("activity_feed")
             .select()
-            .eq("circle_id", value: circleId.uuidString)
+            .in("circle_id", values: idStrings)
             .order("created_at", ascending: false)
             .execute()
             .value
 
-        // 2. Fetch all circle_moments rows for this circle (all time, not just today)
+        // 2. Fetch circle_moments rows for these circles
         let momentRows: [CircleMomentRow] = try await client
             .from("circle_moments")
             .select()
-            .eq("circle_id", value: circleId.uuidString)
+            .in("circle_id", values: idStrings)
             .order("posted_at", ascending: false)
             .execute()
             .value

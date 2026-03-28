@@ -1,13 +1,5 @@
 import Foundation
 
-// MARK: - Supabase Migration Required (Phase 06.2)
-// Run this SQL in Supabase Dashboard → SQL Editor before using fetchPublicCircles():
-//
-// ALTER TABLE circles ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT false;
-//
-// To make a circle public (for testing):
-// UPDATE circles SET is_public = true WHERE id = '<circle-uuid>';
-
 struct Circle: Codable, Identifiable, Hashable, Sendable {
     let id: UUID
     let name: String
@@ -16,7 +8,9 @@ struct Circle: Codable, Identifiable, Hashable, Sendable {
     let inviteCode: String?
     let momentWindowStart: String?   // TIMESTAMPTZ as String, per project convention
     let createdAt: Date
-    let isPublic: Bool?              // is_public BOOLEAN DEFAULT false — added Phase 06.2
+    var genderSetting: String?       // 'brothers' | 'sisters' | 'mixed'
+    var groupStreakDays: Int?
+    var coreHabits: [String]?        // JSON array of habit names e.g. ["Fajr", "Quran"]
 
     enum CodingKeys: String, CodingKey {
         case id, name, description
@@ -24,10 +18,15 @@ struct Circle: Codable, Identifiable, Hashable, Sendable {
         case inviteCode = "invite_code"
         case momentWindowStart = "moment_window_start"
         case createdAt = "created_at"
-        case isPublic = "is_public"
+        case genderSetting = "gender_setting"
+        case groupStreakDays = "group_streak_days"
+        case coreHabits = "core_habits"
     }
 }
 
 extension Circle {
-    var isPublicSafe: Bool { isPublic ?? false }
+    var genderSettingSafe: String { genderSetting ?? "mixed" }
+    var groupStreakDaysSafe: Int { groupStreakDays ?? 0 }
+    var coreHabitsSafe: [String] { coreHabits ?? [] }
 }
+

@@ -8,7 +8,10 @@ struct Habit: Codable, Identifiable, Equatable, Hashable {
     var ramadanAmount: String?
     var suggestedAmount: String?
     var acceptedAmount: String?
+    var planNotes: String?
     var isActive: Bool
+    var isAccountable: Bool         // true = broadcasts to circleId's feed
+    var circleId: UUID?             // nil = Personal habit
     let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -19,7 +22,14 @@ struct Habit: Codable, Identifiable, Equatable, Hashable {
         case ramadanAmount = "ramadan_amount"
         case suggestedAmount = "suggested_amount"
         case acceptedAmount = "accepted_amount"
+        case planNotes = "plan_notes"
         case isActive = "is_active"
+        case isAccountable = "is_accountable"
+        case circleId = "circle_id"
         case createdAt = "created_at"
     }
+}
+
+extension Habit {
+    var isPersonal: Bool { !isAccountable || circleId == nil }
 }
