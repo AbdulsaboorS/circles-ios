@@ -2,9 +2,9 @@
 
 ## What This Is
 
-A native Swift/SwiftUI iOS app — an Islamic social accountability tool for Muslims. Circle Moment (BeReal-style daily check-in anchored to prayer times) + habit tracking + small private circles.
+A native Swift/SwiftUI iOS app — a private Islamic accountability tool ("Islamic BeReal"). Circle Moment (BeReal-style daily check-in anchored to prayer times) + habit tracking + small private circles.
 
-See `.planning/PROJECT.md` for full product vision. See `.planning/ROADMAP.md` for phase breakdown.
+See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built and what's next.
 
 ## Tech Stack
 
@@ -13,7 +13,8 @@ See `.planning/PROJECT.md` for full product vision. See `.planning/ROADMAP.md` f
 - **Backend**: Supabase Swift SDK (via SPM)
 - **Auth**: Supabase (Google OAuth + Sign in with Apple)
 - **AI**: Gemini 2.0 Flash REST API
-- **Storage**: Supabase Storage (photos)
+- **Prayer Times**: Aladhan API (api.aladhan.com, method=3 MWL)
+- **Storage**: Supabase Storage (`circle-moments` bucket, `avatars` bucket)
 - **Push**: APNs
 - **Xcode**: 26.3
 - **Bundle ID**: `app.joinlegacy`
@@ -23,97 +24,83 @@ See `.planning/PROJECT.md` for full product vision. See `.planning/ROADMAP.md` f
 
 ```
 Circles/
-├── CirclesApp.swift          # App entry point, Supabase client init
-├── ContentView.swift         # Root view (auth routing)
-├── Assets.xcassets/          # App icon, images, colors
-├── Secrets.plist             # GITIGNORED — Supabase URL/anon key, etc.
-├── Auth/                     # Sign in with Apple, Google OAuth views
-├── Onboarding/               # Habit selection, AI step-down wizard
-├── Home/                     # Daily habit check-in
-├── Circles/                  # My Circles list, Circle detail
-├── Moment/                   # Camera, post, reciprocity gate
-├── Feed/                     # Unified circle feed
-├── Profile/                  # User profile, settings
-├── Services/                 # SupabaseService, AuthService, HabitService, etc.
-└── Models/                   # Codable types for DB rows
+├── CirclesApp.swift          # App entry, deep link handling, APNs delegate
+├── ContentView.swift         # Root routing (auth → onboarding → main app)
+├── Assets.xcassets/
+├── Secrets.plist             # GITIGNORED — Supabase URL/anon key, Gemini key
+├── Auth/                     # AuthView (Sign in with Apple + Google)
+├── Onboarding/               # AmiirOnboarding (4 steps), MemberOnboarding (2 steps), CirclePreviewView
+├── Home/                     # Daily Intentions — HomeView, HabitDetailView
+├── Community/                # CommunityView (Feed|Circles), MyCirclesView
+├── Circles/                  # CircleDetailView, CreateCircleView, JoinCircleView
+├── Moment/                   # MomentCameraView, MomentPreviewView, CameraManager
+├── Feed/                     # FeedView, feed cards, ReciprocityGateView, CommentDrawerView
+├── Profile/                  # ProfileView
+├── DesignSystem/             # DesignTokens, Components, AppBackground, AvatarView, ThemeManager
+├── Services/                 # All service singletons
+├── Models/                   # Codable types for DB rows
+└── Navigation/               # MainTabView
 ```
 
 ## Environment / Secrets
 
-Sensitive keys go in `Circles/Secrets.plist` (gitignored by default). Access via:
-
-```swift
-guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
-      let dict = NSDictionary(contentsOfFile: path) as? [String: Any] else {
-    fatalError("Secrets.plist not found")
-}
-```
-
-Required keys:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `GEMINI_API_KEY`
+`Circles/Secrets.plist` (gitignored). Required keys: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`.
 
 ## Key Conventions
 
-- SwiftUI views use `@StateObject` / `@EnvironmentObject` for Supabase session
-- Supabase client is a singleton: `SupabaseService.shared`
-- Models conform to `Codable` and map directly to Supabase table columns (snake_case → camelCase via `CodingKeys` or custom decoder)
+- `@Observable @MainActor` pattern throughout (Swift 6 — not ObservableObject)
+- Supabase client singleton: `SupabaseService.shared`
+- `import Supabase` required in every file accessing `auth.session?.user.id`
+- Models conform to `Codable`, snake_case → camelCase via `CodingKeys`
+- `DATE` columns stored as `String` in Swift models ("YYYY-MM-DD")
+- `SwiftUI.Circle()` must be qualified — `Circle` model name conflict
 - Optimistic UI for habit check-ins and reactions
-- No `UIKit` unless absolutely necessary (camera, APNs — use SwiftUI wrappers first)
 
-## Database (Supabase — shared with Legacy web)
+## Database (Supabase)
 
-Reuse existing tables where possible:
-- `habits` — user habits
-- `habit_logs` — daily check-in records
+Active tables:
+- `habits` — user habits (is_accountable, circle_id, plan_notes)
+- `habit_logs` — daily check-ins (notes field)
+- `habit_plans` — AI 28-day roadmaps (refinement_count, week tracking)
 - `streaks` — streak tracking
-- `halaqas` — circles
-- `halaqa_members` — circle membership
-- `activity_feed` — circle activity items
-- `habit_reactions` — reactions
+- `circles` — private circles (gender_setting, core_habits, group_streak_days)
+- `circle_members` — membership (role: admin/member)
+- `circle_moments` — photo posts
+- `activity_feed` — habit check-ins + streak milestones for feed
+- `habit_reactions` — reactions on feed items
+- `comments` — circle-private comment threads
+- `profiles` — user profiles (preferred_name, gender, avatar_url, location)
+- `device_tokens` — APNs device tokens
+- `daily_moments` — server-selected prayer of the day (one row per date)
 
-New tables (to be added via migration):
-- `circle_moments` — photo posts per circle per day
-- Prayer time per circle field on `halaqas`
+RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in circle-member policies.
 
 ## Working Rules
 
-### 1. Plan First
-- For any multi-file change: enter plan mode, write plan, get principal-plan-reviewer to check it before building
-- Single-file, obvious changes: build directly
+### 1. Phase Discipline
+- Build phases in order per ROADMAP.md
+- Each phase gets a SPEC.md before execution
+- Update STATE.md after every completed phase group
 
-### 2. Phase Discipline
-- Build phases in order — don't skip ahead
-- Each phase gets a PLAN.md before execution, SUMMARY.md after
-- Update STATE.md after every completed phase
-
-### 3. No Hacks
-- If something feels wrong, stop and re-plan. Don't push through.
+### 2. No Hacks
 - Root cause > patch. Senior Swift developer standards.
 
-### 4. Verification Before Done
-- Build must succeed (no warnings if possible, no errors)
-- Feature must be demonstrable in Simulator before marking done
+### 3. Verification Before Done
+- Build must succeed (zero errors)
+- Feature demonstrable in Simulator before marking done
 
-### 5. Supabase SQL
-- SQL migrations run via Supabase MCP or Dashboard
-- Claude writes the Swift code; backend migrations handled separately
+### 4. Commits
+- One commit per build session (phase group)
+- Push to `origin main` after each commit
+
+### 5. SQL
+- Migrations run via Supabase Dashboard → SQL Editor
+- Always confirm with user before running destructive SQL
 
 ## Skills in Use
 
-- **GSD** — project lifecycle (phases, roadmap, STATE.md, execution)
 - **Axiom** — iOS/Swift domain patterns (auto-invoked during implementation)
-
-GSD drives what to build, Axiom shapes how.
-
-## GSD Tracking
-
-- `.planning/PROJECT.md` — product context, requirements, decisions
-- `.planning/ROADMAP.md` — phases and success criteria
-- `.planning/STATE.md` — what's done, what's next, blockers
-- `.planning/phases/XX-phase-name/PLAN.md` — per-phase plan
-- `.planning/phases/XX-phase-name/SUMMARY.md` — per-phase completion record
+- **SuperDesign** — visual design drafts before SwiftUI implementation
 
 ---
-*Last updated: 2026-03-23*
+*Last updated: 2026-03-26 — v2.3, Phases 1-9 complete*

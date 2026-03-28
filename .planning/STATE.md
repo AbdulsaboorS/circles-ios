@@ -1,7 +1,7 @@
 ---
 version: 2.3
 last_updated: "2026-03-26"
-current_phase: "Phase 1 — Schema + Model Foundations"
+current_phase: "Phase 10 — Group Streak + Face Piles"
 status: "In Progress"
 ---
 
@@ -9,86 +9,131 @@ status: "In Progress"
 
 ## Current Focus
 
-**Phase 1 + 2**: Schema foundations + navigation restructure.
-See ROADMAP.md for full 12-phase plan.
+**Next: Phase 10 (Group Streak + Face Piles)** — then Phase 11 (AI Roadmap v2), Phase 12 (Polish + App Store).
 
 ---
 
-## What's Built (Foundation — carried into v2.3)
+## What's Built — v2.3 Phases
 
-These are the working pieces of the codebase as of the v2.3 pivot on 2026-03-26.
+### Phase 1 — Schema + Model Foundations ✓
+- DB: `habits` (is_accountable, circle_id), `circles` (gender_setting, group_streak_days, core_habits), `profiles` (avatar_url)
+- New tables: `comments`, `habit_plans`, `daily_moments`
+- Swift models: `Circle`, `Habit`, `HabitLog` updated; `Comment`, `HabitPlan`, `DailyMoment`, `Profile` created
+
+### Phase 2 — Navigation Restructure ✓
+- App entry → Circles tab (tag 1)
+- Tab label "Community" → "Circles"
+- Home tab = Daily Intentions only (no social feed)
+
+### Phase 3 — Profile Photos ✓
+- `AvatarView` component (AsyncImage + initials fallback, configurable size)
+- `AvatarService`: upload to `avatars` Storage bucket, save URL to profiles, fetch profiles + impact stats
+- `ProfileView`: full redesign — PHPicker avatar picker, name, member-since, stats AppCard (Total Days / Best Streak / Circles), settings
+- `CircleDetailView` member strip: uses AvatarView, loads member profiles, role = "Amir"
+
+### Phase 4 — Dual-Track Habits ✓
+- `HabitService.createAccountableHabit` (is_accountable=true, circle_id linked)
+- `HabitService.broadcastHabitCompletion` → inserts into `activity_feed`
+- `HomeViewModel.toggleHabit` broadcasts accountable completions (fire-and-forget)
+- `HomeView`: "Shared Intentions" + "Personal Intentions" sections with descriptive sub-labels
+
+### Phase 5 — Circle Core Habits + Gender Locking ✓
+- `CircleService.createCircleForAmir` (genderSetting + coreHabits JSONB)
+- `CircleService.fetchCircleByCode` for preview + join
+- `CreateCircleView`: design system + Brothers/Sisters/Mixed picker
+- `JoinCircleView`: design system + gender check + confirmation alert on mismatch
+- `MyCirclesView`: group streak flame displayed on cards
+
+### Phase 6 — Amir Onboarding Overhaul ✓
+- `AmiirOnboardingCoordinator`: 4-step state machine, Soul Gate hard lock
+- Steps: Circle Identity → Core Habits (max 3, curated list) → Location → Soul Gate
+- Soul Gate: `ShareSheet` UIActivityViewController bridge; "Begin My Journey" disabled until share initiated
+- Background AI roadmap generation fires on completion (fire-and-forget)
+- `StepIndicator` component (animated pill progress)
+- `ContentView`: routes new users to Amir flow; Amir lands on Home tab
+
+### Phase 7 — Member/Joiner Flow + Rich Circle Preview ✓
+- `CirclePreviewView`: unauthenticated landing — circle name, core habits, group streak, inline Sign in with Apple/Google
+- `MemberOnboardingCoordinator`: join circle + create accountable habits + save location
+- Steps: Habit Alignment (must pick ≥ 1 core habit) → Location → joins circle on city select
+- `ContentView`: anon + invite code → preview; new user + invite code (post-auth) → member flow
+
+### Phase 8 — Prayer of the Day + Reciprocity Gate v2 ✓
+- `DailyMomentService`: fetches today's prayer from `daily_moments`, calls Aladhan API for exact prayer time, checks if user posted today across all circles
+- Gate activates when window OPENS (not after it closes)
+- `ReciprocityGateView`: frosted blur overlay with "Unlock Your Circles" CTA
+- `CommunityView`: global feed wrapped in gate, camera opens for first circle
+- `CircleDetailView`: feed section wrapped in gate
+- `MomentFeedCard`: "Posted at [Prayer]" badge for on-time, "Posted late" for late
+- `FeedItem`: Equatable conformance + `circleId` / `postType` computed properties
+
+### Phase 9 — Comment Drawer ✓
+- `CommentService`: fetchComments, addComment, deleteComment (RLS: circle members only)
+- `CommentDrawerView`: slide-up `.medium/.large` sheet — avatars, comment list, text input, send, delete own, empty state
+- `MomentFeedCard`, `HabitCheckinRow`, `StreakMilestoneCard`: comment bubble icon added
+- `FeedView`: manages `commentingOnItem` state, presents `CommentDrawerView` as sheet
+
+---
+
+## What's Built — v1 Foundation (carried into v2.3)
 
 ### Auth
 - Sign in with Apple + Google OAuth via Supabase
 - `AuthManager` (@Observable @MainActor) with session persistence
-- `ContentView` routes authenticated vs unauthenticated users
 
-### Design System (Phase 06.1 — complete)
-- `DesignTokens.swift`: color tokens (#0E0B08 dark, #F5F0E8 light, #E8834B accent, #1A3A2A darkBlob, #EDE0C8 lightBlob), semantic aliases
-- `AppColors` resolver (light/dark adaptive)
-- Font tokens: New York serif (appHeroTitle/appTitle/appHeadline) + SF Pro (appBody/appSubheadline/appCaption)
-- `ThemeManager.shared`: @Observable singleton, ThemeMode (auto/light/dark), NOAA solar auto-switch
-- `AppBackground.swift`: dual animated ellipse blobs
+### Design System
+- `DesignTokens.swift`: color + font tokens, semantic aliases, AppColors resolver
+- `ThemeManager.shared`: ThemeMode (auto/light/dark), NOAA solar auto-switch
+- `AppBackground.swift`: dual animated blob background
 - `Components.swift`: AppCard, PrimaryButton, ChipButton, SectionHeader
-- `AppIconView.swift`: Islamic tessellation canvas icon
+- `AvatarView.swift`: reusable circular avatar component
 
 ### Habits
-- `Habit`, `HabitLog`, `Streak` Codable models (snake_case CodingKeys)
-- `HabitService`: fetchActiveHabits, fetchTodayLogs, toggleHabitLog, fetchStreak, createHabit, updateAcceptedAmount, updateLogNote, updatePlanNotes
-- `HabitLog.notes: String?` — daily note field (DB column: `habit_logs.notes`)
-- `Habit.planNotes: String?` — plan annotation (DB column: `habits.plan_notes`)
-- `HomeViewModel`: @Observable @MainActor, parallel fetch, optimistic toggle
-- `HomeView`: habit list, streak banner, NavigationLink to HabitDetailView
-- `HabitDetailView`: 28-day dot calendar, stat badges
-
-### AI
-- `GeminiService`: fetchSuggestion (step-down plan), refinePlan (contextual re-generation)
-- `AISuggestion` struct: suggestedAmount, motivation, tip
+- `Habit`, `HabitLog`, `Streak`, `HabitPlan` models
+- `HabitService`: fetchActiveHabits, toggleHabitLog, updateLogNote, updatePlanNotes, createAccountableHabit, broadcastHabitCompletion
+- `GeminiService`: fetchSuggestion, refinePlan
+- `HomeViewModel` + `HomeView` + `HabitDetailView`
 
 ### Circles
-- `Circle` model: id, name, description, createdBy, inviteCode, momentWindowStart, createdAt
-- `HalaqaMember` / `CircleMember` models
-- `CircleService`: fetchMyCircles, createCircle, joinByInviteCode, fetchMembers
+- `Circle`, `CircleMember` models (with genderSetting, coreHabits, groupStreakDays)
+- `CircleService`: fetchMyCircles, createCircle, createCircleForAmir, joinByInviteCode, fetchCircleByCode, fetchMembers
 - `CirclesViewModel`: loadCircles, createCircle, joinCircle
-- `CommunityView`: Feed | Circles segmented + swipeable TabView
-- `MyCirclesView`: featured 1+2 card layout with organic card design (Variation 4)
-- `CreateCircleView`, `JoinCircleView`
-- Deep links: `circles://join/CODE` → `JoinCircleView`
+- `CommunityView`: Feed|Circles swipeable TabView
+- `MyCirclesView`: organic card layout (featured + stacked), group streak, CTAs
+- `CreateCircleView`, `JoinCircleView` (gender enforcement)
+- `CircleDetailView`: member board (AvatarView), feed, moment banner, nudge
 
 ### Circle Moment
 - `CircleMoment` model
 - `MomentService`: fetchTodayMoments, uploadPhoto, postMoment, computeIsOnTime
-- `CameraManager`: AVCaptureSession, dual camera, compositing
-- `MomentCameraView`: full-screen camera, permission handling
-- `MomentPreviewView`: photo review, caption, post CTA
-- `MomentCardView`: locked (blur) / unlocked / own-unposted states
-- Reciprocity gate in `CircleDetailView` (currently per-circle, post-window only — will be upgraded in Phase 8)
+- `CameraManager`, `MomentCameraView`, `MomentPreviewView`, `MomentCardView`
+- Reciprocity gate v2 via `DailyMomentService` (full-feed blur)
 
 ### Feed
-- `FeedItem` enum: moment, habitCheckin, streakMilestone
-- `FeedReaction` model
-- `FeedService`: fetchFeedPage(circleIds: [UUID], ...) — multi-circle aware
+- `FeedItem` enum (moment, habitCheckin, streakMilestone) — Identifiable, Sendable, Equatable
+- `FeedService.fetchFeedPage(circleIds: [UUID], ...)` — multi-circle aware
 - `FeedViewModel`: loadInitial, loadNextPage, refresh — all accept [UUID]
-- `FeedView`: LazyVStack, infinite scroll, pagination
+- `FeedView`: LazyVStack, pagination, comment drawer
 - `MomentFeedCard`, `HabitCheckinRow`, `StreakMilestoneCard`, `ReactionBar`
-- Global feed in CommunityView aggregates across all user circles
+- `ReciprocityGateView`, `CommentDrawerView`
+
+### Onboarding (v2.3)
+- `AmiirOnboardingCoordinator` + 4 step views (Circle Identity, Habits, Location, Soul Gate)
+- `MemberOnboardingCoordinator` + 2 step views (Habit Alignment, Location)
+- `CirclePreviewView` — unauthenticated invite landing
+- `StepIndicator`, `ShareSheet`
 
 ### Push Notifications
 - `NotificationService`: APNs permission, device token management
-- `DeviceToken` model — `device_tokens` table
-- Edge Functions deployed: send-moment-window-notifications (cron), send-member-posted-notification (webhook), send-streak-milestone-notification, send-peer-nudge
-- `NotificationPermissionModal`: soft-prompt on first circle join
-
-### Onboarding (v1 — to be replaced in Phase 6-7)
-- `OnboardingCoordinator`: step enum, flow logic
-- `ProfileSetupView`: name + gender chips
-- `HabitSelectionView`: preset habit tiles
-- `RamadanAmountView`: habit amounts
-- `AIStepDownView`: AI plan display
-- `LocationPickerView`: 50 bundled cities, saves lat/lng to profiles
+- Edge Functions: moment-window cron, member-posted trigger, streak-milestone, peer nudge
 
 ### Profile
-- `ProfileView`: basic layout, dev tools (#if DEBUG)
+- `ProfileView`: avatar picker (PHPicker), stats, settings, sign out
+- `AvatarService`: upload, fetch profiles, fetch stats
+
+### Services
+- `DailyMomentService`: prayer of day + Aladhan API + gate state
+- `CommentService`: CRUD on `comments` table
 
 ---
 
@@ -99,33 +144,35 @@ These are the working pieces of the codebase as of the v2.3 pivot on 2026-03-26.
 - `DATE` columns stored as String in Swift models
 - `import Supabase` required in every file accessing `auth.session?.user.id`
 - `SwiftUI.Circle()` qualified to avoid naming conflict with `Circle` model
-- `circle_members` table (not legacy `halaqas`)
 - `circles` + `circle_members` custom tables (RLS via `auth_user_circle_ids()` SECURITY DEFINER)
-- AVFoundation work on dedicated `nonisolated let sessionQueue`
-- `@preconcurrency import AVFoundation` for Sendable warnings
-- `Timer.scheduledTimer` callback uses `MainActor.assumeIsolated`
-- AppBackground uses `@Environment(\.colorScheme)` directly (not ThemeManager)
 - `FeedService.fetchFeedPage(circleIds: [UUID])` — multi-circle unified feed
-- FeedViewModel accepts `[UUID]` throughout; single-circle calls pass `[circle.id]`
+- `FeedViewModel` accepts `[UUID]` throughout; single-circle calls pass `[circle.id]`
+- `AvatarService` used for profile fetch + stats (not a separate ProfileService)
+- `DailyMomentService.shared` is a singleton read by CommunityView + CircleDetailView
+- Aladhan API method=3 (MWL) matches Edge Function prayer time calculations
+- `ShareSheet` is a `UIViewControllerRepresentable` wrapper for `UIActivityViewController`
+- Soul Gate hard lock: `hasSharedInvite = true` set when share button tapped (share sheet opened)
+- One commit per build session (phase group) — not per individual file change
+- Git: `main` branch, remote `origin` = GitHub (AbdulsaboorS/circles-ios)
 
 ---
 
-## Phase History (v1 foundations)
+## Phase History
 
-| Phase | Completion | Summary |
-|-------|-----------|---------|
-| Setup | ✓ 2026-03-23 | Xcode 26.3, SPM, GitHub |
-| Auth + Nav Shell | ✓ 2026-03-23 | Auth, 3-tab shell, Simulator verified |
-| Habits Data Layer | ✓ 2026-03-24 | Habit/HabitLog/Streak models, HabitService, GeminiService |
-| Onboarding v1 | ✓ 2026-03-24 | HabitSelection, RamadanAmount, AIStepDown, LocationPicker |
-| HomeView | ✓ 2026-03-24 | HomeViewModel, HomeView, HabitDetailView, Simulator verified |
-| Circles Data + UI | ✓ 2026-03-24 | Circle model, CircleService, CommunityView, CreateCircle, JoinCircle |
-| Circle Moment | ✓ 2026-03-24 | CameraManager, MomentCameraView, MomentPreviewView, reciprocity gate |
-| Unified Feed | ✓ 2026-03-24 | FeedService, FeedViewModel, all feed cards, Simulator verified |
-| Push Notifications | ✓ 2026-03-24 | NotificationService, APNs pipeline, 4 Edge Functions deployed |
-| Design System (06.1) | ✓ 2026-03-25 | DesignTokens, ThemeManager, AppBackground, Components, AppIconView |
-| Core Screens (06.2) | ✓ 2026-03-25 | HomeView, CommunityView, CircleDetailView, FeedView redesigned |
-| Community v2 pivot | ✓ 2026-03-26 | Feed\|Circles swipeable, MyCirclesView organic cards, explore removed |
+| Phase | Status | Summary |
+|-------|--------|---------|
+| 1 — Schema + Models | ✓ Complete | DB migrations + all Swift models updated/created |
+| 2 — Navigation | ✓ Complete | App entry → Circles tab, Home = Daily Intentions |
+| 3 — Profile Photos | ✓ Complete | AvatarService, AvatarView, ProfileView redesign |
+| 4 — Dual-Track Habits | ✓ Complete | is_accountable, broadcastHabitCompletion, HomeView sections |
+| 5 — Core Habits + Gender | ✓ Complete | createCircleForAmir, gender enforcement, streak on cards |
+| 6 — Amir Onboarding | ✓ Complete | 4-step flow, Soul Gate hard lock, background AI |
+| 7 — Member Flow + Preview | ✓ Complete | CirclePreviewView (anon), MemberOnboardingCoordinator |
+| 8 — Prayer Gate v2 | ✓ Complete | DailyMomentService, Aladhan API, full-feed blur gate |
+| 9 — Comment Drawer | ✓ Complete | CommentService, CommentDrawerView, comment buttons on all cards |
+| 10 — Group Streak + Face Piles | 🔄 Next | Group streak calc, face piles on reactions, member board polish |
+| 11 — AI Roadmap v2 | ⏳ Pending | habit_plans table, 28-day timeline UI, refinement guardrail |
+| 12 — Polish + App Store | ⏳ Pending | Muslim-native copy audit, App Store submission |
 
 ---
 
@@ -135,4 +182,4 @@ None.
 
 ---
 
-*v2.3 pivot: 2026-03-26. All old phase plans deleted. New 12-phase roadmap active.*
+*v2.3 pivot: 2026-03-26. Phases 1-9 complete. Phases 10-12 remaining.*

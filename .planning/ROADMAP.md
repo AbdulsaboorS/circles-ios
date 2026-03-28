@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1 — Schema + Model Foundations
+## Phase 1 — Schema + Model Foundations ✓ Complete
 **Scope:** All DB migrations + Swift model updates. No UI changes.
 - `habits`: add `is_accountable`, `circle_id`
 - `circles`: add `gender_setting`, `group_streak_days`, `core_habits`
@@ -15,7 +15,7 @@
 
 ---
 
-## Phase 2 — Navigation Restructure + Home Cleanup
+## Phase 2 — Navigation Restructure + Home Cleanup ✓ Complete
 **Scope:** Establish correct product feel from launch.
 - App entry point → Circles tab (Global Feed)
 - Home tab → Daily Intentions only, zero social feed
@@ -23,7 +23,7 @@
 
 ---
 
-## Phase 3 — Profile Photos
+## Phase 3 — Profile Photos ✓ Complete
 **Scope:** Foundation for face piles, member boards, social identity.
 - PHPicker → Supabase Storage `avatars` bucket → `profiles.avatar_url`
 - Avatar display: ProfileView, CircleDetailView member board
@@ -31,7 +31,7 @@
 
 ---
 
-## Phase 4 — Dual-Track Habits
+## Phase 4 — Dual-Track Habits ✓ Complete
 **Scope:** Core habit architecture separation.
 - `is_accountable` flag + `circle_id` on habits
 - Home tab: shows both Accountable and Personal habits, labeled correctly
@@ -40,7 +40,7 @@
 
 ---
 
-## Phase 5 — Circle Core Habits + Gender Locking
+## Phase 5 — Circle Core Habits + Gender Locking ✓ Complete
 **Scope:** Circle identity and membership integrity.
 - Core habits stored on `circles.core_habits` (JSON array)
 - Gender setting enforced at join time (confirmation + block)
@@ -48,7 +48,7 @@
 
 ---
 
-## Phase 6 — Amir Onboarding Overhaul
+## Phase 6 — Amir Onboarding Overhaul ✓ Complete
 **Scope:** Full replacement of current onboarding for circle creators.
 - New flow: Circle Identity → Core Habits → Location → Soul Gate
 - Soul Gate: hard lock — native share sheet must be triggered before completion
@@ -57,7 +57,7 @@
 
 ---
 
-## Phase 7 — Member/Joiner Flow + Rich Circle Preview
+## Phase 7 — Member/Joiner Flow + Rich Circle Preview ✓ Complete
 **Scope:** Invite-driven onboarding for joiners.
 - Unauthenticated circle preview (name, member count, group streak only)
 - New join flow: Habit Alignment → Location → lands on Global Feed
@@ -66,7 +66,7 @@
 
 ---
 
-## Phase 8 — Prayer of the Day + Reciprocity Gate v2
+## Phase 8 — Prayer of the Day + Reciprocity Gate v2 ✓ Complete
 **Scope:** The core Circle Moment mechanic, properly implemented.
 - `daily_moments` table: server-side cron picks one prayer globally per day
 - Aladhan API: local prayer time calculation per user location
@@ -76,7 +76,7 @@
 
 ---
 
-## Phase 9 — Comment Drawer
+## Phase 9 — Comment Drawer ✓ Complete
 **Scope:** Primary site of private social interaction.
 - `comments` table + RLS (circle-members only)
 - Slide-up drawer on tap of any feed item
@@ -85,7 +85,7 @@
 
 ---
 
-## Phase 10 — Group Streak + Face Piles
+## Phase 10 — Group Streak + Face Piles 🔄 Active
 **Scope:** Social layer polish.
 - Group streak: increments when all members post moment on same day
 - Group streak flame displayed on My Circles cards
