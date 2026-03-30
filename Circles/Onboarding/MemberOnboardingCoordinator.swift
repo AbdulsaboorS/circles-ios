@@ -57,24 +57,33 @@ final class MemberOnboardingCoordinator {
             _ = try await CircleService.shared.joinByInviteCode(inviteCode, userId: userId)
 
             // 3. Create accountable habits linked to this circle
+            var created: [Habit] = []
             for habitName in selectedHabits {
                 let icon = AmiirOnboardingCoordinator.curatedHabits.first { $0.name == habitName }?.icon ?? "star.fill"
-                try? await HabitService.shared.createAccountableHabit(
+                if let h = try? await HabitService.shared.createAccountableHabit(
                     userId: userId,
                     name: habitName,
                     icon: icon,
                     circleId: circle.id
-                )
+                ) {
+                    created.append(h)
+                }
             }
 
-            completeOnboarding(userId: userId)
+            completeOnboarding(userId: userId, habitsForRoadmap: created)
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
-    func completeOnboarding(userId: UUID) {
+    func completeOnboarding(userId: UUID, habitsForRoadmap: [Habit] = []) {
+        let habits = habitsForRoadmap
+        Task {
+            for habit in habits {
+                await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
+            }
+        }
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(userId.uuidString)")
         isComplete = true
     }

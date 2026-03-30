@@ -38,6 +38,8 @@ final class AmiirOnboardingCoordinator {
 
     // MARK: - Created Entities
     var createdCircle: Circle? = nil
+    /// Habits created in `createCircleAndProceed` — used for background AI roadmaps.
+    private(set) var createdHabitsInSession: [Habit] = []
 
     // MARK: - Soul Gate
     var hasSharedInvite: Bool = false
@@ -85,14 +87,17 @@ final class AmiirOnboardingCoordinator {
             createdCircle = circle
 
             // 3. Create accountable habit rows for each selected habit
+            createdHabitsInSession = []
             for habitName in selectedHabits {
                 let icon = Self.curatedHabits.first { $0.name == habitName }?.icon ?? "star.fill"
-                try? await HabitService.shared.createAccountableHabit(
+                if let h = try? await HabitService.shared.createAccountableHabit(
                     userId: userId,
                     name: habitName,
                     icon: icon,
                     circleId: circle.id
-                )
+                ) {
+                    createdHabitsInSession.append(h)
+                }
             }
 
             navigationPath.append(.soulGate)
@@ -102,16 +107,12 @@ final class AmiirOnboardingCoordinator {
         isLoading = false
     }
 
-    /// Mark onboarding complete. Fire-and-forget AI roadmap generation in background.
+    /// Mark onboarding complete. Fire-and-forget 28-day plan generation per created habit.
     func completeOnboarding(userId: UUID) {
-        // Background AI roadmap generation (non-blocking)
-        let habitsToProcess = Array(selectedHabits)
-        Task.detached(priority: .background) {
-            for habitName in habitsToProcess {
-                _ = try? await GeminiService.shared.fetchSuggestion(
-                    habitName: habitName,
-                    ramadanAmount: "daily"
-                )
+        let habits = createdHabitsInSession
+        Task {
+            for habit in habits {
+                await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
             }
         }
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(userId.uuidString)")

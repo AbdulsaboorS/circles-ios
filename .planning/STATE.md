@@ -1,7 +1,7 @@
 ---
 version: 2.3
-last_updated: "2026-03-29"
-current_phase: "Phase 11 — AI Roadmap v2"
+last_updated: "2026-03-30"
+current_phase: "Phase 12 — Polish + App Store"
 status: "In Progress"
 ---
 
@@ -9,7 +9,7 @@ status: "In Progress"
 
 ## Current Focus
 
-**Next: Phase 11 (AI Roadmap v2)** — then Phase 12 (Polish + App Store).
+**Next: Phase 12 (Polish + App Store)** — copy audit, App Store submission.
 
 ---
 
@@ -48,7 +48,7 @@ status: "In Progress"
 - `AmiirOnboardingCoordinator`: 4-step state machine, Soul Gate hard lock
 - Steps: Circle Identity → Core Habits (max 3, curated list) → Location → Soul Gate
 - Soul Gate: `ShareSheet` UIActivityViewController bridge; "Begin My Journey" disabled until share initiated
-- Background AI roadmap generation fires on completion (fire-and-forget)
+- Background 28-day `habit_plans` generation for each created habit on completion (fire-and-forget)
 - `StepIndicator` component (animated pill progress)
 - `ContentView`: routes new users to Amir flow; Amir lands on Home tab
 
@@ -81,6 +81,14 @@ status: "In Progress"
 - `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
 
+### Phase 11 — AI Roadmap v2 ✓
+- DB: run `.planning/phases/11-ai-roadmap/migration.sql` — `refinement_cycle` + `apply_habit_plan_refinement` (3 refinements per UTC ISO week)
+- `GeminiService.generate28DayRoadmap` — exactly 28 milestones JSON; optional user note for refine
+- `HabitPlanService`: fetch/upsert initial plan, `applyRefinement` via RPC; `ensureAIRoadmapForOnboarding` for Amir + Member flows
+- `HabitPlan` + `HabitMilestone`: `refinementCycle`, calendar alignment helpers (`calendarDateString`, `isMilestoneToday`, `displayWeek`)
+- `HabitDetailView`: **Generate 28-day plan** button, week-grouped roadmap with **Today** highlight, **Refine plan** sheet + limit copy
+- `AmiirOnboardingCoordinator` / `MemberOnboardingCoordinator`: background plans for habits created at onboarding
+
 ---
 
 ## What's Built — v1 Foundation (carried into v2.3)
@@ -99,8 +107,9 @@ status: "In Progress"
 ### Habits
 - `Habit`, `HabitLog`, `Streak`, `HabitPlan` models
 - `HabitService`: fetchActiveHabits, toggleHabitLog, updateLogNote, updatePlanNotes, createAccountableHabit, broadcastHabitCompletion
-- `GeminiService`: fetchSuggestion (Phase 11 adds roadmap / refine generation)
-- `HomeViewModel` + `HomeView` + `HabitDetailView`
+- `HabitPlanService`: fetchPlan, upsertInitialPlan, applyRefinement (RPC), ensureAIRoadmapForOnboarding
+- `GeminiService`: fetchSuggestion, generate28DayRoadmap
+- `HomeViewModel` + `HomeView` + `HabitDetailView` (roadmap + refine)
 
 ### Circles
 - `Circle`, `CircleMember` models (with genderSetting, coreHabits, groupStreakDays)
@@ -179,8 +188,8 @@ status: "In Progress"
 | 8 — Prayer Gate v2 | ✓ Complete | DailyMomentService, Aladhan API, full-feed blur gate |
 | 9 — Comment Drawer | ✓ Complete | CommentService, CommentDrawerView, comment buttons on all cards |
 | 10 — Group Streak + Face Piles | ✓ Complete | UTC trigger SQL, refetch after moment, face piles, Amir settings |
-| 11 — AI Roadmap v2 | 🔄 Next | habit_plans table, 28-day timeline UI, refinement guardrail |
-| 12 — Polish + App Store | ⏳ Pending | Muslim-native copy audit, App Store submission |
+| 11 — AI Roadmap v2 | ✓ Complete | Gemini 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
+| 12 — Polish + App Store | 🔄 Next | Muslim-native copy audit, App Store submission |
 
 ---
 
@@ -190,4 +199,4 @@ None.
 
 ---
 
-*v2.3 pivot: 2026-03-26. Phases 1-10 complete. Phases 11-12 remaining.*
+*v2.3 pivot: 2026-03-26. Phases 1-11 complete. Phase 12 remaining.*

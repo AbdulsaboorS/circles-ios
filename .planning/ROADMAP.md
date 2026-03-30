@@ -94,17 +94,15 @@
 
 ---
 
-## Phase 11 — AI Roadmap v2 🔄 Active
+## Phase 11 — AI Roadmap v2 ✓ Complete
 **Scope:** 28-day habit roadmap, fully implemented.
-- `habit_plans` table: milestones JSON, refinement_count, week_number
-- 28-day milestone timeline UI in HabitDetailView
-- "Edit/Refine Plan" button: manual or AI-prompted
-- 3/week refinement guardrail (DB-tracked, server-enforced)
-- Token limit message: "Sorry, no more for now. AI tokens cost a lot! InshAllah try again next time."
+- `habit_plans` + RPC `apply_habit_plan_refinement` (see `phases/11-ai-roadmap/migration.sql`)
+- `HabitDetailView`: Generate button, calendar-aligned milestones with Today, Refine sheet
+- Gemini `generate28DayRoadmap`; 3 refinements per UTC ISO week; PRD token-limit copy
 
 ---
 
-## Phase 12 — Muslim-Native UX Polish + App Store
+## Phase 12 — Muslim-Native UX Polish + App Store 🔄 Active
 **Scope:** Final pass before submission.
 - Full copy audit across every screen
 - Mercy-First language verification

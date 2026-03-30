@@ -103,4 +103,4 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 - **SuperDesign** — visual design drafts before SwiftUI implementation
 
 ---
-*Last updated: 2026-03-29 — v2.3, Phases 1-10 complete (Phase 11 next)*
+*Last updated: 2026-03-30 — v2.3, Phases 1-11 complete (Phase 12 next)*
