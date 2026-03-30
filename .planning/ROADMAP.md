@@ -1,7 +1,7 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-03-31
-**Direction:** Private Islamic BeReal. 12-phase execution plan.
+**Updated:** 2026-03-30
+**Direction:** Private Islamic BeReal. 14-phase execution plan.
 
 ---
 
@@ -102,15 +102,36 @@
 
 ---
 
-## Phase 12 — Muslim-Native UX Polish + App Store 🔄 Active
+## Phase 11.1 — Full UI Vision Pass 🔄 Active
+**Scope:** Full vision redesign of every screen. Scrappy, iterative — designed live with Stitch MCP.
+- Auth / onboarding flows (Amir + Member)
+- Home (Daily Intentions, HabitDetailView, AI roadmap)
+- Community / Feed (Global + Circle feeds, Reciprocity Gate)
+- Circles (MyCirclesView, CircleDetailView, Create/Join)
+- Moment (Camera, Preview, feed cards)
+- Profile
+- Design system tokens (colors, typography, spacing) updated to match new vision
+- Navigation feel + transitions
+
+---
+
+## Phase 11.2 — End-to-End QA + Bug Fixes ⬜ Planned
+**Scope:** Full E2E test of every user flow; fix everything found + known open issues.
+- Known open issues from STATE.md:
+  - **A. Gemini -1011** — surface HTTP status + body; verify API key + model id
+  - **C. Habit detail icon** — `Image(systemName:)` + fallback; fix `Color.textSecondary` contrast
+- E2E flows to test: Amir onboarding → circle creation → invite → Member join → moment post → feed → reactions → comments → streak → AI roadmap → refine → profile
+- Document all new bugs found; fix before App Store submission
+
+---
+
+## Phase 12 — Muslim-Native UX Polish + App Store ⬜ Planned
 **Scope:** Final pass before submission.
 - Full copy audit across every screen
 - Mercy-First language verification
 - Notification tone review
 - App Store metadata, screenshots, privacy manifest
 - TestFlight beta, human verification, submission
-- **Stability / QA (in progress):** diagnose Gemini **HTTP non-200** → user sees `NSURLErrorDomain -1011` (`badServerResponse`); log status + body; verify API key + `gemini-3-flash-preview` availability
-- **Habit detail:** render `habit.icon` with `Image(systemName:)` + fallback (not `Text`); fix `Color.textSecondary` on light cards → `AppColors.resolve(...).textSecondary`
 
 ---
 

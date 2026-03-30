@@ -1,7 +1,7 @@
 ---
 version: 2.3
-last_updated: "2026-03-31"
-current_phase: "Phase 12 — Polish + App Store"
+last_updated: "2026-03-30"
+current_phase: "Phase 11.1 — Full UI Vision Pass"
 status: "In Progress"
 ---
 
@@ -9,7 +9,7 @@ status: "In Progress"
 
 ## Current Focus
 
-**Phase 12 (Polish + App Store)** — copy audit, App Store submission, **stabilize AI roadmap + habit detail UX** (see Open issues).
+**Phase 11.1 (Full UI Vision Pass)** — full vision redesign of every screen, iterative with Stitch MCP. Phase 11.2 (E2E QA) and Phase 12 (App Store) follow.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -193,7 +193,9 @@ status: "In Progress"
 | 9 — Comment Drawer | ✓ Complete | CommentService, CommentDrawerView, comment buttons on all cards |
 | 10 — Group Streak + Face Piles | ✓ Complete | UTC trigger SQL, refetch after moment, face piles, Amir settings |
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
-| 12 — Polish + App Store | 🔄 Next | Muslim-native copy audit, App Store submission |
+| 11.1 — Full UI Vision Pass | 🔄 Active | Full vision redesign of every screen with Stitch MCP |
+| 11.2 — E2E QA + Bug Fixes | ⬜ Planned | Full E2E test, fix known issues + anything found |
+| 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
 
 ---
 
