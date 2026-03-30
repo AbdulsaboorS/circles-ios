@@ -15,6 +15,7 @@ xcuserdata/
 *.xcscmblueprint
 build/
 DerivedData/
+.derivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
