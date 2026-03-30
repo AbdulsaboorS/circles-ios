@@ -1,6 +1,6 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-03-26
+**Updated:** 2026-03-30
 **Direction:** Private Islamic BeReal. 12-phase execution plan.
 
 ---
@@ -52,7 +52,7 @@
 **Scope:** Full replacement of current onboarding for circle creators.
 - New flow: Circle Identity → Core Habits → Location → Soul Gate
 - Soul Gate: hard lock — native share sheet must be triggered before completion
-- Background AI roadmap generation fires during Soul Gate step
+- Background 28-day plan jobs when onboarding completes (`HabitPlanService.ensureAIRoadmapForOnboarding` per habit created in session)
 - Landing: Home tab (Daily Intentions)
 
 ---
@@ -112,5 +112,7 @@
 
 ---
 
-*Phases are executed in order. Each phase gets a 1-page spec before implementation.*
+*Phases are executed in order. Early phases (1–2) have `SPEC.md` in-repo; later phases may ship SQL/README only.*
+
+**Manual QA:** `.planning/MANUAL_QA.md`
 *Phases 1-2 implemented together. Phases 3-4 implemented together. Phase 5+ one at a time.*

@@ -4,7 +4,7 @@
 
 A native Swift/SwiftUI iOS app — a private Islamic accountability tool ("Islamic BeReal"). Circle Moment (BeReal-style daily check-in anchored to prayer times) + habit tracking + small private circles.
 
-See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built and what's next.
+See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built and what's next. See `.planning/MANUAL_QA.md` for manual test checklist (especially after SQL migrations).
 
 ## Tech Stack
 
@@ -61,7 +61,7 @@ Circles/
 Active tables:
 - `habits` — user habits (is_accountable, circle_id, plan_notes)
 - `habit_logs` — daily check-ins (notes field)
-- `habit_plans` — AI 28-day roadmaps (refinement_count, week tracking)
+- `habit_plans` — AI 28-day roadmaps (`milestones` JSONB, `refinement_count`, `refinement_week`, `refinement_cycle`); refinements via RPC `apply_habit_plan_refinement` (weekly cap)
 - `streaks` — streak tracking
 - `circles` — private circles (gender_setting, core_habits, group_streak_days)
 - `circle_members` — membership (role: admin/member)
@@ -103,4 +103,4 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 - **SuperDesign** — visual design drafts before SwiftUI implementation
 
 ---
-*Last updated: 2026-03-30 — v2.3, Phases 1-11 complete (Phase 12 next)*
+*Last updated: 2026-03-30 — v2.3, Phases 1–11 complete (Phase 12 next); `MANUAL_QA.md` for post-migration testing*

@@ -40,8 +40,8 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 - **Accountable Habits**: Linked to a specific circle. Completions broadcast to that circle's feed only. A habit can be accountable in multiple circles independently.
 - **Personal Habits**: Private-only. Never broadcast. No one else sees these.
 - Users can convert a Personal habit → Accountable at any time
-- AI generates 28-day roadmap per habit in background (Gemini 2.0 Flash)
-- Refinement guardrail: 3 AI re-generations per habit per week (DB-tracked)
+- AI generates a 28-day roadmap per habit (Gemini 2.0 Flash): manual **Generate** on habit detail plus background jobs after onboarding completion
+- Refinement guardrail: 3 AI refinements per habit per **UTC ISO week** (`refinement_cycle` + `apply_habit_plan_refinement` RPC)
 
 ### C. Circle Core Habits
 - Amir selects 2-3 "Core Habits" that define the circle's mission
@@ -52,7 +52,7 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 1. **Circle Identity**: Name + gender setting (Brothers / Sisters / Mixed)
 2. **Core Mission**: Select 2-3 habits from curated Islamic list
 3. **Prayer Sync**: Location (Aladhan-based prayer time)
-4. **Soul Gate** (hard lock): Must trigger native share sheet before onboarding completes. AI roadmap generates in background during this step.
+4. **Soul Gate** (hard lock): Must trigger native share sheet before onboarding completes. After completion, background jobs enqueue 28-day plans for habits created in-session (`HabitPlanService`).
 5. **Landing**: Home tab — Daily Intentions
 
 ### E. The "Member" (Joiner) Flow
@@ -122,7 +122,7 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 
 **New tables:**
 - `comments` — id, post_id, post_type, circle_id, user_id, text, created_at
-- `habit_plans` — id, habit_id, user_id, milestones JSONB, week_number INT, refinement_count INT DEFAULT 0, created_at
+- `habit_plans` — id, habit_id, user_id, milestones JSONB, week_number INT, refinement_count INT, refinement_week INT, **refinement_cycle** TEXT (UTC ISO week key), created_at, updated_at; RPC **`apply_habit_plan_refinement`** for capped refinements
 - `daily_moments` — id, prayer_name TEXT, date DATE UNIQUE (server picks one prayer per day)
 
 ---
@@ -138,4 +138,6 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 
 ---
 
-*Last updated: 2026-03-26 — v2.3 pivot finalized*
+*Last updated: 2026-03-30 — v2.3; Phase 11 habit plan + refinement RPC reflected*
+
+**QA:** `.planning/MANUAL_QA.md`

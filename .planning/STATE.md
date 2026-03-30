@@ -11,6 +11,8 @@ status: "In Progress"
 
 **Next: Phase 12 (Polish + App Store)** — copy audit, App Store submission.
 
+**Manual QA:** After DB changes, run through [`MANUAL_QA.md`](MANUAL_QA.md) (Phase 11 + regression smoke).
+
 ---
 
 ## What's Built — v2.3 Phases
@@ -48,7 +50,7 @@ status: "In Progress"
 - `AmiirOnboardingCoordinator`: 4-step state machine, Soul Gate hard lock
 - Steps: Circle Identity → Core Habits (max 3, curated list) → Location → Soul Gate
 - Soul Gate: `ShareSheet` UIActivityViewController bridge; "Begin My Journey" disabled until share initiated
-- Background 28-day `habit_plans` generation for each created habit on completion (fire-and-forget)
+- On onboarding completion: background `HabitPlanService.ensureAIRoadmapForOnboarding` per habit created in session (fire-and-forget; details Phase 11)
 - `StepIndicator` component (animated pill progress)
 - `ContentView`: routes new users to Amir flow; Amir lands on Home tab
 
@@ -82,7 +84,7 @@ status: "In Progress"
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
 
 ### Phase 11 — AI Roadmap v2 ✓
-- DB: run `.planning/phases/11-ai-roadmap/migration.sql` — `refinement_cycle` + `apply_habit_plan_refinement` (3 refinements per UTC ISO week)
+- DB: **required for Refine** — run `.planning/phases/11-ai-roadmap/migration.sql` (`refinement_cycle` + `apply_habit_plan_refinement`, 3 refinements per UTC ISO week)
 - `GeminiService.generate28DayRoadmap` — exactly 28 milestones JSON; optional user note for refine
 - `HabitPlanService`: fetch/upsert initial plan, `applyRefinement` via RPC; `ensureAIRoadmapForOnboarding` for Amir + Member flows
 - `HabitPlan` + `HabitMilestone`: `refinementCycle`, calendar alignment helpers (`calendarDateString`, `isMilestoneToday`, `displayWeek`)
@@ -199,4 +201,4 @@ None.
 
 ---
 
-*v2.3 pivot: 2026-03-26. Phases 1-11 complete. Phase 12 remaining.*
+*v2.3 pivot: 2026-03-26. Phases 1–11 complete. Phase 12 remaining. Manual checklist: `MANUAL_QA.md`.*
