@@ -137,6 +137,48 @@ final class CircleService {
             .value
     }
 
+    func fetchCircle(id: UUID) async throws -> Circle {
+        try await client
+            .from("circles")
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+    }
+
+    /// Amir: update `core_habits` and/or `gender_setting`. Pass nil to leave unchanged.
+    func updateCircleSettings(circleId: UUID, coreHabits: [String]?, genderSetting: String?) async throws -> Circle {
+        var patch: [String: AnyJSON] = [:]
+        if let coreHabits {
+            patch["core_habits"] = .array(coreHabits.map { .string($0) })
+        }
+        if let genderSetting {
+            patch["gender_setting"] = .string(genderSetting)
+        }
+        guard !patch.isEmpty else {
+            return try await fetchCircle(id: circleId)
+        }
+        return try await client
+            .from("circles")
+            .update(patch)
+            .eq("id", value: circleId.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    /// Amir removes another member from the circle (RLS: admin only, not self).
+    func removeMember(circleId: UUID, userId: UUID) async throws {
+        try await client
+            .from("circle_members")
+            .delete()
+            .eq("circle_id", value: circleId.uuidString)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+    }
+
     // MARK: - Private
 
     private func generateInviteCode() -> String {

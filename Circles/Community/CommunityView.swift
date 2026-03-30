@@ -87,6 +87,7 @@ struct CommunityView: View {
                             )
                             DailyMomentService.shared.markPostedToday()
                             await loadGlobalFeed()
+                            await viewModel.loadCircles(userId: userId)
                         },
                         onRetake: {
                             showGlobalPreview = false

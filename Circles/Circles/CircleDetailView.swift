@@ -2,7 +2,7 @@ import SwiftUI
 import Supabase
 
 struct CircleDetailView: View {
-    let circle: Circle
+    @State private var circle: Circle
 
     @State private var feedViewModel = FeedViewModel()
     @State private var members: [CircleMember] = []
@@ -15,8 +15,18 @@ struct CircleDetailView: View {
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
     @State private var showPreview = false
+    @State private var showAmirSettings = false
 
     @Environment(AuthManager.self) private var auth
+
+    init(circle: Circle) {
+        _circle = State(initialValue: circle)
+    }
+
+    private var isAmir: Bool {
+        guard let uid = auth.session?.user.id else { return false }
+        return members.contains { $0.userId == uid && $0.role == "admin" }
+    }
 
     private var inviteURL: URL {
         URL(string: "https://joinlegacy.app/join/\(circle.inviteCode ?? "")")!
@@ -84,6 +94,7 @@ struct CircleDetailView: View {
                 }
                 .refreshable {
                     guard let userId = auth.session?.user.id else { return }
+                    await reloadCircleFromServer()
                     await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -94,11 +105,28 @@ struct CircleDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                ShareLink(item: inviteURL) {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundStyle(Color.accent)
+                HStack(spacing: 16) {
+                    if isAmir {
+                        Button {
+                            showAmirSettings = true
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .foregroundStyle(Color.accent)
+                        }
+                    }
+                    ShareLink(item: inviteURL) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(Color.accent)
+                    }
                 }
             }
+        }
+        .sheet(isPresented: $showAmirSettings) {
+            AmirCircleSettingsView(
+                circle: $circle,
+                members: $members,
+                memberProfiles: $memberProfiles
+            )
         }
         .task {
             guard let userId = auth.session?.user.id else { return }
@@ -135,6 +163,7 @@ struct CircleDetailView: View {
                             windowStart: circle.momentWindowStart
                         )
                         DailyMomentService.shared.markPostedToday()
+                        await reloadCircleFromServer()
                         await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
                     },
                     onRetake: {
@@ -165,6 +194,7 @@ struct CircleDetailView: View {
                 .sheet(isPresented: $showMembersSheet) {
                     MembersListView(
                         members: members,
+                        memberProfiles: memberProfiles,
                         currentUserId: auth.session?.user.id,
                         senderId: auth.session?.user.id,
                         circleId: circle.id
@@ -175,12 +205,21 @@ struct CircleDetailView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(members) { member in
+                    let maxStrip = 14
+                    let stripMembers = Array(members.prefix(maxStrip))
+                    ForEach(stripMembers) { member in
                         MemberAvatarChip(
                             member: member,
                             avatarUrl: memberProfiles[member.userId]?.avatarUrl,
                             displayName: memberProfiles[member.userId]?.preferredName ?? ""
                         )
+                    }
+                    if members.count > maxStrip {
+                        Text("+\(members.count - maxStrip)")
+                            .font(.appCaptionMedium)
+                            .foregroundStyle(Color.textSecondary)
+                            .frame(width: 44, height: 44)
+                            .background(Color.accent.opacity(0.12), in: SwiftUI.Circle())
                     }
                 }
                 .padding(.horizontal, 16)
@@ -229,6 +268,14 @@ struct CircleDetailView: View {
     }
 
     // MARK: - Nudge
+
+    private func reloadCircleFromServer() async {
+        do {
+            circle = try await CircleService.shared.fetchCircle(id: circle.id)
+        } catch {
+            print("[CircleDetailView] reloadCircle failed: \(error)")
+        }
+    }
 
     private func sendNudge(to targetUserId: UUID, nudgeType: String) async {
         guard let senderId = auth.session?.user.id else { return }
@@ -303,62 +350,81 @@ private struct MemberAvatarChip: View {
 
 private struct MembersListView: View {
     let members: [CircleMember]
+    let memberProfiles: [UUID: Profile]
     let currentUserId: UUID?
     let senderId: UUID?
     let circleId: UUID
     @Environment(\.colorScheme) private var colorScheme
 
+    private func rowTitle(_ member: CircleMember) -> String {
+        if let n = memberProfiles[member.userId]?.preferredName, !n.isEmpty { return n }
+        return String(member.userId.uuidString.prefix(8)) + "…"
+    }
+
     var body: some View {
-        ZStack {
-            (colorScheme == .dark ? Color.darkBackground : Color.lightBackground)
-                .ignoresSafeArea()
-            List(members) { member in
-                HStack {
-                    Text(member.userId.uuidString.prefix(8))
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(Color.textPrimary)
-                    Spacer()
-                    if member.role == "admin" {
-                        Text("Admin")
-                            .font(.appCaption)
-                            .foregroundStyle(Color.accent)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Color.accent.opacity(0.15))
-                            .clipShape(Capsule())
-                    }
-                    if member.userId != currentUserId {
-                        HStack(spacing: 6) {
-                            Button {
-                                Task { await sendNudge(to: member.userId, type: "moment", circleId: circleId) }
-                            } label: {
-                                Text("Moment")
-                                    .font(.caption2.weight(.semibold))
+        NavigationStack {
+            ZStack {
+                (colorScheme == .dark ? Color.darkBackground : Color.lightBackground)
+                    .ignoresSafeArea()
+                List(members) { member in
+                    HStack(spacing: 12) {
+                        AvatarView(
+                            avatarUrl: memberProfiles[member.userId]?.avatarUrl,
+                            name: rowTitle(member),
+                            size: 44
+                        )
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(rowTitle(member))
+                                .font(.appSubheadline)
+                                .foregroundStyle(Color.textPrimary)
+                            if member.role == "admin" {
+                                Text("Amir")
+                                    .font(.appCaption)
                                     .foregroundStyle(Color.accent)
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
                                     .background(Color.accent.opacity(0.15))
                                     .clipShape(Capsule())
                             }
-                            .buttonStyle(.plain)
-                            Button {
-                                Task { await sendNudge(to: member.userId, type: "habit", circleId: circleId) }
-                            } label: {
-                                Text("Habit")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(Color.accent)
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(Color.accent.opacity(0.15))
-                                    .clipShape(Capsule())
+                        }
+                        Spacer(minLength: 8)
+                        if member.userId != currentUserId {
+                            HStack(spacing: 6) {
+                                Button {
+                                    Task { await sendNudge(to: member.userId, type: "moment", circleId: circleId) }
+                                } label: {
+                                    Text("Moment")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Color.accent)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.accent.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                Button {
+                                    Task { await sendNudge(to: member.userId, type: "habit", circleId: circleId) }
+                                } label: {
+                                    Text("Habit")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Color.accent)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.accent.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
+                    .listRowBackground(Color.white.opacity(0.06))
                 }
-                .listRowBackground(Color.white.opacity(0.06))
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
+            .navigationTitle("Members")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .navigationTitle("Members")
         .presentationDetents([.medium, .large])
     }
 
