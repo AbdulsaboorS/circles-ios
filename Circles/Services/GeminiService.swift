@@ -98,4 +98,103 @@ final class GeminiService {
 
         return try JSONDecoder().decode(AISuggestion.self, from: jsonData)
     }
+
+    /// Generate exactly 28 daily milestones for a 28-day Islamic habit roadmap.
+    /// - Parameters:
+    ///   - userRefinementRequest: optional feedback when refining an existing plan.
+    func generate28DayRoadmap(
+        habitName: String,
+        planNotes: String?,
+        userRefinementRequest: String?
+    ) async throws -> [HabitMilestone] {
+        let notes = planNotes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.flatMap { $0.isEmpty ? nil : $0 }
+        let refine = userRefinementRequest.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.flatMap { $0.isEmpty ? nil : $0 }
+
+        var prompt = """
+        You are a knowledgeable, gentle Islamic habits coach. Create a 28-day progressive roadmap for ONE habit.
+
+        Habit name: \(habitName)
+        """
+        if let notes {
+            prompt += "\nContext from the user about this habit: \(notes)\n"
+        }
+        if let refine {
+            prompt += "\nThe user asked to adjust the plan. Honor this request while keeping steps realistic and merciful (no shame, small steps):\n\(refine)\n"
+        }
+        prompt += """
+        Return ONLY valid JSON (no markdown fences) with this exact shape:
+        {"milestones":[{"day":1,"title":"short title","description":"one or two sentences"},{"day":2,...},...]}
+        Requirements:
+        - Exactly 28 objects in "milestones", days 1 through 28 in order.
+        - Each day builds gently; use encouraging, Muslim-appropriate language.
+        - Titles under 60 characters; descriptions under 280 characters.
+        """
+
+        let body: [String: Any] = [
+            "contents": [
+                ["parts": [["text": prompt]]]
+            ]
+        ]
+
+        guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+
+        struct RoadmapEnvelope: Decodable {
+            let milestones: [HabitMilestone]
+        }
+
+        let cleaned = try Self.extractGeminiTextJSON(from: data)
+        let decoded = try JSONDecoder().decode(RoadmapEnvelope.self, from: cleaned)
+        guard decoded.milestones.count == 28 else {
+            throw URLError(.cannotParseResponse)
+        }
+        let days = Set(decoded.milestones.map(\.day))
+        guard days.count == 28, days == Set(1 ... 28) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return decoded.milestones.sorted { $0.day < $1.day }
+    }
+
+    // MARK: - Shared Gemini response parsing
+
+    private static func extractGeminiTextJSON(from data: Data) throws -> Data {
+        struct GeminiResponse: Decodable {
+            struct Candidate: Decodable {
+                struct Content: Decodable {
+                    struct Part: Decodable { let text: String }
+                    let parts: [Part]
+                }
+                let content: Content
+            }
+            let candidates: [Candidate]
+        }
+
+        let geminiResponse = try JSONDecoder().decode(GeminiResponse.self, from: data)
+        guard let rawText = geminiResponse.candidates.first?.content.parts.first?.text else {
+            throw URLError(.cannotParseResponse)
+        }
+
+        let cleaned = rawText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let jsonData = cleaned.data(using: .utf8) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return jsonData
+    }
 }
