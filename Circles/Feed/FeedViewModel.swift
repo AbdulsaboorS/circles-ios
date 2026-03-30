@@ -10,6 +10,8 @@ final class FeedViewModel {
     var items: [FeedItem] = []
     /// reactions keyed by item id — [item_id: [FeedReaction]]
     var reactions: [UUID: [FeedReaction]] = [:]
+    /// Avatars for users who reacted (merged across feed items).
+    var reactionProfiles: [UUID: Profile] = [:]
     var isLoadingInitial = false
     var isLoadingNextPage = false
     var hasMorePages = true
@@ -48,7 +50,10 @@ final class FeedViewModel {
             if !firstPage.isEmpty {
                 let ids = firstPage.map { $0.id }
                 reactions = Dictionary(grouping: try await FeedService.shared.fetchReactions(itemIds: ids), by: { $0.itemId })
+            } else {
+                reactions = [:]
             }
+            await mergeReactionProfiles()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -71,6 +76,7 @@ final class FeedViewModel {
                 for reaction in newReactions {
                     reactions[reaction.itemId, default: []].append(reaction)
                 }
+                await mergeReactionProfiles()
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -81,6 +87,7 @@ final class FeedViewModel {
     func refresh(circleIds: [UUID], currentUserId: UUID, singleCircleId: UUID? = nil) async {
         items = []
         reactions = [:]
+        reactionProfiles = [:]
         await loadInitial(circleIds: circleIds, currentUserId: currentUserId, singleCircleId: singleCircleId)
     }
 
@@ -137,5 +144,30 @@ final class FeedViewModel {
     /// Whether the current user has reacted with this emoji on this item
     func userHasReacted(itemId: UUID, emoji: String, userId: UUID) -> Bool {
         reactions[itemId, default: []].contains { $0.userId == userId && $0.emoji == emoji }
+    }
+
+    /// Distinct reactor user ids for face pile (stable: first-seen order in stored reactions).
+    func reactorUserIds(for itemId: UUID) -> [UUID] {
+        var seen = Set<UUID>()
+        var ordered: [UUID] = []
+        for r in reactions[itemId, default: []] {
+            if !seen.contains(r.userId) {
+                seen.insert(r.userId)
+                ordered.append(r.userId)
+            }
+        }
+        return ordered
+    }
+
+    private func mergeReactionProfiles() async {
+        let ids = Set(reactions.values.flatMap { $0.map(\.userId) })
+        guard !ids.isEmpty else {
+            reactionProfiles = [:]
+            return
+        }
+        let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: Array(ids))) ?? []
+        var next = reactionProfiles
+        for p in profiles { next[p.id] = p }
+        reactionProfiles = next
     }
 }

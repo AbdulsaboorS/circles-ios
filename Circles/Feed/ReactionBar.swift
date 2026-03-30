@@ -7,7 +7,12 @@ struct ReactionBar: View {
     @Bindable var viewModel: FeedViewModel
 
     var body: some View {
-        HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            let reactorIds = viewModel.reactorUserIds(for: itemId)
+            if !reactorIds.isEmpty {
+                ReactionFacePile(userIds: reactorIds, profiles: viewModel.reactionProfiles)
+            }
+            HStack(spacing: 6) {
             ForEach(FeedReaction.validEmojis, id: \.self) { emoji in
                 let count = viewModel.reactionCount(itemId: itemId, emoji: emoji)
                 let isSelected = viewModel.userHasReacted(itemId: itemId, emoji: emoji, userId: currentUserId)
@@ -39,6 +44,41 @@ struct ReactionBar: View {
                 }
                 .buttonStyle(.plain)
             }
+            }
         }
+    }
+}
+
+// MARK: - Face pile
+
+private struct ReactionFacePile: View {
+    let userIds: [UUID]
+    let profiles: [UUID: Profile]
+    var maxDisplay: Int = 5
+
+    var body: some View {
+        let shown = Array(userIds.prefix(maxDisplay))
+        let extra = userIds.count - shown.count
+        HStack(spacing: -10) {
+            ForEach(shown, id: \.self) { uid in
+                let p = profiles[uid]
+                let label: String = {
+                    if let n = p?.preferredName, !n.isEmpty { return n }
+                    return String(uid.uuidString.prefix(4))
+                }()
+                AvatarView(avatarUrl: p?.avatarUrl, name: label, size: 28)
+                .overlay(
+                    SwiftUI.Circle()
+                        .stroke(Color.white.opacity(0.95), lineWidth: 2)
+                )
+            }
+            if extra > 0 {
+                Text("+\(extra)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.leading, 6)
+            }
+        }
+        .accessibilityLabel("Reacted by \(userIds.count) people")
     }
 }
