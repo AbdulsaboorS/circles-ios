@@ -24,6 +24,19 @@ final class HabitPlanService {
 
     private var client: SupabaseClient { SupabaseService.shared.client }
 
+    /// Short alert copy for plan save / AI failures (Supabase schema, timeouts, etc.).
+    static func userFacingMessage(from error: Error) -> String {
+        if let urlErr = error as? URLError, urlErr.code == .timedOut {
+            return "The AI request timed out. Check your connection and try again."
+        }
+        let localized = error.localizedDescription
+        let blob = (localized + " " + String(describing: error)).lowercased()
+        if blob.contains("milestones"), blob.contains("schema") || blob.contains("could not find") {
+            return "Database setup: habit_plans is missing milestones or the API cache is stale. In Supabase SQL Editor, run habit_plans_align_app.sql (it notifies PostgREST to refresh). Wait a few seconds and try again — there is no “reload schema” button in Settings."
+        }
+        return localized
+    }
+
     // MARK: - Read
 
     func fetchPlan(habitId: UUID, userId: UUID) async throws -> HabitPlan? {

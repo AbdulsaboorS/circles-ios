@@ -12,3 +12,5 @@ Run **`migration.sql`** in the Supabase SQL Editor **before** using **Refine pla
 ## Smoke (after migration)
 
 Habit detail → **Generate 28-day plan** (28 days, week groups, Today) → **Refine** a few times → confirm **4th refine same UTC week** hits the limit. Optional: Amir/Member onboarding and re-open new habits for background plans.
+
+If generate/refine fails with **missing `milestones` / schema cache**, run **`../01-schema-foundations/habit_plans_align_app.sql`** in the SQL Editor (it ends with `NOTIFY pgrst, 'reload schema'`). Wait a few seconds — Supabase has no Settings → API “reload schema” button.

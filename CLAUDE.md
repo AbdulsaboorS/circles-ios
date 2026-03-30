@@ -96,6 +96,7 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 ### 5. SQL
 - Migrations run via Supabase Dashboard → SQL Editor
 - Always confirm with user before running destructive SQL
+- **`habit_plans` / schema cache:** run `.planning/phases/01-schema-foundations/habit_plans_align_app.sql` — it ends with `NOTIFY pgrst, 'reload schema'`. There is no “reload schema” control under Settings → API on hosted Supabase; changes usually apply within seconds.
 
 ## Skills in Use
 
