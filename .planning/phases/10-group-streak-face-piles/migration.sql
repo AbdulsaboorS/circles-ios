@@ -1,6 +1,6 @@
 -- Phase 10: UTC group streak (required).
 -- Paste this whole file into Supabase SQL Editor and run once.
--- Do NOT paste SQL.md — that file is Markdown and will error on "##".
+-- Do not paste README.md or .txt helpers — only this file is valid SQL for the editor.
 
 -- 1. Bookkeeping: last UTC day when every member posted
 ALTER TABLE public.circles

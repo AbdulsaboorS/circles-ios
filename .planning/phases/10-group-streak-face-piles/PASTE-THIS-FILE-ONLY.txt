@@ -1,0 +1,10 @@
+STOP — Do not paste this text file into Supabase either.
+
+In this same folder, open the file named:
+
+  migration.sql
+
+Copy the ENTIRE contents of migration.sql into Supabase SQL Editor, then Run.
+
+Optional second file (only if RLS blocks Amir settings in the app):
+  migration-optional-rls.sql

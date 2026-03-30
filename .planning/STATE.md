@@ -74,7 +74,7 @@ status: "In Progress"
 - `FeedView`: manages `commentingOnItem` state, presents `CommentDrawerView` as sheet
 
 ### Phase 10 — Group Streak + Face Piles + Amir settings ✓
-- DB (run in Supabase): UTC group streak trigger + `group_streak_last_complete_utc_date` — `.planning/phases/10-group-streak-face-piles/SQL.md`
+- DB (run in Supabase): UTC group streak trigger + `group_streak_last_complete_utc_date` — `.planning/phases/10-group-streak-face-piles/migration.sql`
 - `CircleService`: `fetchCircle`, `updateCircleSettings`, `removeMember`
 - After a Moment post: `CircleDetailView` refetches circle; `CommunityView` calls `loadCircles` so My Circles streak updates
 - `FeedViewModel` + `ReactionBar`: batch reactor profiles, overlapping face pile (max 5 + “+N”)
