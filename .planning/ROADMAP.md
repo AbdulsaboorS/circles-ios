@@ -98,7 +98,7 @@
 **Scope:** 28-day habit roadmap, fully implemented.
 - `habit_plans` + RPC `apply_habit_plan_refinement` (see `phases/11-ai-roadmap/migration.sql`)
 - `HabitDetailView`: Generate button, calendar-aligned milestones with Today, Refine sheet
-- Gemini `generate28DayRoadmap`; 3 refinements per UTC ISO week; PRD token-limit copy
+- Gemini 3 Flash preview `generate28DayRoadmap`; 3 refinements per UTC ISO week; PRD token-limit copy
 
 ---
 
@@ -113,6 +113,4 @@
 ---
 
 *Phases are executed in order. Early phases (1–2) have `SPEC.md` in-repo; later phases may ship SQL/README only.*
-
-**Manual QA:** `.planning/MANUAL_QA.md`
 *Phases 1-2 implemented together. Phases 3-4 implemented together. Phase 5+ one at a time.*

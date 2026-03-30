@@ -4,7 +4,7 @@
 
 A native Swift/SwiftUI iOS app — a private Islamic accountability tool ("Islamic BeReal"). Circle Moment (BeReal-style daily check-in anchored to prayer times) + habit tracking + small private circles.
 
-See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built and what's next. See `.planning/MANUAL_QA.md` for manual test checklist (especially after SQL migrations).
+See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built and what's next.
 
 ## Tech Stack
 
@@ -12,7 +12,7 @@ See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/RO
 - **UI**: SwiftUI
 - **Backend**: Supabase Swift SDK (via SPM)
 - **Auth**: Supabase (Google OAuth + Sign in with Apple)
-- **AI**: Gemini 2.0 Flash REST API
+- **AI**: Gemini 3 Flash (preview) REST API — model `gemini-3-flash-preview` in `GeminiService`
 - **Prayer Times**: Aladhan API (api.aladhan.com, method=3 MWL)
 - **Storage**: Supabase Storage (`circle-moments` bucket, `avatars` bucket)
 - **Push**: APNs
@@ -103,4 +103,4 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 - **SuperDesign** — visual design drafts before SwiftUI implementation
 
 ---
-*Last updated: 2026-03-30 — v2.3, Phases 1–11 complete (Phase 12 next); `MANUAL_QA.md` for post-migration testing*
+*Last updated: 2026-03-30 — v2.3, Phases 1–11 complete (Phase 12 next)*

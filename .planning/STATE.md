@@ -11,8 +11,6 @@ status: "In Progress"
 
 **Next: Phase 12 (Polish + App Store)** — copy audit, App Store submission.
 
-**Manual QA:** After DB changes, run through [`MANUAL_QA.md`](MANUAL_QA.md) (Phase 11 + regression smoke).
-
 ---
 
 ## What's Built — v2.3 Phases
@@ -85,7 +83,7 @@ status: "In Progress"
 
 ### Phase 11 — AI Roadmap v2 ✓
 - DB: **required for Refine** — run `.planning/phases/11-ai-roadmap/migration.sql` (`refinement_cycle` + `apply_habit_plan_refinement`, 3 refinements per UTC ISO week)
-- `GeminiService.generate28DayRoadmap` — exactly 28 milestones JSON; optional user note for refine
+- `GeminiService.generate28DayRoadmap` (Gemini 3 Flash preview) — exactly 28 milestones JSON; optional user note for refine
 - `HabitPlanService`: fetch/upsert initial plan, `applyRefinement` via RPC; `ensureAIRoadmapForOnboarding` for Amir + Member flows
 - `HabitPlan` + `HabitMilestone`: `refinementCycle`, calendar alignment helpers (`calendarDateString`, `isMilestoneToday`, `displayWeek`)
 - `HabitDetailView`: **Generate 28-day plan** button, week-grouped roadmap with **Today** highlight, **Refine plan** sheet + limit copy
@@ -190,7 +188,7 @@ status: "In Progress"
 | 8 — Prayer Gate v2 | ✓ Complete | DailyMomentService, Aladhan API, full-feed blur gate |
 | 9 — Comment Drawer | ✓ Complete | CommentService, CommentDrawerView, comment buttons on all cards |
 | 10 — Group Streak + Face Piles | ✓ Complete | UTC trigger SQL, refetch after moment, face piles, Amir settings |
-| 11 — AI Roadmap v2 | ✓ Complete | Gemini 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
+| 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
 | 12 — Polish + App Store | 🔄 Next | Muslim-native copy audit, App Store submission |
 
 ---
@@ -201,4 +199,4 @@ None.
 
 ---
 
-*v2.3 pivot: 2026-03-26. Phases 1–11 complete. Phase 12 remaining. Manual checklist: `MANUAL_QA.md`.*
+*v2.3 pivot: 2026-03-26. Phases 1–11 complete. Phase 12 remaining.*

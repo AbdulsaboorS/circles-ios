@@ -9,6 +9,6 @@ Run **`migration.sql`** in the Supabase SQL Editor **before** using **Refine pla
 
 **Initial “Generate 28-day plan”** uses the Swift client (`HabitPlanService.upsertInitialPlan`) against existing `habit_plans` from Phase 1 schema — no extra SQL beyond Phase 1 for that path.
 
-## Verification
+## Smoke (after migration)
 
-See repo-wide checklist: **[`.planning/MANUAL_QA.md`](../../MANUAL_QA.md)** (sections A–B for roadmap + onboarding).
+Habit detail → **Generate 28-day plan** (28 days, week groups, Today) → **Refine** a few times → confirm **4th refine same UTC week** hits the limit. Optional: Amir/Member onboarding and re-open new habits for background plans.

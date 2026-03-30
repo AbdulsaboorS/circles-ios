@@ -26,7 +26,7 @@ final class GeminiService {
         self.apiKey = key
     }
 
-    /// Call Gemini 2.0 Flash to generate a post-Ramadan habit suggestion.
+    /// Call Gemini (same endpoint as roadmap: `gemini-3-flash-preview`) for a post-Ramadan habit suggestion.
     /// - Parameters:
     ///   - habitName: e.g. "Salah"
     ///   - ramadanAmount: e.g. "5 times per day"

@@ -40,7 +40,7 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 - **Accountable Habits**: Linked to a specific circle. Completions broadcast to that circle's feed only. A habit can be accountable in multiple circles independently.
 - **Personal Habits**: Private-only. Never broadcast. No one else sees these.
 - Users can convert a Personal habit → Accountable at any time
-- AI generates a 28-day roadmap per habit (Gemini 2.0 Flash): manual **Generate** on habit detail plus background jobs after onboarding completion
+- AI generates a 28-day roadmap per habit (Gemini 3 Flash preview): manual **Generate** on habit detail plus background jobs after onboarding completion
 - Refinement guardrail: 3 AI refinements per habit per **UTC ISO week** (`refinement_cycle` + `apply_habit_plan_refinement` RPC)
 
 ### C. Circle Core Habits
@@ -101,7 +101,7 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 ### Stack
 - **Language / UI**: Swift 6, SwiftUI
 - **Backend**: Supabase (shared with Legacy web)
-- **AI**: Gemini 2.0 Flash REST API
+- **AI**: Gemini 3 Flash (preview) REST API
 - **Auth**: Supabase (Google OAuth + Sign in with Apple)
 - **Push**: APNs via Supabase Edge Functions
 - **Storage**: Supabase Storage (circle-moments bucket, avatars bucket)
@@ -139,5 +139,3 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 ---
 
 *Last updated: 2026-03-30 — v2.3; Phase 11 habit plan + refinement RPC reflected*
-
-**QA:** `.planning/MANUAL_QA.md`
