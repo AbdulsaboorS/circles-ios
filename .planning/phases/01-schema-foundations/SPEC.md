@@ -55,6 +55,9 @@ USING (user_id = auth.uid());
 ```
 
 ### 5. New: `habit_plans`
+
+**Existing project out of sync?** Use the idempotent script `habit_plans_align_app.sql` in this folder (adds missing columns + RLS policy) if the app errors on `milestones` / schema cache.
+
 ```sql
 CREATE TABLE IF NOT EXISTS habit_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

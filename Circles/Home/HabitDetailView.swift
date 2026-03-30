@@ -267,7 +267,7 @@ struct HabitDetailView: View {
                 milestones: milestones
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = HabitPlanService.userFacingMessage(from: error)
         }
     }
 
@@ -287,7 +287,7 @@ struct HabitDetailView: View {
         } catch let e as HabitPlanServiceError {
             errorMessage = e.errorDescription
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = HabitPlanService.userFacingMessage(from: error)
         }
     }
 

@@ -23,4 +23,4 @@
 
 ## Git
 
-`main` → `origin` (GitHub). SQL is applied manually in Supabase SQL Editor, not via CI.
+`main` → `origin` (GitHub)
