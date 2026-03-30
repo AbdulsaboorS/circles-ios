@@ -87,7 +87,7 @@
 
 ## Phase 10 — Group Streak + Face Piles ✓ Complete
 **Scope:** Social layer polish.
-- Group streak: UTC calendar day; DB trigger when all members post (run `phases/10-group-streak-face-piles/migration.sql`)
+- Group streak: UTC calendar day; DB trigger when all members post (SQL run in Supabase; not stored in repo)
 - Refetch circle + My Circles after posting a Moment so flame updates
 - Face pile on reactions (`FeedViewModel` + `ReactionBar`)
 - Amir settings in CircleDetailView: core habits, gender, remove members; member list polish
