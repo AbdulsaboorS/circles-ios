@@ -1,6 +1,6 @@
 ---
 version: 2.3
-last_updated: "2026-03-30"
+last_updated: "2026-03-31"
 current_phase: "Phase 12 — Polish + App Store"
 status: "In Progress"
 ---
@@ -9,7 +9,9 @@ status: "In Progress"
 
 ## Current Focus
 
-**Next: Phase 12 (Polish + App Store)** — copy audit, App Store submission.
+**Phase 12 (Polish + App Store)** — copy audit, App Store submission, **stabilize AI roadmap + habit detail UX** (see Open issues).
+
+**Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
 ---
 
@@ -81,12 +83,14 @@ status: "In Progress"
 - `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
 
-### Phase 11 — AI Roadmap v2 ✓
-- DB: **required for Refine** — run `.planning/phases/11-ai-roadmap/migration.sql` (`refinement_cycle` + `apply_habit_plan_refinement`, 3 refinements per UTC ISO week)
-- `GeminiService.generate28DayRoadmap` (Gemini 3 Flash preview) — exactly 28 milestones JSON; optional user note for refine
-- `HabitPlanService`: fetch/upsert initial plan, `applyRefinement` via RPC; `ensureAIRoadmapForOnboarding` for Amir + Member flows
+### Phase 11 — AI Roadmap v2 ✓ (code complete; see Open issues for QA)
+- DB: **Refine** — run `.planning/phases/11-ai-roadmap/migration.sql` (`refinement_cycle` + `apply_habit_plan_refinement`, 3 refinements per UTC ISO week)
+- DB: **`habit_plans` shape** — if PostgREST errors on missing `milestones`, run `.planning/phases/01-schema-foundations/habit_plans_align_app.sql` (idempotent; ends with `NOTIFY pgrst, 'reload schema'`). Hosted Supabase has **no** Settings → API “reload schema” button.
+- `GeminiService`: model `gemini-3-flash-preview`; dedicated `URLSession` **45s request / 60s resource** timeouts on AI calls
+- `GeminiService.generate28DayRoadmap` — exactly 28 milestones JSON; optional user note for refine
+- `HabitPlanService`: fetch/upsert initial plan, `applyRefinement` via RPC, `userFacingMessage(from:)` for schema-timeout copy; `ensureAIRoadmapForOnboarding` for Amir + Member flows
 - `HabitPlan` + `HabitMilestone`: `refinementCycle`, calendar alignment helpers (`calendarDateString`, `isMilestoneToday`, `displayWeek`)
-- `HabitDetailView`: **Generate 28-day plan** button, week-grouped roadmap with **Today** highlight, **Refine plan** sheet + limit copy
+- `HabitDetailView`: **Generate 28-day plan**, week-grouped roadmap + **Today**, **Refine plan** sheet + limit copy
 - `AmiirOnboardingCoordinator` / `MemberOnboardingCoordinator`: background plans for habits created at onboarding
 
 ---
@@ -193,10 +197,36 @@ status: "In Progress"
 
 ---
 
-## Blockers
+## Open issues & QA (handoff)
 
-None.
+*Last triage: 2026-03-31 — from device testing; fixes not necessarily implemented yet.*
+
+### A. Generate 28-day plan — `NSURLErrorDomain error -1011`
+
+- **Meaning:** `NSURLErrorBadServerResponse` — the Gemini REST call returned **HTTP status other than 200**. `GeminiService` maps any non-200 to `URLError(.badServerResponse)` (see `GeminiService.swift`).
+- **Common causes:** API key invalid/expired, quota/billing, model id unavailable in the project/region, or Google returning 4xx/5xx with a body the app does not surface today.
+- **Next steps for debugging:** Log `http.statusCode` + response **body** (JSON error from Google) in `generate28DayRoadmap` / `fetchSuggestion`; confirm `GEMINI_API_KEY` and that `gemini-3-flash-preview` is enabled in [Google AI Studio](https://aistudio.google.com/) for the key’s project.
+
+### B. `habit_plans` / PostgREST “milestones” / schema cache
+
+- **Resolved on DB side** by running `habit_plans_align_app.sql` when the table was missing columns.
+- If the error returns: re-run that script (idempotent) or execute alone: `NOTIFY pgrst, 'reload schema';`
+
+### C. Habit detail UI (deferred — Phase 12)
+
+- **Hero “icon”:** `HabitDetailView` uses `Text(habit.icon)`, but `habit.icon` stores **SF Symbol names** (e.g. `moon.stars.fill`). Onboarding/home use `Image(systemName:)`. Detail shows raw names → looks broken.
+- **Contrast:** Multiple `Color.textSecondary` usages on light cards — static token is **dark-mode** (white @ opacity); should use `AppColors.resolve(colorScheme).textSecondary` for adaptive text.
+
+### D. Error copy
+
+- Schema-related failures get friendly text via `HabitPlanService.userFacingMessage(from:)`. Raw `localizedDescription` still appears for some URLErrors (-1011).
 
 ---
 
-*v2.3 pivot: 2026-03-26. Phases 1–11 complete. Phase 12 remaining.*
+## Blockers
+
+None for **shipping Phase 12 planning work**; **AI generate path** may be blocked by **Gemini API/key/model** until -1011 is diagnosed (see A above).
+
+---
+
+*v2.3 pivot: 2026-03-26. Phases 1–11 code complete. Phase 12 in progress (polish, App Store, open QA above).*

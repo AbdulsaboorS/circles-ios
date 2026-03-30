@@ -4,7 +4,7 @@
 
 A native Swift/SwiftUI iOS app — a private Islamic accountability tool ("Islamic BeReal"). Circle Moment (BeReal-style daily check-in anchored to prayer times) + habit tracking + small private circles.
 
-See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built and what's next.
+See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built, **open issues**, and what's next. **Switching agents:** read `.planning/HANDOFF.md` first.
 
 ## Tech Stack
 
@@ -79,8 +79,8 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 
 ### 1. Phase Discipline
 - Build phases in order per ROADMAP.md
-- Each phase gets a SPEC.md before execution
-- Update STATE.md after every completed phase group
+- Early phases have `SPEC.md` / SQL under `.planning/phases/`; later phases may ship README + migration only
+- Update `STATE.md` after meaningful phase or QA changes
 
 ### 2. No Hacks
 - Root cause > patch. Senior Swift developer standards.
@@ -98,10 +98,18 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 - Always confirm with user before running destructive SQL
 - **`habit_plans` / schema cache:** run `.planning/phases/01-schema-foundations/habit_plans_align_app.sql` — it ends with `NOTIFY pgrst, 'reload schema'`. There is no “reload schema” control under Settings → API on hosted Supabase; changes usually apply within seconds.
 
+### 6. Troubleshooting (quick)
+
+| Symptom | Likely cause / next step |
+|--------|---------------------------|
+| **`NSURLErrorDomain -1011`** on Generate plan | Gemini returned **non-200**; check key, quota, model id. See `STATE.md` → Open issues A. |
+| PostgREST **milestones / schema cache** | Run `habit_plans_align_app.sql`; optional lone `NOTIFY pgrst, 'reload schema';` |
+| SF Symbol **name as text** on habit detail | `HabitDetailView` uses `Text(habit.icon)` — should match `Image(systemName:)` pattern (see `STATE.md` C). |
+
 ## Skills in Use
 
 - **Axiom** — iOS/Swift domain patterns (auto-invoked during implementation)
 - **SuperDesign** — visual design drafts before SwiftUI implementation
 
 ---
-*Last updated: 2026-03-30 — v2.3, Phases 1–11 complete (Phase 12 next)*
+*Last updated: 2026-03-31 — v2.3, Phase 12 active; open QA in `STATE.md`, handoff in `HANDOFF.md`*

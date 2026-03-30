@@ -1,6 +1,6 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-03-30
+**Updated:** 2026-03-31
 **Direction:** Private Islamic BeReal. 12-phase execution plan.
 
 ---
@@ -109,6 +109,8 @@
 - Notification tone review
 - App Store metadata, screenshots, privacy manifest
 - TestFlight beta, human verification, submission
+- **Stability / QA (in progress):** diagnose Gemini **HTTP non-200** → user sees `NSURLErrorDomain -1011` (`badServerResponse`); log status + body; verify API key + `gemini-3-flash-preview` availability
+- **Habit detail:** render `habit.icon` with `Image(systemName:)` + fallback (not `Text`); fix `Color.textSecondary` on light cards → `AppColors.resolve(...).textSecondary`
 
 ---
 

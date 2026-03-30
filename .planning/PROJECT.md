@@ -1,6 +1,6 @@
 # Circles — Product Vision & Requirements (v2.3)
 
-**Date:** 2026-03-26
+**Date:** 2026-03-26 (vision); **execution status:** 2026-03-31 — Phase 12 in progress (see `STATE.md` / `HANDOFF.md` for QA).
 **Status:** Finalized for Execution (Private MVP)
 
 ---
@@ -138,4 +138,4 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 
 ---
 
-*Last updated: 2026-03-30 — v2.3; Phase 11 habit plan + refinement RPC reflected*
+*Last updated: 2026-03-31 — v2.3; operational QA (Gemini -1011, habit detail UI) tracked in `STATE.md`*
