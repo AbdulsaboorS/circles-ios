@@ -1,7 +1,7 @@
 ---
 version: 2.3
-last_updated: "2026-03-26"
-current_phase: "Phase 10 — Group Streak + Face Piles"
+last_updated: "2026-03-29"
+current_phase: "Phase 11 — AI Roadmap v2"
 status: "In Progress"
 ---
 
@@ -9,7 +9,7 @@ status: "In Progress"
 
 ## Current Focus
 
-**Next: Phase 10 (Group Streak + Face Piles)** — then Phase 11 (AI Roadmap v2), Phase 12 (Polish + App Store).
+**Next: Phase 11 (AI Roadmap v2)** — then Phase 12 (Polish + App Store).
 
 ---
 
@@ -73,6 +73,14 @@ status: "In Progress"
 - `MomentFeedCard`, `HabitCheckinRow`, `StreakMilestoneCard`: comment bubble icon added
 - `FeedView`: manages `commentingOnItem` state, presents `CommentDrawerView` as sheet
 
+### Phase 10 — Group Streak + Face Piles + Amir settings ✓
+- DB (run in Supabase): UTC group streak trigger + `group_streak_last_complete_utc_date` — `.planning/phases/10-group-streak-face-piles/SQL.md`
+- `CircleService`: `fetchCircle`, `updateCircleSettings`, `removeMember`
+- After a Moment post: `CircleDetailView` refetches circle; `CommunityView` calls `loadCircles` so My Circles streak updates
+- `FeedViewModel` + `ReactionBar`: batch reactor profiles, overlapping face pile (max 5 + “+N”)
+- `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
+- `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
+
 ---
 
 ## What's Built — v1 Foundation (carried into v2.3)
@@ -96,12 +104,12 @@ status: "In Progress"
 
 ### Circles
 - `Circle`, `CircleMember` models (with genderSetting, coreHabits, groupStreakDays)
-- `CircleService`: fetchMyCircles, createCircle, createCircleForAmir, joinByInviteCode, fetchCircleByCode, fetchMembers
+- `CircleService`: fetchMyCircles, fetchCircle, createCircle, createCircleForAmir, joinByInviteCode, fetchCircleByCode, fetchMembers, updateCircleSettings, removeMember
 - `CirclesViewModel`: loadCircles, createCircle, joinCircle
 - `CommunityView`: Feed|Circles swipeable TabView
 - `MyCirclesView`: organic card layout (featured + stacked), group streak, CTAs
 - `CreateCircleView`, `JoinCircleView` (gender enforcement)
-- `CircleDetailView`: member board (AvatarView), feed, moment banner, nudge
+- `CircleDetailView`: member board (AvatarView), Amir settings sheet, feed, moment banner, nudge
 
 ### Circle Moment
 - `CircleMoment` model
@@ -113,7 +121,7 @@ status: "In Progress"
 - `FeedItem` enum (moment, habitCheckin, streakMilestone) — Identifiable, Sendable, Equatable
 - `FeedService.fetchFeedPage(circleIds: [UUID], ...)` — multi-circle aware
 - `FeedViewModel`: loadInitial, loadNextPage, refresh — all accept [UUID]
-- `FeedView`: LazyVStack, pagination, comment drawer
+- `FeedView`: LazyVStack, pagination, comment drawer; `FeedViewModel` reaction face piles
 - `MomentFeedCard`, `HabitCheckinRow`, `StreakMilestoneCard`, `ReactionBar`
 - `ReciprocityGateView`, `CommentDrawerView`
 
@@ -170,8 +178,8 @@ status: "In Progress"
 | 7 — Member Flow + Preview | ✓ Complete | CirclePreviewView (anon), MemberOnboardingCoordinator |
 | 8 — Prayer Gate v2 | ✓ Complete | DailyMomentService, Aladhan API, full-feed blur gate |
 | 9 — Comment Drawer | ✓ Complete | CommentService, CommentDrawerView, comment buttons on all cards |
-| 10 — Group Streak + Face Piles | 🔄 Next | Group streak calc, face piles on reactions, member board polish |
-| 11 — AI Roadmap v2 | ⏳ Pending | habit_plans table, 28-day timeline UI, refinement guardrail |
+| 10 — Group Streak + Face Piles | ✓ Complete | UTC trigger SQL, refetch after moment, face piles, Amir settings |
+| 11 — AI Roadmap v2 | 🔄 Next | habit_plans table, 28-day timeline UI, refinement guardrail |
 | 12 — Polish + App Store | ⏳ Pending | Muslim-native copy audit, App Store submission |
 
 ---
@@ -182,4 +190,4 @@ None.
 
 ---
 
-*v2.3 pivot: 2026-03-26. Phases 1-9 complete. Phases 10-12 remaining.*
+*v2.3 pivot: 2026-03-26. Phases 1-10 complete. Phases 11-12 remaining.*

@@ -85,16 +85,16 @@
 
 ---
 
-## Phase 10 — Group Streak + Face Piles 🔄 Active
+## Phase 10 — Group Streak + Face Piles ✓ Complete
 **Scope:** Social layer polish.
-- Group streak: increments when all members post moment on same day
-- Group streak flame displayed on My Circles cards
-- Face pile component for reactions (avatars of who reacted)
-- Member board polish in CircleDetailView
+- Group streak: UTC calendar day; DB trigger when all members post (see `phases/10-group-streak-face-piles/SQL.md`)
+- Refetch circle + My Circles after posting a Moment so flame updates
+- Face pile on reactions (`FeedViewModel` + `ReactionBar`)
+- Amir settings in CircleDetailView: core habits, gender, remove members; member list polish
 
 ---
 
-## Phase 11 — AI Roadmap v2
+## Phase 11 — AI Roadmap v2 🔄 Active
 **Scope:** 28-day habit roadmap, fully implemented.
 - `habit_plans` table: milestones JSON, refinement_count, week_number
 - 28-day milestone timeline UI in HabitDetailView
