@@ -1,15 +1,15 @@
 ---
-version: 2.3
+version: 2.4
 last_updated: "2026-03-30"
 current_phase: "Phase 11.1 — Full UI Vision Pass"
 status: "In Progress"
 ---
 
-# Circles iOS — State (v2.3)
+# Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Phase 11.1 (Full UI Vision Pass)** — full vision redesign of every screen, iterative with Stitch MCP. Phase 11.2 (E2E QA) and Phase 12 (App Store) follow.
+**Phase 11.2 — E2E QA + Bug Fixes** — User is actively testing the app. Phase 11.1 (Midnight Sanctuary UI pass) is fully complete across all screens. Fix open issues below and anything surfaced during testing.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -82,6 +82,30 @@ status: "In Progress"
 - `FeedViewModel` + `ReactionBar`: batch reactor profiles, overlapping face pile (max 5 + “+N”)
 - `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
+
+### Phase 11.1 — Midnight Sanctuary UI Pass ✓ (All groups complete)
+
+**Design system:** Deep forest green bg `#1A2E1E`, gold `#D4A240`, cream `#F0EAD6`, sage `#8FAF94`, cards `#243828`/`#1E3122`. Tokens scoped `private extension Color` per file (global DesignTokens.swift consolidation deferred until all screens done).
+
+**All commits (on `main`):**
+- `4dfdc18` — HomeView full redesign + HabitDetailView icon fix (`Text(habit.icon)` → `Image(systemName:)`)
+- `82f2656` — Auth + Amir Onboarding (4 steps) + Member Onboarding (2 steps)
+- `b487333` — Community/Feed group: CommunityView, MyCirclesView, FeedView, all feed cards, ReactionBar, ReciprocityGateView; email/password test login added to AuthView
+- `1d0dfbd` — Groups 3 & 4: CircleDetailView, CreateCircleView, JoinCircleView, MomentCameraView, MomentPreviewView, ProfileView, HabitDetailView (full MS pass)
+
+**Implementation note:** Xcode 26 / Swift 6 requires explicit `Color.msToken` prefix — shorthand dot syntax (`.msGold`) fails to infer `Color` when the expected type is `ShapeStyle`.
+
+**Phase 11.1 complete.** Next: Phase 11.2 — E2E QA + Bug Fixes.
+
+**Per-screen implementation pattern:**
+1. Add `private extension Color` with MS tokens at top of file
+2. Replace `AppBackground()` → `Color(hex: "1A2E1E").ignoresSafeArea()`
+3. Replace `Color.accent` → `msGold`, `colors.textPrimary` → `msTextPrimary`, `colors.textSecondary` → `msTextMuted`
+4. Replace `AppCard { }` wrapper → inline `RoundedRectangle.fill(msCardShared)` with `msBorder` overlay
+5. Replace `PrimaryButton` → inline gold Capsule button (msGold bg, msBackground text)
+6. Build after each group — zero errors before commit
+
+**Supabase action still needed:** Authentication → Settings → disable "Confirm email" so test accounts created via email/password work instantly.
 
 ### Phase 11 — AI Roadmap v2 ✓ (code complete; see Open issues for QA)
 - DB: **Refine** — run `.planning/phases/11-ai-roadmap/migration.sql` (`refinement_cycle` + `apply_habit_plan_refinement`, 3 refinements per UTC ISO week)
@@ -193,8 +217,8 @@ status: "In Progress"
 | 9 — Comment Drawer | ✓ Complete | CommentService, CommentDrawerView, comment buttons on all cards |
 | 10 — Group Streak + Face Piles | ✓ Complete | UTC trigger SQL, refetch after moment, face piles, Amir settings |
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
-| 11.1 — Full UI Vision Pass | 🔄 Active | Full vision redesign of every screen with Stitch MCP |
-| 11.2 — E2E QA + Bug Fixes | ⬜ Planned | Full E2E test, fix known issues + anything found |
+| 11.1 — Full UI Vision Pass | ✓ Complete | Full Midnight Sanctuary redesign — all screens |
+| 11.2 — E2E QA + Bug Fixes | 🔄 Active | User testing in progress; fix known issues + anything found |
 | 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
 
 ---
