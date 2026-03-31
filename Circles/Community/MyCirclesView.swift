@@ -10,18 +10,9 @@ struct MyCirclesView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 20) {
-                // Featured layout: first 3 circles in hero grid
-                if !circles.isEmpty {
-                    featuredGrid
-                }
-
-                // Overflow: 4th circle onward in 2-column grid
-                if circles.count > 3 {
-                    overflowGrid
-                }
-
-                ctaButtons
-                    .padding(.top, 4)
+                if !circles.isEmpty { featuredGrid }
+                if circles.count > 3 { overflowGrid }
+                ctaButtons.padding(.top, 4)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -33,13 +24,11 @@ struct MyCirclesView: View {
 
     private var featuredGrid: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Left: featured large card
             NavigationLink(destination: CircleDetailView(circle: circles[0])) {
                 FeaturedCircleCard(circle: circles[0])
             }
             .buttonStyle(.plain)
 
-            // Right: up to 2 stacked small cards
             VStack(spacing: 12) {
                 if circles.count > 1 {
                     NavigationLink(destination: CircleDetailView(circle: circles[1])) {
@@ -60,17 +49,13 @@ struct MyCirclesView: View {
         .frame(height: 280)
     }
 
-    // MARK: - Overflow grid (4th circle onward)
+    // MARK: - Overflow grid
 
     private var overflowGrid: some View {
-        LazyVGrid(
-            columns: [GridItem(.flexible()), GridItem(.flexible())],
-            spacing: 12
-        ) {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(circles.dropFirst(3)) { circle in
                 NavigationLink(destination: CircleDetailView(circle: circle)) {
-                    SmallCircleCard(circle: circle)
-                        .frame(height: 134)
+                    SmallCircleCard(circle: circle).frame(height: 134)
                 }
                 .buttonStyle(.plain)
             }
@@ -83,34 +68,26 @@ struct MyCirclesView: View {
         VStack(spacing: 10) {
             Button(action: onCreateCircle) {
                 HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text("Create a Circle")
-                        .font(.system(size: 16, weight: .semibold, design: .serif))
+                    Image(systemName: "plus").font(.system(size: 15, weight: .semibold))
+                    Text("Create a Circle").font(.system(size: 16, weight: .semibold))
                 }
-                .foregroundStyle(Color(hex: "F5F0E8"))
+                .foregroundStyle(Color(hex: "1A2E1E"))
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(Color(hex: "1A3A2A"))
-                .clipShape(Capsule())
-                .shadow(color: Color(hex: "1A3A2A").opacity(0.25), radius: 12, x: 0, y: 6)
+                .background(Color(hex: "D4A240"), in: Capsule())
+                .shadow(color: Color(hex: "D4A240").opacity(0.35), radius: 12, x: 0, y: 4)
             }
             .buttonStyle(.plain)
 
             Button(action: onJoinCircle) {
                 HStack(spacing: 8) {
-                    Image(systemName: "person.badge.plus")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text("Join with Code")
-                        .font(.system(size: 16, weight: .semibold, design: .serif))
+                    Image(systemName: "person.badge.plus").font(.system(size: 15, weight: .semibold))
+                    Text("Join with Code").font(.system(size: 16, weight: .semibold))
                 }
-                .foregroundStyle(Color.accent)
+                .foregroundStyle(Color(hex: "D4A240"))
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .overlay(
-                    Capsule()
-                        .stroke(Color.accent, lineWidth: 1.5)
-                )
+                .overlay(Capsule().stroke(Color(hex: "D4A240"), lineWidth: 1.5))
             }
             .buttonStyle(.plain)
         }
@@ -124,67 +101,51 @@ private struct FeaturedCircleCard: View {
 
     var body: some View {
         ZStack {
-            // Card background
             UnevenRoundedRectangle(
-                topLeadingRadius: 28,
-                bottomLeadingRadius: 28,
-                bottomTrailingRadius: 40,
-                topTrailingRadius: 28
+                topLeadingRadius: 28, bottomLeadingRadius: 28,
+                bottomTrailingRadius: 40, topTrailingRadius: 28
             )
-            .fill(
-                LinearGradient(
-                    colors: [.white.opacity(0.95), Color(hex: "F5F0E8").opacity(0.65)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .fill(Color(hex: "243828"))
             .overlay(
                 UnevenRoundedRectangle(
-                    topLeadingRadius: 28,
-                    bottomLeadingRadius: 28,
-                    bottomTrailingRadius: 40,
-                    topTrailingRadius: 28
+                    topLeadingRadius: 28, bottomLeadingRadius: 28,
+                    bottomTrailingRadius: 40, topTrailingRadius: 28
                 )
-                .stroke(Color.accent, lineWidth: 1.5)
+                .stroke(Color(hex: "D4A240").opacity(0.35), lineWidth: 1.5)
             )
-            .shadow(color: Color.accent.opacity(0.15), radius: 16, x: 0, y: 4)
 
             VStack(spacing: 10) {
                 Spacer(minLength: 0)
 
-                // Circle name
                 Text(circle.name)
                     .font(.system(size: 20, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color(hex: "1A1209"))
+                    .foregroundStyle(Color(hex: "F0EAD6"))
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
                     .padding(.horizontal, 12)
 
-                // Member dot avatars
                 MemberDots(circleId: circle.id, count: 5, dotSize: 13)
 
-                // Icon with amber glow
                 Image(systemName: CircleIconPicker.icon(for: circle.name))
                     .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(Color.accent)
-                    .shadow(color: Color.accent.opacity(0.5), radius: 6, x: 0, y: 0)
+                    .foregroundStyle(Color(hex: "D4A240"))
+                    .shadow(color: Color(hex: "D4A240").opacity(0.5), radius: 6)
 
-                // Group streak
                 if circle.groupStreakDaysSafe > 0 {
                     HStack(spacing: 3) {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(Color.accent)
+                            .foregroundStyle(Color(hex: "D4A240"))
                         Text("\(circle.groupStreakDaysSafe) day streak")
-                            .font(.system(size: 11, weight: .medium, design: .serif))
+                            .font(.system(size: 11, weight: .medium))
                             .italic()
-                            .foregroundStyle(Color(hex: "6B5B45"))
+                            .foregroundStyle(Color(hex: "8FAF94"))
                     }
                 } else if let desc = circle.description, !desc.isEmpty {
                     Text(desc)
-                        .font(.system(size: 11, weight: .regular, design: .serif))
+                        .font(.system(size: 11, design: .serif))
                         .italic()
-                        .foregroundStyle(Color(hex: "6B5B45").opacity(0.7))
+                        .foregroundStyle(Color(hex: "8FAF94").opacity(0.8))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(.horizontal, 12)
@@ -206,23 +167,16 @@ private struct SmallCircleCard: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [.white.opacity(0.95), Color(hex: "F5F0E8").opacity(0.65)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(Color(hex: "1E3122"))
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color(hex: "1A3A2A").opacity(0.2), lineWidth: 1.5)
+                        .stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1.5)
                 )
-                .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 2)
 
             VStack(spacing: 6) {
                 Text(circle.name)
                     .font(.system(size: 14, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color(hex: "1A1209"))
+                    .foregroundStyle(Color(hex: "F0EAD6"))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .padding(.horizontal, 8)
@@ -231,17 +185,17 @@ private struct SmallCircleCard: View {
 
                 Image(systemName: CircleIconPicker.icon(for: circle.name))
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.accent)
-                    .shadow(color: Color.accent.opacity(0.45), radius: 4, x: 0, y: 0)
+                    .foregroundStyle(Color(hex: "D4A240"))
+                    .shadow(color: Color(hex: "D4A240").opacity(0.45), radius: 4)
 
                 if circle.groupStreakDaysSafe > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 9))
-                            .foregroundStyle(Color.accent)
+                            .foregroundStyle(Color(hex: "D4A240"))
                         Text("\(circle.groupStreakDaysSafe)")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color(hex: "6B5B45"))
+                            .foregroundStyle(Color(hex: "8FAF94"))
                     }
                 }
             }
@@ -259,10 +213,10 @@ private struct MemberDots: View {
     let dotSize: CGFloat
 
     private static let palette: [Color] = [
-        Color(hex: "D4A5A5"), Color(hex: "A5C4A5"),
-        Color(hex: "B5A5D4"), Color(hex: "D4C4A5"),
-        Color(hex: "9DB5B5"), Color(hex: "D4B5A5"),
-        Color(hex: "A5B5C4")
+        Color(hex: "4A7C59"), Color(hex: "5E9E72"),
+        Color(hex: "3D6B4F"), Color(hex: "6BB580"),
+        Color(hex: "2E5740"), Color(hex: "7DB894"),
+        Color(hex: "527A62")
     ]
 
     private func color(at index: Int) -> Color {
@@ -308,15 +262,15 @@ struct MyCirclesEmptyView: View {
             Spacer()
             Image(systemName: "person.2.fill")
                 .font(.system(size: 52))
-                .foregroundStyle(Color.accent.opacity(0.65))
+                .foregroundStyle(Color(hex: "D4A240").opacity(0.65))
 
             VStack(spacing: 8) {
                 Text("Your Circles")
                     .font(.system(size: 22, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color(hex: "1A1209"))
+                    .foregroundStyle(Color(hex: "F0EAD6"))
                 Text("Create or join a circle to begin your journey.")
                     .font(.appSubheadline)
-                    .foregroundStyle(Color(hex: "6B5B45"))
+                    .foregroundStyle(Color(hex: "8FAF94"))
                     .multilineTextAlignment(.center)
             }
 
@@ -324,24 +278,20 @@ struct MyCirclesEmptyView: View {
                 Button(action: onCreateCircle) {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")
-                        Text("Create a Circle")
-                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                        Text("Create a Circle").font(.system(size: 16, weight: .semibold))
                     }
-                    .foregroundStyle(Color(hex: "F5F0E8"))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(Color(hex: "1A3A2A"))
-                    .clipShape(Capsule())
+                    .foregroundStyle(Color(hex: "1A2E1E"))
+                    .frame(maxWidth: .infinity).frame(height: 54)
+                    .background(Color(hex: "D4A240"), in: Capsule())
                 }
                 .buttonStyle(.plain)
 
                 Button(action: onJoinCircle) {
                     Text("Join with Code")
-                        .font(.system(size: 16, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color.accent)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .overlay(Capsule().stroke(Color.accent, lineWidth: 1.5))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(hex: "D4A240"))
+                        .frame(maxWidth: .infinity).frame(height: 54)
+                        .overlay(Capsule().stroke(Color(hex: "D4A240"), lineWidth: 1.5))
                 }
                 .buttonStyle(.plain)
             }

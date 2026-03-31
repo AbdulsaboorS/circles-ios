@@ -1,6 +1,17 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct CommunityView: View {
     @Environment(AuthManager.self) var auth
     @Environment(\.pendingInviteCode) var pendingInviteCode
@@ -15,21 +26,17 @@ struct CommunityView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackground()
+                Color.msBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Feed | Circles segmented control
                     pageSelector
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
                         .padding(.bottom, 4)
 
-                    // Swipeable pages
                     TabView(selection: $selectedPage) {
-                        globalFeedPage
-                            .tag(0)
-                        circlesPage
-                            .tag(1)
+                        globalFeedPage.tag(0)
+                        circlesPage.tag(1)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.easeInOut(duration: 0.25), value: selectedPage)
@@ -37,6 +44,7 @@ struct CommunityView: View {
             }
             .navigationTitle("Circles")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -52,7 +60,7 @@ struct CommunityView: View {
                         }
                     } label: {
                         Image(systemName: "plus")
-                            .foregroundStyle(Color.accent)
+                            .foregroundStyle(Color.msGold)
                     }
                 }
             }
@@ -98,17 +106,14 @@ struct CommunityView: View {
                     .environment(auth)
                 }
             }
-            .onChange(of: viewModel.circles) { _, circles in
-                // Reload global feed when circles change (joined/created a new one)
+            .onChange(of: viewModel.circles) { _, _ in
                 Task { await loadGlobalFeed() }
             }
             .sheet(isPresented: $viewModel.showCreateSheet) {
-                CreateCircleView(viewModel: viewModel)
-                    .environment(auth)
+                CreateCircleView(viewModel: viewModel).environment(auth)
             }
             .sheet(isPresented: $viewModel.showJoinSheet) {
-                JoinCircleView(viewModel: viewModel)
-                    .environment(auth)
+                JoinCircleView(viewModel: viewModel).environment(auth)
             }
             .onChange(of: pendingInviteCode) { _, code in
                 if let code {
@@ -130,26 +135,21 @@ struct CommunityView: View {
             pageTab(title: "Feed", index: 0)
             pageTab(title: "Circles", index: 1)
         }
-        .background(Color.accent.opacity(0.08), in: Capsule())
-        .padding(3)
-        .background(Color.black.opacity(0.04), in: Capsule())
+        .background(Color.msCardShared, in: Capsule())
+        .overlay(Capsule().stroke(Color.msBorder, lineWidth: 1))
     }
 
     private func pageTab(title: String, index: Int) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.22)) {
-                selectedPage = index
-            }
+            withAnimation(.easeInOut(duration: 0.22)) { selectedPage = index }
         } label: {
             Text(title)
                 .font(.system(size: 14, weight: selectedPage == index ? .semibold : .regular))
-                .foregroundStyle(selectedPage == index ? Color.white : Color(hex: "6B5B45"))
+                .foregroundStyle(selectedPage == index ? Color.msBackground : Color.msTextMuted)
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
                 .background(
-                    selectedPage == index
-                        ? Color.accent
-                        : Color.clear,
+                    selectedPage == index ? Color.msGold : Color.clear,
                     in: Capsule()
                 )
         }
@@ -163,7 +163,7 @@ struct CommunityView: View {
             if feedViewModel.isLoadingInitial {
                 VStack {
                     Spacer()
-                    ProgressView().tint(Color.accent)
+                    ProgressView().tint(Color.msGold)
                     Spacer()
                 }
             } else if viewModel.circles.isEmpty {
@@ -171,13 +171,13 @@ struct CommunityView: View {
                     Spacer()
                     Image(systemName: "moon.stars.fill")
                         .font(.system(size: 48))
-                        .foregroundStyle(Color.accent.opacity(0.6))
+                        .foregroundStyle(Color.msGold.opacity(0.6))
                     Text("No activity yet")
                         .font(.system(size: 20, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color(hex: "1A1209"))
+                        .foregroundStyle(Color.msTextPrimary)
                     Text("Join or create a circle to see your feed.")
                         .font(.appSubheadline)
-                        .foregroundStyle(Color(hex: "6B5B45"))
+                        .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                     Spacer()
                 }
@@ -195,9 +195,7 @@ struct CommunityView: View {
                             .padding(.bottom, 24)
                         }
                     }
-                    .refreshable {
-                        await loadGlobalFeed()
-                    }
+                    .refreshable { await loadGlobalFeed() }
 
                     if momentService.isGateActive {
                         ReciprocityGateView(prayerName: momentService.prayerDisplayName) {
@@ -216,7 +214,7 @@ struct CommunityView: View {
             if viewModel.isLoading {
                 VStack {
                     Spacer()
-                    ProgressView().tint(Color.accent)
+                    ProgressView().tint(Color.msGold)
                     Spacer()
                 }
             } else if viewModel.circles.isEmpty {
@@ -237,14 +235,11 @@ struct CommunityView: View {
     // MARK: - Helpers
 
     private func loadGlobalFeed() async {
-        guard let userId = auth.session?.user.id,
-              !viewModel.circles.isEmpty else { return }
-        let ids = viewModel.circles.map { $0.id }
-        await feedViewModel.loadInitial(circleIds: ids, currentUserId: userId)
+        guard let userId = auth.session?.user.id, !viewModel.circles.isEmpty else { return }
+        await feedViewModel.loadInitial(circleIds: viewModel.circles.map { $0.id }, currentUserId: userId)
     }
 }
 
 #Preview {
-    CommunityView()
-        .environment(AuthManager())
+    CommunityView().environment(AuthManager())
 }

@@ -13,35 +13,31 @@ struct FeedView: View {
                 feedItemView(for: item)
                     .onAppear {
                         if index >= viewModel.items.count - 3 {
-                            Task {
-                                await viewModel.loadNextPage(circleIds: circleIds)
-                            }
+                            Task { await viewModel.loadNextPage(circleIds: circleIds) }
                         }
                     }
             }
 
-            // Bottom pagination indicator
             if viewModel.isLoadingNextPage {
                 HStack {
                     Spacer()
-                    ProgressView().tint(Color.accent)
+                    ProgressView().tint(Color(hex: "D4A240"))
                     Spacer()
                 }
                 .padding(.vertical, 12)
             }
 
-            // Empty feed state
             if viewModel.items.isEmpty && !viewModel.isLoadingInitial {
                 VStack(spacing: 12) {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 36))
-                        .foregroundStyle(Color.accent.opacity(0.5))
+                        .foregroundStyle(Color(hex: "D4A240").opacity(0.5))
                     Text("No moments yet.")
                         .font(.appSubheadline)
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(Color(hex: "F0EAD6"))
                     Text("Be the first to post today.")
                         .font(.appCaption)
-                        .foregroundStyle(Color.textSecondary.opacity(0.6))
+                        .foregroundStyle(Color(hex: "8FAF94"))
                 }
                 .padding(.vertical, 40)
                 .padding(.horizontal, 24)
@@ -64,25 +60,15 @@ struct FeedView: View {
     private func feedItemView(for item: FeedItem) -> some View {
         switch item {
         case .moment(let m):
-            MomentFeedCard(
-                item: m, currentUserId: currentUserId,
-                hasPostedToday: viewModel.hasPostedToday,
-                viewModel: viewModel,
-                onComment: { commentingOnItem = item }
-            )
+            MomentFeedCard(item: m, currentUserId: currentUserId,
+                           hasPostedToday: viewModel.hasPostedToday,
+                           viewModel: viewModel, onComment: { commentingOnItem = item })
         case .habitCheckin(let h):
-            HabitCheckinRow(
-                item: h, currentUserId: currentUserId,
-                viewModel: viewModel,
-                onComment: { commentingOnItem = item }
-            )
+            HabitCheckinRow(item: h, currentUserId: currentUserId,
+                            viewModel: viewModel, onComment: { commentingOnItem = item })
         case .streakMilestone(let s):
-            StreakMilestoneCard(
-                item: s, currentUserId: currentUserId,
-                viewModel: viewModel,
-                onComment: { commentingOnItem = item }
-            )
+            StreakMilestoneCard(item: s, currentUserId: currentUserId,
+                                viewModel: viewModel, onComment: { commentingOnItem = item })
         }
     }
 }
-
