@@ -14,6 +14,11 @@ private extension Color {
 struct AmiirStep2HabitsView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
 
+    @State private var showCustomField = false
+    @State private var customInput = ""
+
+    private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
+
     var body: some View {
         ZStack {
             Color.msBackground.ignoresSafeArea()
@@ -61,8 +66,64 @@ struct AmiirStep2HabitsView: View {
                                 .buttonStyle(.plain)
                                 .disabled(isDisabled)
                             }
+
+                            // Custom habit tile
+                            let customIsSelected = showCustomField && !customTrimmed.isEmpty && coordinator.selectedHabits.contains(customTrimmed)
+                            let customDisabled = !customIsSelected && !coordinator.canSelectMoreHabits
+                            Button {
+                                showCustomField = true
+                            } label: {
+                                HabitTile(
+                                    name: showCustomField && !customTrimmed.isEmpty ? customTrimmed : "Custom",
+                                    icon: showCustomField && !customTrimmed.isEmpty
+                                        ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed)
+                                        : "plus.circle.fill",
+                                    isSelected: customIsSelected,
+                                    isDisabled: customDisabled
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(customDisabled && !showCustomField)
                         }
                         .padding(.horizontal, 24)
+
+                        // Custom input field
+                        if showCustomField {
+                            VStack(alignment: .leading, spacing: 8) {
+                                TextField("e.g. Morning walk, Journaling…", text: $customInput)
+                                    .foregroundStyle(Color.msTextPrimary)
+                                    .padding(14)
+                                    .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
+                                    .tint(Color.msGold)
+                                    .onChange(of: customInput) { _, newVal in
+                                        // Remove old custom entry when user edits the name
+                                        let all = coordinator.selectedHabits
+                                        let curated = Set(AmiirOnboardingCoordinator.curatedHabits.map(\.name))
+                                        let previous = all.subtracting(curated)
+                                        for old in previous { coordinator.selectedHabits.remove(old) }
+                                    }
+
+                                if !customTrimmed.isEmpty && coordinator.canSelectMoreHabits || coordinator.selectedHabits.contains(customTrimmed) {
+                                    Button {
+                                        if coordinator.selectedHabits.contains(customTrimmed) {
+                                            coordinator.selectedHabits.remove(customTrimmed)
+                                        } else if coordinator.canSelectMoreHabits {
+                                            coordinator.selectedHabits.insert(customTrimmed)
+                                        }
+                                    } label: {
+                                        Text(coordinator.selectedHabits.contains(customTrimmed) ? "Remove" : "Add \"\(customTrimmed)\"")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(Color.msBackground)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 9)
+                                            .background(Color.msGold, in: Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                        }
 
                         if coordinator.selectedHabits.count == 3 {
                             Text("Maximum 3 habits selected.")

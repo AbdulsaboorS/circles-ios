@@ -3,8 +3,8 @@ import Foundation
 struct HabitMilestone: Codable, Sendable, Identifiable, Hashable {
     var id: Int { day }
     let day: Int
-    let title: String
-    let description: String
+    var title: String
+    var description: String
 }
 
 struct HabitPlan: Codable, Identifiable, Sendable {

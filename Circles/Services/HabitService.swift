@@ -82,6 +82,28 @@ final class HabitService {
             .execute()
     }
 
+    // MARK: - Private Habit Creation
+
+    /// Create a personal (non-accountable) habit with no circle link.
+    /// `familiarity` is stored in plan_notes for AI context.
+    func createPrivateHabit(userId: UUID, name: String, icon: String, familiarity: String) async throws -> Habit {
+        let row: [String: AnyJSON] = [
+            "user_id": .string(userId.uuidString),
+            "name": .string(name),
+            "icon": .string(icon),
+            "is_active": .bool(true),
+            "is_accountable": .bool(false),
+            "plan_notes": .string("Familiarity: \(familiarity)")
+        ]
+        return try await client
+            .from("habits")
+            .upsert(row, onConflict: "user_id,name")
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
     // MARK: - Accountable Habit Creation
 
     /// Create a habit linked to a circle (is_accountable = true).

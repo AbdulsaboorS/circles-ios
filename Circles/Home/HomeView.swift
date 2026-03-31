@@ -19,6 +19,8 @@ struct HomeView: View {
     @Environment(AuthManager.self) private var auth
     @State private var viewModel = HomeViewModel()
     @State private var preferredName: String = "Friend"
+    @State private var showAddIntention = false
+    @State private var navigationPath = NavigationPath()
 
     private let islamicQuotes = [
         "\"Verily, in the remembrance of Allah do hearts find rest.\"",
@@ -40,7 +42,7 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ZStack(alignment: .bottomTrailing) {
                 Color.msBackground.ignoresSafeArea()
 
@@ -85,40 +87,35 @@ struct HomeView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
+            .sheet(isPresented: $showAddIntention) {
+                AddPrivateIntentionSheet { newHabit in
+                    // Reload habits so the new one appears in the list
+                    if let userId = auth.session?.user.id {
+                        Task { await viewModel.loadAll(userId: userId) }
+                    }
+                    // Navigate directly into the habit's detail view
+                    navigationPath.append(newHabit)
+                }
+                .environment(auth)
+            }
         }
     }
 
-    // MARK: - Header (compact — matches Warm/Cream layout)
+    // MARK: - Header
 
     private var headerSection: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Assalamu Alaikum,")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(Color.msTextMuted)
-                Text(preferredName)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color.msTextPrimary)
-                Text(todayFormatted)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.msTextMuted)
-            }
-            Spacer()
-            HStack(spacing: 10) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 17))
-                    .foregroundStyle(Color.msGold)
-                ZStack {
-                    SwiftUI.Circle()
-                        .fill(Color.msCardShared)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(Color.msTextMuted)
-                }
-                .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.35), lineWidth: 1.5))
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Assalamu Alaikum,")
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(Color.msTextMuted)
+            Text(preferredName)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(Color.msTextPrimary)
+            Text(todayFormatted)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.msTextMuted)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Heart (the Sun of the screen)
@@ -209,18 +206,9 @@ struct HomeView: View {
 
     private func sharedSection(habits: [Habit]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Shared Intentions")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.msTextPrimary)
-                Spacer()
-                Button { } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.msTextMuted)
-                }
-                .buttonStyle(.plain)
-            }
+            Text("Shared Intentions")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.msTextPrimary)
 
             // "X brothers keeping you accountable" sub-row
             HStack(spacing: 8) {
@@ -292,7 +280,7 @@ struct HomeView: View {
     // MARK: - FAB
 
     private var fabButton: some View {
-        Button { } label: {
+        Button { showAddIntention = true } label: {
             ZStack {
                 SwiftUI.Circle()
                     .fill(Color.msGold)

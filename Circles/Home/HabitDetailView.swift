@@ -25,6 +25,10 @@ struct HabitDetailView: View {
     @State private var isGeneratingPlan = false
     @State private var errorMessage: String?
     @State private var showRefineSheet = false
+    // Collapsible weeks: default all expanded
+    @State private var expandedWeeks: Set<Int> = [1, 2, 3, 4]
+    // Editing
+    @State private var editingMilestone: HabitMilestone?
 
     private var last28Days: [String] {
         let formatter = DateFormatter()
@@ -58,9 +62,9 @@ struct HabitDetailView: View {
                 VStack(spacing: 24) {
                     heroCard
 
-                    roadmapSection
+                    historySection   // heatmap first
 
-                    historySection
+                    roadmapSection
                 }
                 .padding(.vertical)
             }
@@ -84,6 +88,11 @@ struct HabitDetailView: View {
                     await refineWithAI(userNote: userNote)
                 }
             )
+        }
+        .sheet(item: $editingMilestone) { milestone in
+            EditMilestoneSheet(milestone: milestone) { updated in
+                applyMilestoneEdit(updated)
+            }
         }
     }
 
@@ -125,7 +134,7 @@ struct HabitDetailView: View {
                     .foregroundStyle(Color.msTextPrimary)
                 Spacer()
                 if plan != nil {
-                    Button("Refine plan") {
+                    Button("Refine") {
                         if plan?.isRefinementLimitReached == true {
                             errorMessage = HabitPlanServiceError.refinementLimitReached.errorDescription
                         } else {
@@ -143,22 +152,15 @@ struct HabitDetailView: View {
                 HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                     .padding(.vertical, 8)
             } else if let plan {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 12) {
                     ForEach(1 ... 4, id: \.self) { week in
                         let days = plan.milestones.filter { plan.displayWeek(forMilestoneDay: $0.day) == week }
                         if !days.isEmpty {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Week \(week)")
-                                    .font(.appCaptionMedium)
-                                    .foregroundStyle(Color.msGold)
-                                ForEach(days) { m in
-                                    milestoneRow(plan: plan, milestone: m)
-                                }
-                            }
-                            .padding(.horizontal, 16)
+                            weekSection(week: week, days: days, plan: plan)
                         }
                     }
                 }
+                .padding(.horizontal, 16)
             } else {
                 VStack(spacing: 12) {
                     Text("Get a gentle, personalized 28-day path for this habit.")
@@ -192,6 +194,57 @@ struct HabitDetailView: View {
         }
     }
 
+    private func weekSection(week: Int, days: [HabitMilestone], plan: HabitPlan) -> some View {
+        let isExpanded = expandedWeeks.contains(week)
+        let hasToday = days.contains { plan.isMilestoneToday(day: $0.day) }
+
+        return VStack(alignment: .leading, spacing: 0) {
+            // Week header — tappable to collapse/expand
+            Button {
+                if isExpanded {
+                    expandedWeeks.remove(week)
+                } else {
+                    expandedWeeks.insert(week)
+                }
+            } label: {
+                HStack {
+                    Text("Week \(week)")
+                        .font(.appCaptionMedium)
+                        .foregroundStyle(hasToday ? Color.msGold : Color.msTextMuted)
+                    if hasToday {
+                        Text("Current")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Color.msBackground)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.msGold, in: Capsule())
+                    }
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.msTextMuted)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 14)
+                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: isExpanded ? 14 : 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(hasToday ? Color.msGold.opacity(0.4) : Color.msBorder, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(days) { m in
+                        milestoneRow(plan: plan, milestone: m)
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+
     private func milestoneRow(plan: HabitPlan, milestone: HabitMilestone) -> some View {
         let today = plan.isMilestoneToday(day: milestone.day)
         let dateLabel: String = {
@@ -218,6 +271,14 @@ struct HabitDetailView: View {
                         .background(Color.msGold, in: Capsule())
                 }
                 Spacer()
+                Button {
+                    editingMilestone = milestone
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.msTextMuted.opacity(0.6))
+                }
+                .buttonStyle(.plain)
             }
             Text(milestone.title)
                 .font(.appSubheadline)
@@ -229,12 +290,27 @@ struct HabitDetailView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(today ? Color.msGold.opacity(0.10) : Color.msCardShared)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(today ? Color.msGold.opacity(0.10) : Color.msCardDeep)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(today ? Color.msGold.opacity(0.35) : Color.msBorder, lineWidth: 1)
         )
+    }
+
+    // MARK: - Apply milestone edit
+
+    private func applyMilestoneEdit(_ updated: HabitMilestone) {
+        guard var currentPlan = plan,
+              let idx = currentPlan.milestones.firstIndex(where: { $0.day == updated.day }) else { return }
+        currentPlan.milestones[idx] = updated
+        plan = currentPlan
+        Task {
+            try? await HabitPlanService.shared.updateMilestones(
+                planId: currentPlan.id,
+                milestones: currentPlan.milestones
+            )
+        }
     }
 
     // MARK: - History grid
@@ -389,6 +465,84 @@ private struct RefinePlanSheet: View {
                     }
                     .foregroundStyle(Color.msGold)
                     .disabled(isRefining)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - Edit milestone sheet
+
+private struct EditMilestoneSheet: View {
+    let milestone: HabitMilestone
+    var onSave: (HabitMilestone) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var desc: String
+
+    init(milestone: HabitMilestone, onSave: @escaping (HabitMilestone) -> Void) {
+        self.milestone = milestone
+        self.onSave = onSave
+        _title = State(initialValue: milestone.title)
+        _desc = State(initialValue: milestone.description)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackground.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Day \(milestone.day)")
+                        .font(.appCaptionMedium)
+                        .foregroundStyle(Color.msGold)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Title")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msTextMuted)
+                        TextField("Title", text: $title)
+                            .foregroundStyle(Color.msTextPrimary)
+                            .padding(12)
+                            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                            .tint(Color.msGold)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Description")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msTextMuted)
+                        TextField("Description", text: $desc, axis: .vertical)
+                            .lineLimit(3 ... 8)
+                            .foregroundStyle(Color.msTextPrimary)
+                            .padding(12)
+                            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                            .tint(Color.msGold)
+                    }
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("Edit Day \(milestone.day)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Color.msGold)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        var updated = milestone
+                        updated.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        updated.description = desc.trimmingCharacters(in: .whitespacesAndNewlines)
+                        onSave(updated)
+                        dismiss()
+                    }
+                    .foregroundStyle(Color.msGold)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }

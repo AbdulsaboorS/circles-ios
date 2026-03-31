@@ -26,13 +26,16 @@ final class HabitPlanService {
 
     /// Short alert copy for plan save / AI failures (Supabase schema, timeouts, etc.).
     static func userFacingMessage(from error: Error) -> String {
+        if let geminiErr = error as? GeminiError {
+            return geminiErr.localizedDescription
+        }
         if let urlErr = error as? URLError, urlErr.code == .timedOut {
             return "The AI request timed out. Check your connection and try again."
         }
         let localized = error.localizedDescription
         let blob = (localized + " " + String(describing: error)).lowercased()
         if blob.contains("milestones"), blob.contains("schema") || blob.contains("could not find") {
-            return "Database setup: habit_plans is missing milestones or the API cache is stale. In Supabase SQL Editor, run habit_plans_align_app.sql (it notifies PostgREST to refresh). Wait a few seconds and try again — there is no “reload schema” button in Settings."
+            return "Database setup: habit_plans is missing milestones or the API cache is stale. In Supabase SQL Editor, run habit_plans_align_app.sql (it notifies PostgREST to refresh). Wait a few seconds and try again — there is no reload schema button in Settings."
         }
         return localized
     }
@@ -71,6 +74,18 @@ final class HabitPlanService {
             .single()
             .execute()
             .value
+    }
+
+    // MARK: - Manual milestone edit (no refinement count)
+
+    /// Persist a user's manual edits to milestone title/description without touching refinement_count.
+    func updateMilestones(planId: UUID, milestones: [HabitMilestone]) async throws {
+        let encoded = Self.milestonesAsAnyJSON(milestones)
+        try await client
+            .from("habit_plans")
+            .update(["milestones": encoded])
+            .eq("id", value: planId.uuidString)
+            .execute()
     }
 
     // MARK: - Refine (server-enforced weekly cap)

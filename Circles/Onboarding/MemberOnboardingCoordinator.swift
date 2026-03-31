@@ -59,7 +59,7 @@ final class MemberOnboardingCoordinator {
             // 3. Create accountable habits linked to this circle
             var created: [Habit] = []
             for habitName in selectedHabits {
-                let icon = AmiirOnboardingCoordinator.curatedHabits.first { $0.name == habitName }?.icon ?? "star.fill"
+                let icon = AmiirOnboardingCoordinator.iconForHabit(habitName)
                 if let h = try? await HabitService.shared.createAccountableHabit(
                     userId: userId,
                     name: habitName,

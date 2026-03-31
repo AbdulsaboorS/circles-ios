@@ -89,7 +89,7 @@ final class AmiirOnboardingCoordinator {
             // 3. Create accountable habit rows for each selected habit
             createdHabitsInSession = []
             for habitName in selectedHabits {
-                let icon = Self.curatedHabits.first { $0.name == habitName }?.icon ?? "star.fill"
+                let icon = Self.iconForHabit(habitName)
                 if let h = try? await HabitService.shared.createAccountableHabit(
                     userId: userId,
                     name: habitName,
@@ -122,6 +122,22 @@ final class AmiirOnboardingCoordinator {
     // MARK: - Static Helpers
     static func hasCompletedOnboarding(userId: UUID) -> Bool {
         UserDefaults.standard.bool(forKey: "onboardingComplete_\(userId.uuidString)")
+    }
+
+    /// Returns the SF Symbol name for a habit, checking curated list first then keyword fallback.
+    static func iconForHabit(_ name: String) -> String {
+        if let curated = curatedHabits.first(where: { $0.name == name }) { return curated.icon }
+        let n = name.lowercased()
+        if n.contains("quran") || n.contains("qur")                              { return "book.fill" }
+        if n.contains("salah") || n.contains("salat") || n.contains("prayer")   { return "building.columns.fill" }
+        if n.contains("dhikr") || n.contains("zikr")                            { return "circle.grid.3x3.fill" }
+        if n.contains("fast") || n.contains("sawm")                             { return "moon.stars.fill" }
+        if n.contains("sadaqah") || n.contains("charity")                       { return "hands.sparkles.fill" }
+        if n.contains("tahajjud") || n.contains("night")                        { return "moon.fill" }
+        if n.contains("walk") || n.contains("exercise") || n.contains("gym")    { return "figure.walk" }
+        if n.contains("journal") || n.contains("write") || n.contains("diary")  { return "note.text" }
+        if n.contains("water") || n.contains("drink")                           { return "drop.fill" }
+        return "star.fill"
     }
 
     // MARK: - Private

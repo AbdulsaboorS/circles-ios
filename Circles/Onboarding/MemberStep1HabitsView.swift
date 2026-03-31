@@ -14,6 +14,10 @@ private extension Color {
 struct MemberStep1HabitsView: View {
     @Environment(MemberOnboardingCoordinator.self) private var coordinator
 
+    @State private var showCustomField = false
+    @State private var customInput = ""
+    private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
+
     /// Core habits the circle focuses on — shown first as must-select
     private var coreHabits: [String] { coordinator.circle?.coreHabitsSafe ?? [] }
 
@@ -124,8 +128,73 @@ struct MemberStep1HabitsView: View {
                                     }
                                     .buttonStyle(.plain)
                                 }
+
+                                // Custom habit tile
+                                let customSelected = showCustomField && !customTrimmed.isEmpty && coordinator.selectedHabits.contains(customTrimmed)
+                                Button {
+                                    showCustomField = true
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: showCustomField && !customTrimmed.isEmpty
+                                              ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed)
+                                              : "plus.circle.fill")
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(customSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
+                                        Text(showCustomField && !customTrimmed.isEmpty ? customTrimmed : "Custom")
+                                            .font(.appCaption)
+                                            .foregroundStyle(customSelected ? Color(hex: "1A2E1E") : Color(hex: "F0EAD6"))
+                                            .lineLimit(1)
+                                        Spacer()
+                                    }
+                                    .padding(10)
+                                    .background(
+                                        customSelected ? Color(hex: "D4A240") : Color(hex: "243828"),
+                                        in: RoundedRectangle(cornerRadius: 10)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 24)
+
+                            // Custom text field + add button
+                            if showCustomField {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    TextField("e.g. Morning walk, Journaling…", text: $customInput)
+                                        .foregroundStyle(Color.msTextPrimary)
+                                        .padding(12)
+                                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
+                                        .tint(Color.msGold)
+                                        .onChange(of: customInput) { _, _ in
+                                            let curated = Set(AmiirOnboardingCoordinator.curatedHabits.map(\.name))
+                                            let prev = coordinator.selectedHabits.subtracting(curated).subtracting(Set(coreHabits))
+                                            for old in prev { coordinator.selectedHabits.remove(old) }
+                                        }
+
+                                    if !customTrimmed.isEmpty {
+                                        Button {
+                                            if coordinator.selectedHabits.contains(customTrimmed) {
+                                                coordinator.selectedHabits.remove(customTrimmed)
+                                            } else {
+                                                coordinator.selectedHabits.insert(customTrimmed)
+                                            }
+                                        } label: {
+                                            Text(coordinator.selectedHabits.contains(customTrimmed) ? "Remove" : "Add \"\(customTrimmed)\"")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(Color.msBackground)
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 9)
+                                                .background(Color.msGold, in: Capsule())
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                            }
                         }
 
                         Spacer(minLength: 20)

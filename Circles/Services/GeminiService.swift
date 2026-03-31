@@ -1,5 +1,25 @@
 import Foundation
 
+// MARK: - Gemini errors
+
+enum GeminiError: LocalizedError {
+    case httpError(statusCode: Int, body: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .httpError(let code, let body):
+            switch code {
+            case 429: return "Gemini quota exceeded (429). Please wait a few minutes and try again."
+            case 403: return "Gemini API key rejected (403). Check your GEMINI_API_KEY in Secrets.plist."
+            case 404: return "Gemini model not found (404). The model ID may have changed — check GeminiService."
+            default:
+                let preview = body.prefix(200)
+                return "Gemini returned HTTP \(code): \(preview)"
+            }
+        }
+    }
+}
+
 struct AISuggestion: Codable {
     let suggestedAmount: String
     let motivation: String
@@ -72,8 +92,9 @@ final class GeminiService {
 
         let (data, response) = try await Self.session.data(for: request)
 
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw URLError(.badServerResponse)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "(no body)"
+            throw GeminiError.httpError(statusCode: http.statusCode, body: body)
         }
 
         // Parse: .candidates[0].content.parts[0].text → JSON string → AISuggestion
@@ -155,8 +176,9 @@ final class GeminiService {
 
         let (data, response) = try await Self.session.data(for: request)
 
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw URLError(.badServerResponse)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "(no body)"
+            throw GeminiError.httpError(statusCode: http.statusCode, body: body)
         }
 
         struct RoadmapEnvelope: Decodable {
