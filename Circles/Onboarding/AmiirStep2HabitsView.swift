@@ -1,14 +1,22 @@
 import SwiftUI
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground   = Color(hex: "1A2E1E")
+    static let msCardShared   = Color(hex: "243828")
+    static let msGold         = Color(hex: "D4A240")
+    static let msTextPrimary  = Color(hex: "F0EAD6")
+    static let msTextMuted    = Color(hex: "8FAF94")
+    static let msBorder       = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct AmiirStep2HabitsView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView {
@@ -18,16 +26,16 @@ struct AmiirStep2HabitsView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 48))
-                                .foregroundStyle(Color.accent.opacity(0.85))
+                                .foregroundStyle(Color.msGold)
 
                             Text("The Core Mission")
                                 .font(.appTitle)
-                                .foregroundStyle(colors.textPrimary)
+                                .foregroundStyle(Color.msTextPrimary)
                                 .multilineTextAlignment(.center)
 
                             Text("Choose up to 3 habits your circle will commit to together.")
                                 .font(.appSubheadline)
-                                .foregroundStyle(colors.textSecondary)
+                                .foregroundStyle(Color.msTextMuted)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.horizontal, 24)
@@ -59,7 +67,7 @@ struct AmiirStep2HabitsView: View {
                         if coordinator.selectedHabits.count == 3 {
                             Text("Maximum 3 habits selected.")
                                 .font(.appCaption)
-                                .foregroundStyle(Color.accent)
+                                .foregroundStyle(Color.msGold)
                         }
 
                         Spacer(minLength: 20)
@@ -69,14 +77,23 @@ struct AmiirStep2HabitsView: View {
                 VStack(spacing: 16) {
                     StepIndicator(current: 1, total: 4)
 
-                    PrimaryButton(title: "Build the Foundation") {
+                    Button {
                         coordinator.proceedToLocation()
+                    } label: {
+                        Text("Build the Foundation")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.msBackground)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(Color.msGold, in: Capsule())
                     }
+                    .buttonStyle(.plain)
                     .disabled(coordinator.selectedHabits.isEmpty)
+                    .opacity(coordinator.selectedHabits.isEmpty ? 0.45 : 1)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }
-                .background(.ultraThinMaterial)
+                .background(Color.msBackground)
             }
         }
         .navigationBarBackButtonHidden()
@@ -86,7 +103,7 @@ struct AmiirStep2HabitsView: View {
                     coordinator.navigationPath.removeLast()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .foregroundStyle(Color.accent)
+                        .foregroundStyle(Color.msGold)
                 }
             }
         }
@@ -94,7 +111,6 @@ struct AmiirStep2HabitsView: View {
 }
 
 private struct HabitTile: View {
-    @Environment(\.colorScheme) private var colorScheme
     let name: String
     let icon: String
     let isSelected: Bool
@@ -104,32 +120,32 @@ private struct HabitTile: View {
         HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accent : Color.accent.opacity(0.12))
+                    .fill(isSelected ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.12))
                     .frame(width: 34, height: 34)
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundStyle(isSelected ? .white : Color.accent)
+                    .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
             }
             Text(name)
                 .font(.appSubheadline)
-                .foregroundStyle(isSelected ? Color.accent : (colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary))
+                .foregroundStyle(isSelected ? Color(hex: "D4A240") : Color(hex: "F0EAD6"))
             Spacer()
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accent)
+                    .foregroundStyle(Color(hex: "D4A240"))
                     .font(.system(size: 16))
             }
         }
         .padding(12)
         .background(
             isSelected
-                ? Color.accent.opacity(0.1)
-                : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.8)),
+                ? Color(hex: "D4A240").opacity(0.1)
+                : Color(hex: "243828"),
             in: RoundedRectangle(cornerRadius: 14)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(isSelected ? Color.accent : Color.clear, lineWidth: 1.5)
+                .stroke(isSelected ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.18), lineWidth: 1.5)
         )
         .opacity(isDisabled ? 0.45 : 1)
     }

@@ -1,14 +1,22 @@
 import SwiftUI
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground   = Color(hex: "1A2E1E")
+    static let msCardShared   = Color(hex: "243828")
+    static let msGold         = Color(hex: "D4A240")
+    static let msTextPrimary  = Color(hex: "F0EAD6")
+    static let msTextMuted    = Color(hex: "8FAF94")
+    static let msBorder       = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct AmiirStep1IdentityView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 32) {
                 Spacer(minLength: 40)
@@ -17,16 +25,16 @@ struct AmiirStep1IdentityView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "person.2.circle.fill")
                         .font(.system(size: 52))
-                        .foregroundStyle(Color.accent.opacity(0.85))
+                        .foregroundStyle(Color.msGold)
 
                     Text("Build Your Circle")
                         .font(.appTitle)
-                        .foregroundStyle(colors.textPrimary)
+                        .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
 
                     Text("Give your circle its name and set who it's for.")
                         .font(.appSubheadline)
-                        .foregroundStyle(colors.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 24)
@@ -41,15 +49,16 @@ struct AmiirStep1IdentityView: View {
                             .font(.appCaption)
                             .textCase(.uppercase)
                             .tracking(0.6)
-                            .foregroundStyle(colors.textSecondary)
+                            .foregroundStyle(Color.msTextMuted)
 
                         TextField("e.g. The Fajr Squad", text: $coord.circleName)
                             .textInputAutocapitalization(.words)
                             .font(.appSubheadline)
-                            .foregroundStyle(colors.textPrimary)
+                            .foregroundStyle(Color.msTextPrimary)
                             .padding(14)
-                            .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-                            .tint(Color.accent)
+                            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
+                            .tint(Color.msGold)
                     }
 
                     // Gender setting
@@ -58,7 +67,7 @@ struct AmiirStep1IdentityView: View {
                             .font(.appCaption)
                             .textCase(.uppercase)
                             .tracking(0.6)
-                            .foregroundStyle(colors.textSecondary)
+                            .foregroundStyle(Color.msTextMuted)
 
                         HStack(spacing: 8) {
                             ForEach([("Mixed", "mixed"), ("Brothers", "brothers"), ("Sisters", "sisters")], id: \.1) { label, value in
@@ -67,14 +76,18 @@ struct AmiirStep1IdentityView: View {
                                 } label: {
                                     Text(label)
                                         .font(.appCaptionMedium)
-                                        .foregroundStyle(coordinator.genderSetting == value ? .white : Color.accent)
+                                        .foregroundStyle(coordinator.genderSetting == value ? Color.msBackground : Color.msGold)
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 11)
                                         .background(
                                             coordinator.genderSetting == value
-                                                ? Color.accent
-                                                : Color.accent.opacity(0.1),
+                                                ? Color.msGold
+                                                : Color.msCardShared,
                                             in: RoundedRectangle(cornerRadius: 10)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(coordinator.genderSetting == value ? Color.clear : Color.msBorder, lineWidth: 1)
                                         )
                                 }
                                 .buttonStyle(.plain)
@@ -86,13 +99,22 @@ struct AmiirStep1IdentityView: View {
 
                 Spacer()
 
-                // Step indicator
+                // Step indicator + CTA
                 StepIndicator(current: 0, total: 4)
 
-                PrimaryButton(title: "Continue") {
+                Button {
                     coordinator.proceedToHabits()
+                } label: {
+                    Text("Continue")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.msBackground)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.msGold, in: Capsule())
                 }
+                .buttonStyle(.plain)
                 .disabled(coordinator.circleName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(coordinator.circleName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }

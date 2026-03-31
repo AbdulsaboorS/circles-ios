@@ -1,10 +1,18 @@
 import SwiftUI
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct MemberStep1HabitsView: View {
     @Environment(MemberOnboardingCoordinator.self) private var coordinator
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     /// Core habits the circle focuses on — shown first as must-select
     private var coreHabits: [String] { coordinator.circle?.coreHabitsSafe ?? [] }
@@ -16,7 +24,7 @@ struct MemberStep1HabitsView: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView {
@@ -27,31 +35,31 @@ struct MemberStep1HabitsView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "hands.sparkles.fill")
                                 .font(.system(size: 44))
-                                .foregroundStyle(Color.accent.opacity(0.85))
+                                .foregroundStyle(Color.msGold)
 
                             Text("Your Commitments")
                                 .font(.appTitle)
-                                .foregroundStyle(colors.textPrimary)
+                                .foregroundStyle(Color.msTextPrimary)
                                 .multilineTextAlignment(.center)
 
-                            if let circle = coordinator.circle {
+                            if coordinator.circle != nil {
                                 Text("Your circle is focused on \(coreHabits.joined(separator: ", ")). Which will you do with them?")
                                     .font(.appSubheadline)
-                                    .foregroundStyle(colors.textSecondary)
+                                    .foregroundStyle(Color.msTextMuted)
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 16)
                             }
                         }
                         .padding(.horizontal, 24)
 
-                        // Core habits (circle focus — must pick ≥ 1)
+                        // Core habits (must pick ≥ 1)
                         if !coreHabits.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Circle Habits")
                                     .font(.appCaptionMedium)
                                     .textCase(.uppercase)
                                     .tracking(0.6)
-                                    .foregroundStyle(colors.textSecondary)
+                                    .foregroundStyle(Color.msTextMuted)
                                     .padding(.horizontal, 24)
 
                                 ForEach(coreHabits, id: \.self) { habitName in
@@ -79,7 +87,7 @@ struct MemberStep1HabitsView: View {
                                 .font(.appCaptionMedium)
                                 .textCase(.uppercase)
                                 .tracking(0.6)
-                                .foregroundStyle(colors.textSecondary)
+                                .foregroundStyle(Color.msTextMuted)
                                 .padding(.horizontal, 24)
 
                             LazyVGrid(
@@ -98,16 +106,20 @@ struct MemberStep1HabitsView: View {
                                         HStack(spacing: 8) {
                                             Image(systemName: habit.icon)
                                                 .font(.system(size: 14))
-                                                .foregroundStyle(isSelected ? .white : Color.accent)
+                                                .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
                                             Text(habit.name)
                                                 .font(.appCaption)
-                                                .foregroundStyle(isSelected ? .white : colors.textPrimary)
+                                                .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "F0EAD6"))
                                             Spacer()
                                         }
                                         .padding(10)
                                         .background(
-                                            isSelected ? Color.accent : Color.accent.opacity(0.07),
+                                            isSelected ? Color(hex: "D4A240") : Color(hex: "243828"),
                                             in: RoundedRectangle(cornerRadius: 10)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1)
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -123,14 +135,23 @@ struct MemberStep1HabitsView: View {
                 VStack(spacing: 16) {
                     StepIndicator(current: 0, total: 2)
 
-                    PrimaryButton(title: "I'm In") {
+                    Button {
                         coordinator.proceedToLocation()
+                    } label: {
+                        Text("I'm In")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.msBackground)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(Color.msGold, in: Capsule())
                     }
+                    .buttonStyle(.plain)
                     .disabled(coordinator.selectedHabits.filter { coreHabits.contains($0) }.isEmpty)
+                    .opacity(coordinator.selectedHabits.filter { coreHabits.contains($0) }.isEmpty ? 0.45 : 1)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }
-                .background(.ultraThinMaterial)
+                .background(Color.msBackground)
             }
         }
         .navigationBarBackButtonHidden()
@@ -140,33 +161,33 @@ struct MemberStep1HabitsView: View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? Color.accent : Color.accent.opacity(0.12))
+                    .fill(isSelected ? Color.msGold : Color.msGold.opacity(0.12))
                     .frame(width: 40, height: 40)
                 Image(systemName: icon)
                     .font(.system(size: 18))
-                    .foregroundStyle(isSelected ? .white : Color.accent)
+                    .foregroundStyle(isSelected ? Color.msBackground : Color.msGold)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .font(.appSubheadline)
-                    .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
+                    .foregroundStyle(Color.msTextPrimary)
                 Text("Circle habit")
                     .font(.appCaption)
-                    .foregroundStyle(colors.textSecondary)
+                    .foregroundStyle(Color.msTextMuted)
             }
             Spacer()
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 22))
-                .foregroundStyle(isSelected ? Color.accent : colors.textSecondary.opacity(0.4))
+                .foregroundStyle(isSelected ? Color.msGold : Color.msTextMuted.opacity(0.4))
         }
         .padding(12)
         .background(
-            isSelected ? Color.accent.opacity(0.08) : (colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.8)),
+            isSelected ? Color.msGold.opacity(0.08) : Color.msCardShared,
             in: RoundedRectangle(cornerRadius: 14)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(isSelected ? Color.accent : Color.clear, lineWidth: 1.5)
+                .stroke(isSelected ? Color.msGold : Color.msBorder, lineWidth: 1.5)
         )
     }
 }

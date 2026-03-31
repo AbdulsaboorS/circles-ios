@@ -4,30 +4,45 @@ import GoogleSignIn
 import GoogleSignInSwift
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground   = Color(hex: "1A2E1E")
+    static let msCardShared   = Color(hex: "243828")
+    static let msGold         = Color(hex: "D4A240")
+    static let msTextPrimary  = Color(hex: "F0EAD6")
+    static let msTextMuted    = Color(hex: "8FAF94")
+}
+
 struct AuthView: View {
     @State private var showError = false
     @State private var errorMessage = ""
 
     var body: some View {
         ZStack {
-            Color(hex: "0D1021").ignoresSafeArea()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 Spacer()
 
                 // Logo section
                 VStack(spacing: 16) {
-                    Image(systemName: "moon.stars.fill")
-                        .font(.system(size: 64))
-                        .foregroundStyle(Color(hex: "E8834B"))
+                    ZStack {
+                        SwiftUI.Circle()
+                            .fill(Color.msGold.opacity(0.12))
+                            .frame(width: 96, height: 96)
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(Color.msGold)
+                    }
 
                     Text("Circles")
                         .font(.system(.largeTitle, design: .serif, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.msTextPrimary)
 
                     Text("Your Islamic accountability circle")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 32)
@@ -48,16 +63,16 @@ struct AuthView: View {
                     Button(action: { Task { await signInWithGoogle() } }) {
                         HStack(spacing: 10) {
                             Image(systemName: "globe")
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.msTextPrimary)
                             Text("Continue with Google")
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.msTextPrimary)
                                 .font(.system(.body, weight: .medium))
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.white.opacity(0.15))
+                        .background(Color.msCardShared)
                         .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msTextMuted.opacity(0.3), lineWidth: 1))
                     }
 
                     if showError {
@@ -73,7 +88,7 @@ struct AuthView: View {
 
                 Text("By continuing, you agree to our Terms and Privacy Policy")
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.35))
+                    .foregroundStyle(Color.msTextMuted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 40)

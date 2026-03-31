@@ -1,14 +1,22 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct AmiirStep3LocationView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
     @Environment(AuthManager.self) private var auth
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var searchText = ""
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     private var filteredCities: [(name: String, country: String, tz: String, lat: Double, lng: Double)] {
         if searchText.isEmpty { return LocationPickerView.cities }
@@ -20,46 +28,47 @@ struct AmiirStep3LocationView: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header
                 VStack(spacing: 12) {
                     Image(systemName: "location.fill")
                         .font(.system(size: 44))
-                        .foregroundStyle(Color.accent.opacity(0.85))
+                        .foregroundStyle(Color.msGold)
                         .padding(.top, 24)
 
                     Text("Prayer Synchronization")
                         .font(.appTitle)
-                        .foregroundStyle(colors.textPrimary)
+                        .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
 
                     Text("Your location helps us anchor your Circle Moment to the right prayer.")
                         .font(.appSubheadline)
-                        .foregroundStyle(colors.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 }
                 .padding(.bottom, 16)
 
-                // Search
+                // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundStyle(colors.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                     TextField("Search cities…", text: $searchText)
                         .font(.appSubheadline)
-                        .foregroundStyle(colors.textPrimary)
-                        .tint(Color.accent)
+                        .foregroundStyle(Color.msTextPrimary)
+                        .tint(Color.msGold)
                 }
                 .padding(12)
-                .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
 
                 if coordinator.isLoading {
                     Spacer()
-                    ProgressView().tint(Color.accent)
+                    ProgressView().tint(Color.msGold)
                     Spacer()
                 } else {
                     List(filteredCities, id: \.name) { city in
@@ -76,21 +85,21 @@ struct AmiirStep3LocationView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(city.name)
                                         .font(.appSubheadline)
-                                        .foregroundStyle(colors.textPrimary)
+                                        .foregroundStyle(Color.msTextPrimary)
                                     Text(city.country)
                                         .font(.appCaption)
-                                        .foregroundStyle(colors.textSecondary)
+                                        .foregroundStyle(Color.msTextMuted)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.appCaption)
-                                    .foregroundStyle(colors.textSecondary)
+                                    .foregroundStyle(Color.msTextMuted)
                             }
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(Color.accent.opacity(0.1))
+                        .listRowBackground(Color.msCardShared)
+                        .listRowSeparatorTint(Color.msBorder)
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
@@ -114,7 +123,7 @@ struct AmiirStep3LocationView: View {
                     coordinator.navigationPath.removeLast()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .foregroundStyle(Color.accent)
+                        .foregroundStyle(Color.msGold)
                 }
             }
         }
