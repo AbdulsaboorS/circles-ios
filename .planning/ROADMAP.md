@@ -125,6 +125,36 @@
 
 ---
 
+## Phase 11.3 — Onboarding In Depth ⬜ Planned
+**Scope:** Finalize onboarding flows with refined UX, animations, deep links, and data persistence.
+- **Flow 1: Build My Circle (Amir Journey)**
+  - Landing Sanctuary: looping video + emotive copy + Build/Join CTAs
+  - The Struggle: core habit selection (max 3)
+  - Circle Identity: circle name + gender setting (Mixed note)
+  - Personal Intentions: secret habits (max 2, private)
+  - AI Planning: animated 28-day generation with progress bar
+  - Foundation: name + location for prayer time sync
+  - Activation: auth gate with progress preview
+- **Flow 2: Member Landing Page (Joiner Journey)**
+  - High-energy video demos (top 80%)
+  - Join CTA + auto-filled deep link (bottom 20%)
+  - Rich Circle Preview: circle name, group streak, member faces
+  - Circle Alignment: pick core habits (min 1 required)
+  - Personal Habits: select private goals
+  - AI Generation: sync roadmap animation
+  - Identity: name + location
+  - Auth Gate: save progress + preview
+- **Critical Implementation Details:**
+  - Push notification framing: "Enable the Adhan for your circle" (Step E)
+  - Deep link logic: skip invite-code screen if deep link detected
+  - Data persistence: cache pending state before auth so user can resume
+  - Animation timing: 1.5-2 second transitions (skippable) unless AI gen needs time
+  - Deep link fail case: fallback "Enter Invite Code" button on landing
+  - UI clarity: Midnight Green for shared steps, lock icon for private habits
+  - Preview value: show Evolving Heart or roadmap on auth screen to motivate save
+
+---
+
 ## Phase 12 — Muslim-Native UX Polish + App Store ⬜ Planned
 **Scope:** Final pass before submission.
 - Full copy audit across every screen
@@ -132,6 +162,17 @@
 - Notification tone review
 - App Store metadata, screenshots, privacy manifest
 - TestFlight beta, human verification, submission
+
+---
+
+## Phase 13 — Landing Page Web ⬜ Planned
+**Scope:** Marketing landing page for web (HTML/Tailwind).
+- Design system: Community/Forum pattern + Micro-interactions style
+- Colors: Purple #7C3AED (primary), Light Purple #A78BFA, Green #22C55E (CTA)
+- Typography: Lora (headings, calm) + Raleway (body, clean)
+- Sections: Hero + Popular Topics + Active Members + Join CTA
+- Responsive: 375px–1440px
+- Pre-delivery: no emojis, cursor-pointer, contrast 4.5:1, haptic feedback indication
 
 ---
 

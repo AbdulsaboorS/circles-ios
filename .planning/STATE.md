@@ -219,7 +219,9 @@ status: "In Progress"
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
 | 11.1 — Full UI Vision Pass | ✓ Complete | Full Midnight Sanctuary redesign — all screens |
 | 11.2 — E2E QA + Bug Fixes | 🔄 Active | User testing in progress; fix known issues + anything found |
+| 11.3 — Onboarding In Depth | ⬜ Planned | Finalized onboarding flows (Amir + Joiner), animations, deep links, data persistence |
 | 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
+| 13 — Landing Page Web | ⬜ Planned | Marketing landing page (HTML/Tailwind, design system applied) |
 
 ---
 
