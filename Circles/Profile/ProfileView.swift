@@ -26,6 +26,11 @@ struct ProfileView: View {
     @State private var isUploadingAvatar = false
     @State private var avatarUrl: String? = nil
 
+    // Edit profile sheet
+    @State private var showEditProfile = false
+    @State private var editNameDraft: String = ""
+    @State private var isSavingName = false
+
     private var displayName: String {
         if let name = profile?.preferredName, !name.isEmpty { return name }
         return auth.session?.user.email?.components(separatedBy: "@").first ?? "Member"
@@ -158,6 +163,13 @@ struct ProfileView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 16).fill(Color.msCardShared)
                 VStack(spacing: 0) {
+                    settingsRow(icon: "person.fill", label: "Edit Profile") {
+                        editNameDraft = profile?.preferredName ?? displayName
+                        showEditProfile = true
+                    }
+
+                    Divider().foregroundStyle(Color.msBorder).padding(.leading, 48)
+
                     settingsRow(icon: "bell.fill", label: "Notifications") {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(url)
@@ -170,6 +182,9 @@ struct ProfileView: View {
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
+            .sheet(isPresented: $showEditProfile) {
+                editProfileSheet
+            }
 
             Button {
                 Task { await auth.signOut() }
@@ -218,6 +233,109 @@ struct ProfileView: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Edit Profile Sheet
+
+    private var editProfileSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackground.ignoresSafeArea()
+                VStack(spacing: 28) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Name field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Display Name")
+                                .font(.appCaption)
+                                .textCase(.uppercase)
+                                .tracking(0.6)
+                                .foregroundStyle(Color.msTextMuted)
+                            TextField("Your name", text: $editNameDraft)
+                                .textInputAutocapitalization(.words)
+                                .font(.appSubheadline)
+                                .foregroundStyle(Color.msTextPrimary)
+                                .padding(14)
+                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
+                                .tint(Color.msGold)
+                        }
+
+                        // Email (read-only)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Email")
+                                .font(.appCaption)
+                                .textCase(.uppercase)
+                                .tracking(0.6)
+                                .foregroundStyle(Color.msTextMuted)
+                            Text(auth.session?.user.email ?? "—")
+                                .font(.appSubheadline)
+                                .foregroundStyle(Color.msTextMuted)
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.msCardShared.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    Spacer()
+
+                    Button {
+                        Task { await saveProfileName() }
+                    } label: {
+                        Group {
+                            if isSavingName {
+                                ProgressView().tint(Color.msBackground)
+                            } else {
+                                Text("Save Changes")
+                                    .font(.system(size: 17, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(Color.msBackground)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.msGold, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editNameDraft.trimmingCharacters(in: .whitespaces).isEmpty || isSavingName)
+                    .opacity(editNameDraft.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { showEditProfile = false }
+                        .foregroundStyle(Color.msGold)
+                }
+            }
+        }
+    }
+
+    private func saveProfileName() async {
+        guard let userId = auth.session?.user.id else { return }
+        let trimmed = editNameDraft.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        isSavingName = true
+        do {
+            try await SupabaseService.shared.client
+                .from("profiles")
+                .update(["preferred_name": trimmed])
+                .eq("id", value: userId.uuidString)
+                .execute()
+            // Update local state immediately
+            if profile != nil {
+                profile?.preferredName = trimmed
+            }
+        } catch {
+            print("[ProfileView] Save name failed: \(error)")
+        }
+        isSavingName = false
+        showEditProfile = false
     }
 
     // MARK: - Debug Tools

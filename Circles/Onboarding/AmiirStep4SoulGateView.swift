@@ -129,7 +129,7 @@ struct AmiirStep4SoulGateView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
 
-                StepIndicator(current: 3, total: 4)
+                StepIndicator(current: 4, total: 5)
                     .padding(.top, 20)
                     .padding(.bottom, 40)
             }

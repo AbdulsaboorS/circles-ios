@@ -112,7 +112,7 @@ struct AmiirStep3LocationView: View {
                         .padding()
                 }
 
-                StepIndicator(current: 2, total: 4)
+                StepIndicator(current: 3, total: 5)
                     .padding(.bottom, 16)
             }
         }

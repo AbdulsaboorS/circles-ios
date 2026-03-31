@@ -43,6 +43,24 @@ struct AmiirStep1IdentityView: View {
                 VStack(spacing: 20) {
                     @Bindable var coord = coordinator
 
+                    // Your name
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Your Name")
+                            .font(.appCaption)
+                            .textCase(.uppercase)
+                            .tracking(0.6)
+                            .foregroundStyle(Color.msTextMuted)
+
+                        TextField("e.g. Omar", text: $coord.preferredName)
+                            .textInputAutocapitalization(.words)
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextPrimary)
+                            .padding(14)
+                            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
+                            .tint(Color.msGold)
+                    }
+
                     // Circle name
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Circle Name")
@@ -100,7 +118,7 @@ struct AmiirStep1IdentityView: View {
                 Spacer()
 
                 // Step indicator + CTA
-                StepIndicator(current: 0, total: 4)
+                StepIndicator(current: 0, total: 5)
 
                 Button {
                     coordinator.proceedToHabits()
@@ -113,8 +131,8 @@ struct AmiirStep1IdentityView: View {
                         .background(Color.msGold, in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(coordinator.circleName.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(coordinator.circleName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
+                .disabled(coordinator.preferredName.trimmingCharacters(in: .whitespaces).isEmpty || coordinator.circleName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity((coordinator.preferredName.trimmingCharacters(in: .whitespaces).isEmpty || coordinator.circleName.trimmingCharacters(in: .whitespaces).isEmpty) ? 0.45 : 1)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }

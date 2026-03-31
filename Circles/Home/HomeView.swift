@@ -104,18 +104,19 @@ struct HomeView: View {
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .center, spacing: 4) {
             Text("Assalamu Alaikum,")
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: 16, weight: .regular))
                 .foregroundStyle(Color.msTextMuted)
             Text(preferredName)
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 34, weight: .bold))
                 .foregroundStyle(Color.msTextPrimary)
             Text(todayFormatted)
-                .font(.system(size: 13))
+                .font(.system(size: 14))
                 .foregroundStyle(Color.msTextMuted)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .multilineTextAlignment(.center)
     }
 
     // MARK: - Heart (the Sun of the screen)

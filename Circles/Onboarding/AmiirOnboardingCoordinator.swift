@@ -8,6 +8,7 @@ final class AmiirOnboardingCoordinator {
 
     enum Step: Hashable {
         case coreHabits
+        case personalIntentions
         case location
         case soulGate
     }
@@ -27,9 +28,11 @@ final class AmiirOnboardingCoordinator {
     ]
 
     // MARK: - Collected Data
+    var preferredName: String = ""
     var circleName: String = ""
     var genderSetting: String = "mixed"   // "mixed" | "brothers" | "sisters"
-    var selectedHabits: Set<String> = []  // max 3
+    var selectedHabits: Set<String> = []         // shared/accountable, max 3
+    var selectedPersonalHabits: [String] = []    // personal/private, max 3
 
     var cityName: String = ""
     var cityTimezone: String = ""
@@ -65,6 +68,10 @@ final class AmiirOnboardingCoordinator {
         navigationPath.append(.coreHabits)
     }
 
+    func proceedToPersonalIntentions() {
+        navigationPath.append(.personalIntentions)
+    }
+
     func proceedToLocation() {
         navigationPath.append(.location)
     }
@@ -86,7 +93,7 @@ final class AmiirOnboardingCoordinator {
             )
             createdCircle = circle
 
-            // 3. Create accountable habit rows for each selected habit
+            // 3. Create accountable habit rows for each selected shared habit
             createdHabitsInSession = []
             for habitName in selectedHabits {
                 let icon = Self.iconForHabit(habitName)
@@ -95,6 +102,19 @@ final class AmiirOnboardingCoordinator {
                     name: habitName,
                     icon: icon,
                     circleId: circle.id
+                ) {
+                    createdHabitsInSession.append(h)
+                }
+            }
+
+            // 4. Create personal (private) habit rows
+            for habitName in selectedPersonalHabits {
+                let icon = Self.iconForHabit(habitName)
+                if let h = try? await HabitService.shared.createPrivateHabit(
+                    userId: userId,
+                    name: habitName,
+                    icon: icon,
+                    familiarity: "general"
                 ) {
                     createdHabitsInSession.append(h)
                 }
@@ -142,12 +162,16 @@ final class AmiirOnboardingCoordinator {
 
     // MARK: - Private
     private func saveLocation(userId: UUID) async throws {
-        let updates: [String: AnyJSON] = [
+        var updates: [String: AnyJSON] = [
             "city_name":  .string(cityName),
             "latitude":   .double(cityLatitude),
             "longitude":  .double(cityLongitude),
             "timezone":   .string(cityTimezone)
         ]
+        let trimmedName = preferredName.trimmingCharacters(in: .whitespaces)
+        if !trimmedName.isEmpty {
+            updates["preferred_name"] = .string(trimmedName)
+        }
         try await SupabaseService.shared.client
             .from("profiles")
             .update(updates)

@@ -11,9 +11,10 @@ struct AmiirOnboardingFlowView: View {
             AmiirStep1IdentityView()
                 .navigationDestination(for: AmiirOnboardingCoordinator.Step.self) { step in
                     switch step {
-                    case .coreHabits: AmiirStep2HabitsView()
-                    case .location:   AmiirStep3LocationView()
-                    case .soulGate:   AmiirStep4SoulGateView()
+                    case .coreHabits:          AmiirStep2HabitsView()
+                    case .personalIntentions:  AmiirStep3PersonalView()
+                    case .location:            AmiirStep3LocationView()
+                    case .soulGate:            AmiirStep4SoulGateView()
                     }
                 }
         }
