@@ -2,9 +2,19 @@ import SwiftUI
 import PhotosUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct ProfileView: View {
     @Environment(AuthManager.self) private var auth
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var profile: Profile? = nil
     @State private var totalDays: Int = 0
@@ -15,8 +25,6 @@ struct ProfileView: View {
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var isUploadingAvatar = false
     @State private var avatarUrl: String? = nil
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     private var displayName: String {
         if let name = profile?.preferredName, !name.isEmpty { return name }
@@ -33,7 +41,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackground()
+                Color.msBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 24) {
                         avatarSection
@@ -47,6 +55,7 @@ struct ProfileView: View {
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .task {
                 await loadAll()
             }
@@ -66,21 +75,21 @@ struct ProfileView: View {
                     AvatarView(avatarUrl: avatarUrl, name: displayName, size: 96)
                         .overlay(
                             SwiftUI.Circle()
-                                .stroke(Color.accent.opacity(0.25), lineWidth: 2)
+                                .stroke(Color.msGold.opacity(0.35), lineWidth: 2)
                         )
                 }
                 .buttonStyle(.plain)
                 .overlay(alignment: .bottomTrailing) {
                     ZStack {
                         SwiftUI.Circle()
-                            .fill(Color.accent)
+                            .fill(Color.msGold)
                             .frame(width: 28, height: 28)
                         if isUploadingAvatar {
-                            ProgressView().tint(.white).scaleEffect(0.6)
+                            ProgressView().tint(Color.msBackground).scaleEffect(0.6)
                         } else {
                             Image(systemName: "camera.fill")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.msBackground)
                         }
                     }
                     .offset(x: 2, y: 2)
@@ -89,12 +98,12 @@ struct ProfileView: View {
 
             Text(displayName)
                 .font(.appTitle)
-                .foregroundStyle(colors.textPrimary)
+                .foregroundStyle(Color.msTextPrimary)
 
             if !memberSince.isEmpty {
                 Text(memberSince)
                     .font(.appCaption)
-                    .foregroundStyle(colors.textSecondary)
+                    .foregroundStyle(Color.msTextMuted)
             }
         }
         .frame(maxWidth: .infinity)
@@ -104,22 +113,24 @@ struct ProfileView: View {
     // MARK: - Stats Card
 
     private var statsCard: some View {
-        AppCard {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16).fill(Color.msCardShared)
             HStack(spacing: 0) {
                 statItem(value: "\(totalDays)", label: "Total Days", icon: "flame.fill")
-                Divider().frame(height: 40).opacity(0.2)
+                Divider().frame(height: 40).foregroundStyle(Color.msBorder)
                 statItem(value: "\(bestStreak)", label: "Best Streak", icon: "bolt.fill")
-                Divider().frame(height: 40).opacity(0.2)
+                Divider().frame(height: 40).foregroundStyle(Color.msBorder)
                 statItem(value: "\(circleCount)", label: "Circles", icon: "person.2.fill")
             }
             .padding(.vertical, 16)
         }
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
         .overlay(
             isLoadingStats
                 ? AnyView(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                        .overlay(ProgressView().tint(Color.accent))
+                        .fill(Color.msBackground.opacity(0.6))
+                        .overlay(ProgressView().tint(Color.msGold))
                 )
                 : AnyView(EmptyView())
         )
@@ -129,13 +140,13 @@ struct ProfileView: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundStyle(Color.accent)
+                .foregroundStyle(Color.msGold)
             Text(value)
                 .font(.appHeadline)
-                .foregroundStyle(colors.textPrimary)
+                .foregroundStyle(Color.msTextPrimary)
             Text(label)
                 .font(.appCaption)
-                .foregroundStyle(colors.textSecondary)
+                .foregroundStyle(Color.msTextMuted)
         }
         .frame(maxWidth: .infinity)
     }
@@ -144,7 +155,8 @@ struct ProfileView: View {
 
     private var settingsSection: some View {
         VStack(spacing: 12) {
-            AppCard {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16).fill(Color.msCardShared)
                 VStack(spacing: 0) {
                     settingsRow(icon: "bell.fill", label: "Notifications") {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -152,11 +164,12 @@ struct ProfileView: View {
                         }
                     }
 
-                    Divider().opacity(0.15).padding(.leading, 48)
+                    Divider().foregroundStyle(Color.msBorder).padding(.leading, 48)
 
                     settingsRow(icon: "location.fill", label: "Location & Prayer Times") {}
                 }
             }
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
 
             Button {
                 Task { await auth.signOut() }
@@ -166,12 +179,12 @@ struct ProfileView: View {
                     Text("Sign Out")
                 }
                 .font(.appSubheadline)
-                .foregroundStyle(Color.accent)
+                .foregroundStyle(Color.msGold)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.accent, lineWidth: 1.5)
+                        .stroke(Color.msGold, lineWidth: 1.5)
                 )
             }
             .buttonStyle(.plain)
@@ -187,19 +200,19 @@ struct ProfileView: View {
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.accent.opacity(0.12))
+                        .fill(Color.msGold.opacity(0.12))
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
                         .font(.system(size: 14))
-                        .foregroundStyle(Color.accent)
+                        .foregroundStyle(Color.msGold)
                 }
                 Text(label)
                     .font(.appSubheadline)
-                    .foregroundStyle(colors.textPrimary)
+                    .foregroundStyle(Color.msTextPrimary)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.appCaption)
-                    .foregroundStyle(colors.textSecondary)
+                    .foregroundStyle(Color.msTextMuted)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -214,7 +227,7 @@ struct ProfileView: View {
         VStack(spacing: 8) {
             Text("DEV TOOLS")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(colors.textSecondary.opacity(0.5))
+                .foregroundStyle(Color.msTextMuted.opacity(0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
@@ -225,7 +238,7 @@ struct ProfileView: View {
             } label: {
                 Text("Reset Account")
                     .font(.appCaption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.orange)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
                     .background(Color.orange.opacity(0.08))
@@ -238,7 +251,7 @@ struct ProfileView: View {
             } label: {
                 Text("Test Badge +1")
                     .font(.appCaption)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.blue)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
                     .background(Color.blue.opacity(0.08))

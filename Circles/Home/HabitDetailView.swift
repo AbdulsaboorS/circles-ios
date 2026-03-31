@@ -1,11 +1,22 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msCardDeep    = Color(hex: "1E3122")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct HabitDetailView: View {
     let habit: Habit
 
     @Environment(AuthManager.self) private var auth
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var logs: [HabitLog] = []
     @State private var plan: HabitPlan?
@@ -14,8 +25,6 @@ struct HabitDetailView: View {
     @State private var isGeneratingPlan = false
     @State private var errorMessage: String?
     @State private var showRefineSheet = false
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     private var last28Days: [String] {
         let formatter = DateFormatter()
@@ -43,7 +52,7 @@ struct HabitDetailView: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -58,6 +67,7 @@ struct HabitDetailView: View {
         }
         .navigationTitle(habit.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             await fetchLogs()
             await loadPlan()
@@ -83,14 +93,14 @@ struct HabitDetailView: View {
         VStack(spacing: 8) {
             Image(systemName: habit.icon)
                 .font(.system(size: 56))
-                .foregroundStyle(Color.accent)
+                .foregroundStyle(Color.msGold)
             Text(habit.name)
                 .font(.appTitle)
-                .foregroundStyle(colors.textPrimary)
+                .foregroundStyle(Color.msTextPrimary)
             if let goal = habit.acceptedAmount, !goal.isEmpty {
                 Label(goal, systemImage: "target")
                     .font(.appSubheadline)
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.msTextMuted)
             }
             HStack(spacing: 16) {
                 StatBadge(label: "Completions", value: "\(totalCompletions)")
@@ -99,8 +109,9 @@ struct HabitDetailView: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(AppCardBackground())
+        .background(Color.msCardShared)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
         .padding(.horizontal, 16)
     }
 
@@ -111,7 +122,7 @@ struct HabitDetailView: View {
             HStack {
                 Text("28-Day Roadmap")
                     .font(.system(size: 18, weight: .semibold, design: .serif))
-                    .foregroundStyle(colors.textPrimary)
+                    .foregroundStyle(Color.msTextPrimary)
                 Spacer()
                 if plan != nil {
                     Button("Refine plan") {
@@ -122,14 +133,14 @@ struct HabitDetailView: View {
                         }
                     }
                     .font(.appCaptionMedium)
-                    .foregroundStyle(plan?.isRefinementLimitReached == true ? Color.textSecondary : Color.accent)
+                    .foregroundStyle(plan?.isRefinementLimitReached == true ? Color.msTextMuted : Color.msGold)
                     .disabled(isGeneratingPlan)
                 }
             }
             .padding(.horizontal, 16)
 
             if isLoadingPlan {
-                HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
+                HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                     .padding(.vertical, 8)
             } else if let plan {
                 VStack(alignment: .leading, spacing: 20) {
@@ -139,7 +150,7 @@ struct HabitDetailView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Week \(week)")
                                     .font(.appCaptionMedium)
-                                    .foregroundStyle(Color.accent)
+                                    .foregroundStyle(Color.msGold)
                                 ForEach(days) { m in
                                     milestoneRow(plan: plan, milestone: m)
                                 }
@@ -152,10 +163,25 @@ struct HabitDetailView: View {
                 VStack(spacing: 12) {
                     Text("Get a gentle, personalized 28-day path for this habit.")
                         .font(.appSubheadline)
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
-                    PrimaryButton(title: isGeneratingPlan ? "Generating…" : "Generate 28-day plan") {
+
+                    Button {
                         Task { await generatePlan() }
+                    } label: {
+                        ZStack {
+                            if isGeneratingPlan {
+                                ProgressView().tint(Color.msBackground)
+                            } else {
+                                Text("Generate 28-day plan")
+                                    .font(.appSubheadline.weight(.semibold))
+                                    .foregroundStyle(Color.msBackground)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(isGeneratingPlan ? Color.msGold.opacity(0.4) : Color.msGold)
+                        .clipShape(Capsule())
                     }
                     .disabled(isGeneratingPlan)
                     .padding(.horizontal, 24)
@@ -179,37 +205,35 @@ struct HabitDetailView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Day \(milestone.day)")
                     .font(.appCaptionMedium)
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.msTextMuted)
                 Text(dateLabel)
                     .font(.appCaption)
-                    .foregroundStyle(Color.textSecondary.opacity(0.85))
+                    .foregroundStyle(Color.msTextMuted.opacity(0.7))
                 if today {
                     Text("Today")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.msBackground)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.accent, in: Capsule())
+                        .background(Color.msGold, in: Capsule())
                 }
                 Spacer()
             }
             Text(milestone.title)
                 .font(.appSubheadline)
-                .foregroundStyle(colors.textPrimary)
+                .foregroundStyle(Color.msTextPrimary)
             Text(milestone.description)
                 .font(.appCaption)
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(Color.msTextMuted)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(today ? Color.accent.opacity(0.12) : Color.white.opacity(colorScheme == .dark ? 0.06 : 0.85))
-        )
+        .background(today ? Color.msGold.opacity(0.10) : Color.msCardShared)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(today ? Color.accent.opacity(0.35) : Color.clear, lineWidth: 1)
+                .stroke(today ? Color.msGold.opacity(0.35) : Color.msBorder, lineWidth: 1)
         )
     }
 
@@ -219,21 +243,25 @@ struct HabitDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("28-Day History")
                 .font(.system(size: 18, weight: .semibold, design: .serif))
-                .foregroundStyle(colors.textPrimary)
+                .foregroundStyle(Color.msTextPrimary)
                 .padding(.horizontal, 16)
 
             if isLoading {
-                HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
+                HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
             } else {
                 LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(last28Days, id: \.self) { dateStr in
                         VStack(spacing: 2) {
                             SwiftUI.Circle()
-                                .fill(isCompleted(dateString: dateStr) ? Color.accent : Color.white.opacity(0.2))
+                                .fill(isCompleted(dateString: dateStr) ? Color.msGold : Color.msCardShared)
                                 .frame(width: 32, height: 32)
+                                .overlay(
+                                    SwiftUI.Circle()
+                                        .stroke(Color.msBorder, lineWidth: isCompleted(dateString: dateStr) ? 0 : 1)
+                                )
                             Text(dayNumber(from: dateStr))
                                 .font(.system(size: 9))
-                                .foregroundStyle(Color.textSecondary)
+                                .foregroundStyle(Color.msTextMuted)
                         }
                     }
                 }
@@ -323,30 +351,33 @@ private struct RefinePlanSheet: View {
     var onRefine: (String?) async -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @State private var note = ""
 
     var body: some View {
         NavigationStack {
             ZStack {
-                (colorScheme == .dark ? Color.darkBackground : Color.lightBackground)
-                    .ignoresSafeArea()
+                Color.msBackground.ignoresSafeArea()
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Tell the coach what to change (optional). We’ll regenerate all 28 days.")
+                    Text("Tell the coach what to change (optional). We'll regenerate all 28 days.")
                         .font(.appSubheadline)
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                     TextField("e.g. I can only practice on weekdays…", text: $note, axis: .vertical)
                         .lineLimit(3 ... 6)
-                        .textFieldStyle(.roundedBorder)
+                        .foregroundStyle(Color.msTextPrimary)
+                        .padding(12)
+                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                        .tint(Color.msGold)
                     Spacer()
                 }
                 .padding(20)
             }
             .navigationTitle("Refine plan")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .foregroundStyle(Color.msGold)
                         .disabled(isRefining)
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -356,6 +387,7 @@ private struct RefinePlanSheet: View {
                             await onRefine(trimmed.isEmpty ? nil : trimmed)
                         }
                     }
+                    .foregroundStyle(Color.msGold)
                     .disabled(isRefining)
                 }
             }
@@ -369,22 +401,18 @@ private struct RefinePlanSheet: View {
 private struct StatBadge: View {
     let label: String
     let value: String
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 2) {
-            Text(value).font(.title3.bold())
-            Text(label).font(.caption).foregroundStyle(Color.textSecondary)
+            Text(value)
+                .font(.title3.bold())
+                .foregroundStyle(Color.msTextPrimary)
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(Color.msTextMuted)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.5), in: RoundedRectangle(cornerRadius: 10))
-    }
-}
-
-private struct AppCardBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-    var body: some View {
-        Color.white.opacity(colorScheme == .dark ? 0.08 : 0.75)
+        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 10))
     }
 }

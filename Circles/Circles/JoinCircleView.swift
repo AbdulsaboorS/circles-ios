@@ -1,6 +1,17 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct JoinCircleView: View {
     @Environment(AuthManager.self) var auth
     @Environment(\.dismiss) var dismiss
@@ -10,23 +21,20 @@ struct JoinCircleView: View {
     @State private var isJoining = false
     @State private var pendingCircle: Circle? = nil
     @State private var showGenderAlert = false
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackground()
+                Color.msBackground.ignoresSafeArea()
 
                 VStack(spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Join a Circle")
                             .font(.appTitle)
-                            .foregroundStyle(colors.textPrimary)
+                            .foregroundStyle(Color.msTextPrimary)
                         Text("Enter the 8-character invite code from a circle member.")
                             .font(.appSubheadline)
-                            .foregroundStyle(colors.textSecondary)
+                            .foregroundStyle(Color.msTextMuted)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -35,10 +43,10 @@ struct JoinCircleView: View {
                         .autocorrectionDisabled(true)
                         .font(.system(.title2, design: .monospaced, weight: .semibold))
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(colors.textPrimary)
+                        .foregroundStyle(Color.msTextPrimary)
                         .padding()
-                        .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-                        .tint(Color.accent)
+                        .background(Color.msGold.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                        .tint(Color.msGold)
                         .onChange(of: inviteCode) { _, val in
                             inviteCode = String(val.uppercased().prefix(8))
                         }
@@ -46,26 +54,45 @@ struct JoinCircleView: View {
                     if let error = viewModel.errorMessage {
                         Text(error)
                             .font(.appCaption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.red)
                             .multilineTextAlignment(.center)
                     }
 
                     Spacer()
 
-                    PrimaryButton(title: isJoining ? "" : "Join Circle", isLoading: isJoining) {
+                    Button {
                         Task { await checkGenderAndJoin() }
+                    } label: {
+                        ZStack {
+                            if isJoining {
+                                ProgressView().tint(Color.msBackground)
+                            } else {
+                                Text("Join Circle")
+                                    .font(.appSubheadline.weight(.semibold))
+                                    .foregroundStyle(Color.msBackground)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            inviteCode.trimmingCharacters(in: .whitespaces).count < 8 || isJoining
+                                ? Color.msGold.opacity(0.4)
+                                : Color.msGold
+                        )
+                        .clipShape(Capsule())
                     }
-                    .disabled(inviteCode.trimmingCharacters(in: .whitespaces).count < 8)
+                    .disabled(inviteCode.trimmingCharacters(in: .whitespaces).count < 8 || isJoining)
                     .padding(.bottom, 32)
                 }
                 .padding(24)
             }
             .navigationTitle("Join Circle")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Color.accent)
+                        .foregroundStyle(Color.msGold)
                 }
             }
             .onAppear {

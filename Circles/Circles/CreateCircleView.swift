@@ -1,6 +1,17 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct CreateCircleView: View {
     @Environment(AuthManager.self) var auth
     @Environment(\.dismiss) var dismiss
@@ -11,14 +22,11 @@ struct CreateCircleView: View {
     @State private var genderSetting = "mixed"
     @State private var isCreating = false
     @State private var localError: String?
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackground()
+                Color.msBackground.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -27,10 +35,10 @@ struct CreateCircleView: View {
                             TextField("e.g. Fajr Squad", text: $name)
                                 .textInputAutocapitalization(.words)
                                 .font(.appSubheadline)
-                                .foregroundStyle(colors.textPrimary)
+                                .foregroundStyle(Color.msTextPrimary)
                                 .padding(14)
-                                .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-                                .tint(Color.accent)
+                                .background(Color.msGold.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                                .tint(Color.msGold)
                         }
 
                         // Description
@@ -38,11 +46,11 @@ struct CreateCircleView: View {
                             TextField("What's this circle about?", text: $description, axis: .vertical)
                                 .textInputAutocapitalization(.sentences)
                                 .font(.appSubheadline)
-                                .foregroundStyle(colors.textPrimary)
+                                .foregroundStyle(Color.msTextPrimary)
                                 .lineLimit(3...5)
                                 .padding(14)
-                                .background(Color.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-                                .tint(Color.accent)
+                                .background(Color.msGold.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                                .tint(Color.msGold)
                         }
 
                         // Gender Setting
@@ -54,11 +62,11 @@ struct CreateCircleView: View {
                                     } label: {
                                         Text(label)
                                             .font(.appCaptionMedium)
-                                            .foregroundStyle(genderSetting == value ? .white : Color.accent)
+                                            .foregroundStyle(genderSetting == value ? Color.msBackground : Color.msGold)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 10)
                                             .background(
-                                                genderSetting == value ? Color.accent : Color.accent.opacity(0.1),
+                                                genderSetting == value ? Color.msGold : Color.msGold.opacity(0.1),
                                                 in: RoundedRectangle(cornerRadius: 10)
                                             )
                                     }
@@ -70,13 +78,13 @@ struct CreateCircleView: View {
                         if let error = localError {
                             Text(error)
                                 .font(.appCaption)
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Color.red)
                                 .multilineTextAlignment(.center)
                         }
 
                         Spacer(minLength: 20)
 
-                        PrimaryButton(title: "Create Circle", isLoading: isCreating) {
+                        Button {
                             Task {
                                 isCreating = true
                                 localError = nil
@@ -99,8 +107,26 @@ struct CreateCircleView: View {
                                 }
                                 isCreating = false
                             }
+                        } label: {
+                            ZStack {
+                                if isCreating {
+                                    ProgressView().tint(Color.msBackground)
+                                } else {
+                                    Text("Create Circle")
+                                        .font(.appSubheadline.weight(.semibold))
+                                        .foregroundStyle(Color.msBackground)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating
+                                    ? Color.msGold.opacity(0.4)
+                                    : Color.msGold
+                            )
+                            .clipShape(Capsule())
                         }
-                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
                         .padding(.bottom, 32)
                     }
                     .padding(.horizontal, 20)
@@ -109,10 +135,11 @@ struct CreateCircleView: View {
             }
             .navigationTitle("New Circle")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Color.accent)
+                        .foregroundStyle(Color.msGold)
                 }
             }
         }
@@ -122,7 +149,7 @@ struct CreateCircleView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.appCaption)
-                .foregroundStyle(colors.textSecondary)
+                .foregroundStyle(Color.msTextMuted)
                 .textCase(.uppercase)
                 .tracking(0.6)
             content()

@@ -1,6 +1,17 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 struct CircleDetailView: View {
     @State private var circle: Circle
 
@@ -42,7 +53,7 @@ struct CircleDetailView: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView {
@@ -68,7 +79,7 @@ struct CircleDetailView: View {
                             .padding(.top, 16)
 
                         if feedViewModel.isLoadingInitial {
-                            HStack { Spacer(); ProgressView().tint(Color.accent); Spacer() }
+                            HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                                 .padding(.vertical, 24)
                         }
 
@@ -103,6 +114,7 @@ struct CircleDetailView: View {
         }
         .navigationTitle(circle.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
@@ -111,12 +123,12 @@ struct CircleDetailView: View {
                             showAmirSettings = true
                         } label: {
                             Image(systemName: "gearshape.fill")
-                                .foregroundStyle(Color.accent)
+                                .foregroundStyle(Color.msGold)
                         }
                     }
                     ShareLink(item: inviteURL) {
                         Image(systemName: "square.and.arrow.up")
-                            .foregroundStyle(Color.accent)
+                            .foregroundStyle(Color.msGold)
                     }
                 }
             }
@@ -135,7 +147,6 @@ struct CircleDetailView: View {
             members = (try? await membersFetch) ?? []
             checkedInCount = 0
             isLoadingMembers = false
-            // Load profiles for avatar display
             let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: members.map { $0.userId })) ?? []
             memberProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
             startWindowTimer()
@@ -177,19 +188,19 @@ struct CircleDetailView: View {
         }
     }
 
-    // MARK: - Members Strip (D-16)
+    // MARK: - Members Strip
 
     private var membersStrip: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("\(members.count) Members")
                     .font(.appCaptionMedium)
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.msTextMuted)
                 Spacer()
                 Button { showMembersSheet = true } label: {
                     Text("See All")
                         .font(.appCaption)
-                        .foregroundStyle(Color.accent)
+                        .foregroundStyle(Color.msGold)
                 }
                 .sheet(isPresented: $showMembersSheet) {
                     MembersListView(
@@ -217,9 +228,9 @@ struct CircleDetailView: View {
                     if members.count > maxStrip {
                         Text("+\(members.count - maxStrip)")
                             .font(.appCaptionMedium)
-                            .foregroundStyle(Color.textSecondary)
+                            .foregroundStyle(Color.msTextMuted)
                             .frame(width: 44, height: 44)
-                            .background(Color.accent.opacity(0.12), in: SwiftUI.Circle())
+                            .background(Color.msGold.opacity(0.12), in: SwiftUI.Circle())
                     }
                 }
                 .padding(.horizontal, 16)
@@ -227,24 +238,24 @@ struct CircleDetailView: View {
         }
     }
 
-    // MARK: - Moment Banner (D-17)
+    // MARK: - Moment Banner
 
     private var momentBanner: some View {
         HStack {
             Image(systemName: "star.fill")
                 .font(.system(size: 16))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.msBackground)
             Text("POST YOUR MOMENT")
                 .font(.appCaptionMedium)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.msBackground)
             Spacer()
             Text(countdownText)
                 .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.msBackground)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(Color.accent)
+        .background(Color.msGold)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onTapGesture { showCamera = true }
         .accessibilityLabel("Post your Moment, \(countdownText). Tap to open camera.")
@@ -256,18 +267,19 @@ struct CircleDetailView: View {
         HStack(spacing: 8) {
             Image(systemName: "bell.slash.fill")
                 .font(.appCaption)
-                .foregroundStyle(Color.accent.opacity(0.8))
+                .foregroundStyle(Color.msGold.opacity(0.8))
             Text("Notifications off — turn on in Settings to get Moment alerts")
                 .font(.appCaption)
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(Color.msTextMuted)
             Spacer()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
     }
 
-    // MARK: - Nudge
+    // MARK: - Helpers
 
     private func reloadCircleFromServer() async {
         do {
@@ -328,7 +340,6 @@ struct CircleDetailView: View {
 
 private struct MemberAvatarChip: View {
     let member: CircleMember
-    /// Populated by CircleDetailView after fetching profiles
     var avatarUrl: String? = nil
     var displayName: String = ""
 
@@ -340,7 +351,7 @@ private struct MemberAvatarChip: View {
             if member.role == "admin" {
                 Text("Amir")
                     .font(Font.system(size: 9, weight: .medium))
-                    .foregroundStyle(Color.accent)
+                    .foregroundStyle(Color.msGold)
             }
         }
     }
@@ -354,7 +365,6 @@ private struct MembersListView: View {
     let currentUserId: UUID?
     let senderId: UUID?
     let circleId: UUID
-    @Environment(\.colorScheme) private var colorScheme
 
     private func rowTitle(_ member: CircleMember) -> String {
         if let n = memberProfiles[member.userId]?.preferredName, !n.isEmpty { return n }
@@ -364,66 +374,68 @@ private struct MembersListView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                (colorScheme == .dark ? Color.darkBackground : Color.lightBackground)
-                    .ignoresSafeArea()
-                List(members) { member in
-                    HStack(spacing: 12) {
-                        AvatarView(
-                            avatarUrl: memberProfiles[member.userId]?.avatarUrl,
-                            name: rowTitle(member),
-                            size: 44
-                        )
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(rowTitle(member))
-                                .font(.appSubheadline)
-                                .foregroundStyle(Color.textPrimary)
-                            if member.role == "admin" {
-                                Text("Amir")
-                                    .font(.appCaption)
-                                    .foregroundStyle(Color.accent)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.accent.opacity(0.15))
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        Spacer(minLength: 8)
-                        if member.userId != currentUserId {
-                            HStack(spacing: 6) {
-                                Button {
-                                    Task { await sendNudge(to: member.userId, type: "moment", circleId: circleId) }
-                                } label: {
-                                    Text("Moment")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(Color.accent)
+                Color.msBackground.ignoresSafeArea()
+                List {
+                    ForEach(members) { member in
+                        HStack(spacing: 12) {
+                            AvatarView(
+                                avatarUrl: memberProfiles[member.userId]?.avatarUrl,
+                                name: rowTitle(member),
+                                size: 44
+                            )
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(rowTitle(member))
+                                    .font(.appSubheadline)
+                                    .foregroundStyle(Color.msTextPrimary)
+                                if member.role == "admin" {
+                                    Text("Amir")
+                                        .font(.appCaption)
+                                        .foregroundStyle(Color.msGold)
                                         .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.accent.opacity(0.15))
+                                        .padding(.vertical, 2)
+                                        .background(Color.msGold.opacity(0.15))
                                         .clipShape(Capsule())
                                 }
-                                .buttonStyle(.plain)
-                                Button {
-                                    Task { await sendNudge(to: member.userId, type: "habit", circleId: circleId) }
-                                } label: {
-                                    Text("Habit")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(Color.accent)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.accent.opacity(0.15))
-                                        .clipShape(Capsule())
+                            }
+                            Spacer(minLength: 8)
+                            if member.userId != currentUserId {
+                                HStack(spacing: 6) {
+                                    Button {
+                                        Task { await sendNudge(to: member.userId, type: "moment", circleId: circleId) }
+                                    } label: {
+                                        Text("Moment")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(Color.msGold)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.msGold.opacity(0.15))
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                    Button {
+                                        Task { await sendNudge(to: member.userId, type: "habit", circleId: circleId) }
+                                    } label: {
+                                        Text("Habit")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(Color.msGold)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.msGold.opacity(0.15))
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
+                        .listRowBackground(Color.msCardShared)
                     }
-                    .listRowBackground(Color.white.opacity(0.06))
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("Members")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .presentationDetents([.medium, .large])
     }

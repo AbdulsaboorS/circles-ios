@@ -1,5 +1,15 @@
 import SwiftUI
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+}
+
 struct MomentPreviewView: View {
     let image: UIImage
     let onPost: (String?) async throws -> Void
@@ -11,7 +21,7 @@ struct MomentPreviewView: View {
 
     var body: some View {
         ZStack {
-            Color(hex: "0D1021").ignoresSafeArea()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header row: Retake (top-left)
@@ -20,7 +30,7 @@ struct MomentPreviewView: View {
                         onRetake()
                     }
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Color.msTextMuted)
                     .accessibilityLabel("Retake photo")
 
                     Spacer()
@@ -34,6 +44,10 @@ struct MomentPreviewView: View {
                     .resizable()
                     .aspectRatio(3.0 / 4.0, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.msGold.opacity(0.18), lineWidth: 1)
+                    )
                     .padding(.horizontal, 16)
 
                 Spacer().frame(height: 16)
@@ -41,10 +55,10 @@ struct MomentPreviewView: View {
                 // Caption input
                 TextField("Add a caption...", text: $caption)
                     .font(.body)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.msTextPrimary)
                     .padding(12)
-                    .background(Color(hex: "1A1D35"))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                    .tint(Color.msGold)
                     .padding(.horizontal, 16)
 
                 Spacer().frame(height: 16)
@@ -58,17 +72,17 @@ struct MomentPreviewView: View {
                     ZStack {
                         if isPosting {
                             ProgressView()
-                                .tint(.white)
+                                .tint(Color.msBackground)
                         } else {
                             Text("Post Moment")
                                 .font(.headline.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.msBackground)
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(Color(hex: "E8834B").opacity(isPosting ? 0.5 : 1.0))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .background(isPosting ? Color.msGold.opacity(0.5) : Color.msGold)
+                    .clipShape(Capsule())
                 }
                 .disabled(isPosting)
                 .padding(.horizontal, 16)
@@ -77,7 +91,7 @@ struct MomentPreviewView: View {
                 if let error = errorMessage {
                     Text(error)
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.red)
                         .padding(.top, 8)
                         .padding(.horizontal, 16)
                 }

@@ -1,6 +1,15 @@
 import SwiftUI
 import AVFoundation
 
+// MARK: - Midnight Sanctuary tokens
+
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+}
+
 struct MomentCameraView: View {
     let circleId: UUID
     let onCapture: (UIImage) -> Void
@@ -60,7 +69,7 @@ struct MomentCameraView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(.white, lineWidth: 2)
+                                .stroke(Color.msGold, lineWidth: 2)
                         )
                         .frame(
                             maxWidth: .infinity,
@@ -128,7 +137,7 @@ struct MomentCameraView: View {
                     .fill(.white)
                     .frame(width: 80, height: 80)
                 SwiftUI.Circle()
-                    .fill(Color(hex: "0D1021"))
+                    .fill(Color.msBackground)
                     .frame(width: 68, height: 68)
             }
         }
@@ -155,20 +164,20 @@ struct MomentCameraView: View {
 
     private var permissionDeniedView: some View {
         ZStack(alignment: .topTrailing) {
-            Color(hex: "0D1021").ignoresSafeArea()
+            Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 16) {
                 Image(systemName: "camera.slash.fill")
                     .font(.system(size: 48))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Color.msTextMuted)
 
                 Text("Camera Access Required")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.msTextPrimary)
 
                 Text("Go to Settings to allow camera access.")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(Color.msTextMuted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
@@ -180,7 +189,7 @@ struct MomentCameraView: View {
                     }
                 }
                 .font(.body.weight(.medium))
-                .foregroundStyle(Color(hex: "E8834B"))
+                .foregroundStyle(Color.msGold)
             }
 
             // Cancel button — top-right
@@ -189,7 +198,7 @@ struct MomentCameraView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.msTextPrimary)
                     .frame(width: 44, height: 44)
             }
             .padding(.top, 16)
@@ -219,7 +228,6 @@ final class CameraPreviewView: UIView {
     private var previewLayer: AVCaptureVideoPreviewLayer?
 
     func setPreviewLayer(_ layer: AVCaptureVideoPreviewLayer) {
-        // Remove old layer if any
         self.previewLayer?.removeFromSuperlayer()
         self.previewLayer = layer
         self.layer.addSublayer(layer)
