@@ -153,6 +153,16 @@
   - UI clarity: Midnight Green for shared steps, lock icon for private habits
   - Preview value: show Evolving Heart or roadmap on auth screen to motivate save
 
+**Plans:** 6 plans
+
+Plans:
+- [ ] 11.3-01-PLAN.md — Shared infrastructure: OnboardingPendingState, OnboardingTransitionView, deep link verification
+- [ ] 11.3-02-PLAN.md — New Amir step views: Landing Sanctuary, AI Generation, Activation/Auth Gate
+- [ ] 11.3-03-PLAN.md — Amir coordinator rewrite: 7-step auth-last state machine + FlowView wiring
+- [ ] 11.3-04-PLAN.md — New Joiner step views: Landing, Circle Alignment, Personal Habits, AI Gen, Identity, Auth Gate
+- [ ] 11.3-05-PLAN.md — Joiner coordinator rewrite: 7-step auth-last state machine + FlowView wiring
+- [ ] 11.3-06-PLAN.md — ContentView auth-last routing + HomeView post-auth nudge (Soul Gate replacement)
+
 ---
 
 ## Phase 12 — Muslim-Native UX Polish + App Store ⬜ Planned
