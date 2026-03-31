@@ -8,6 +8,7 @@ struct ContentView: View {
 
     @State private var amiirCoordinator = AmiirOnboardingCoordinator()
     @State private var memberCoordinator: MemberOnboardingCoordinator? = nil
+    @State private var showJoinSheet = false
 
     var body: some View {
         Group {
@@ -42,7 +43,12 @@ struct ContentView: View {
                 MainTabView(initialTab: 1)
             } else {
                 // Returning user → Circles tab
+                // If they opened an invite link, surface JoinCircleView on top
                 MainTabView(initialTab: 1)
+                    .sheet(isPresented: $showJoinSheet, onDismiss: { showJoinSheet = false }) {
+                        JoinFromLinkView(inviteCode: pendingInviteCode ?? "")
+                            .environment(auth)
+                    }
             }
         }
         .preferredColorScheme(themeManager.colorScheme)
@@ -54,13 +60,24 @@ struct ContentView: View {
                 memberCoordinator = MemberOnboardingCoordinator(inviteCode: code)
             }
         }
+        .onChange(of: pendingInviteCode) { _, code in
+            guard code != nil,
+                  let userId = auth.session?.user.id,
+                  AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) else { return }
+            // Returning user opened an invite link → show join sheet
+            showJoinSheet = true
+        }
         .onAppear {
             // Handle case where user is already authenticated with a pending invite code
-            if let userId = auth.session?.user.id,
-               let code = pendingInviteCode,
-               !AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId),
-               memberCoordinator == nil {
-                memberCoordinator = MemberOnboardingCoordinator(inviteCode: code)
+            if let userId = auth.session?.user.id {
+                if let code = pendingInviteCode,
+                   !AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId),
+                   memberCoordinator == nil {
+                    memberCoordinator = MemberOnboardingCoordinator(inviteCode: code)
+                } else if pendingInviteCode != nil,
+                          AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) {
+                    showJoinSheet = true
+                }
             }
         }
     }

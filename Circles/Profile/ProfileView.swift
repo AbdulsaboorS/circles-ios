@@ -322,15 +322,13 @@ struct ProfileView: View {
         guard !trimmed.isEmpty else { return }
         isSavingName = true
         do {
+            let updates: [String: AnyJSON] = ["preferred_name": .string(trimmed)]
             try await SupabaseService.shared.client
                 .from("profiles")
-                .update(["preferred_name": trimmed])
+                .update(updates)
                 .eq("id", value: userId.uuidString)
                 .execute()
-            // Update local state immediately
-            if profile != nil {
-                profile?.preferredName = trimmed
-            }
+            profile?.preferredName = trimmed
         } catch {
             print("[ProfileView] Save name failed: \(error)")
         }

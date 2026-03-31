@@ -66,7 +66,7 @@ struct HomeView: View {
 
                 fabButton
                     .padding(.trailing, 20)
-                    .padding(.bottom, 88)
+                    .padding(.bottom, 16)
             }
             .navigationBarHidden(true)
             .navigationDestination(for: Habit.self) { habit in

@@ -48,6 +48,9 @@ final class DailyMomentService {
                 lng: lng,
                 timezone: tz
             )
+        } else {
+            // No location set — open window at start of day so gate works for testing
+            windowStart = Calendar.current.startOfDay(for: Date())
         }
 
         // 3. Check if user has already posted a Moment today

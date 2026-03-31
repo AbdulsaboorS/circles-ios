@@ -25,8 +25,8 @@ struct HabitDetailView: View {
     @State private var isGeneratingPlan = false
     @State private var errorMessage: String?
     @State private var showRefineSheet = false
-    // Collapsible weeks: default all expanded
-    @State private var expandedWeeks: Set<Int> = [1, 2, 3, 4]
+    // Collapsible weeks: default all collapsed; week 1 opens after plan generates
+    @State private var expandedWeeks: Set<Int> = []
     // Editing
     @State private var editingMilestone: HabitMilestone?
 
@@ -371,6 +371,7 @@ struct HabitDetailView: View {
                 userId: userId,
                 milestones: milestones
             )
+            expandedWeeks = [1]  // reveal week 1 so user sees it generated
         } catch {
             errorMessage = HabitPlanService.userFacingMessage(from: error)
         }
