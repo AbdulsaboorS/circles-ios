@@ -81,8 +81,9 @@ struct HabitDetailView: View {
 
     private var heroCard: some View {
         VStack(spacing: 8) {
-            Text(habit.icon)
+            Image(systemName: habit.icon)
                 .font(.system(size: 56))
+                .foregroundStyle(Color.accent)
             Text(habit.name)
                 .font(.appTitle)
                 .foregroundStyle(colors.textPrimary)
