@@ -13,33 +13,61 @@
 ## Current position
 
 - **Product:** v2.4 — Phase **11.2 (E2E QA + Bug Fixes) IN PROGRESS**
-- **Latest commit:** `db72af5` (Phase 11.2 QA fixes batch 1) + uncommitted batch 2 in session
-- **User is actively testing on their real device.** More QA feedback expected.
+- **Latest commits:** `bd6fe75` (QA batch 3) + `[pending commit]` (QA batch 4 — refinement + avatar)
+- **User is actively testing on their real device.**
 
-## What was done this session (Phase 11.2 QA fixes)
+## What was done this session (Phase 11.2 QA fixes — batch 3 + 4)
 
-### Batch 1 — commit `db72af5`
-- **Amir onboarding Step 1:** Added "Your Name" field → saved to `profiles.preferred_name`
-- **Amir onboarding: new Step 3 (Personal Intentions):** Curated grid filtered from shared habits, skippable, max 3 selections; created as private habits (`is_accountable=false`) in `createCircleAndProceed`; AI roadmaps fire for them too. StepIndicator updated to 5 steps across all Amir onboarding views.
-- **HomeView header:** Centered + enlarged (28→34pt)
-- **ProfileView:** "Edit Profile" sheet added — editable display name + read-only email
-- **DB:** Deduplicated `habit_plans` rows; added `UNIQUE(habit_id, user_id)` constraint (named `habit_plans_habit_id_user_id_key`) → fixes ON CONFLICT error on 28-day plan generation
-- **DB:** Inserted `daily_moments` row for 2026-03-31 with `prayer_name = 'dhuhr'`
+### Batch 3 — commit `bd6fe75`
+- **FeedService:** fixed column query `preferred_name` (was `display_name` — caused UUID fallback)
+- **FeedItem + FeedService:** added `circleName` to all 3 feed item structs; fetched in parallel with display names
+- **HabitCheckinRow / StreakMilestoneCard / MomentFeedCard:** circle name shown on every feed card
+- **MomentFeedCard:** photo height 280→420px; circle name header strip added
+- **HomeView:** personal intentions button "Update" → "Check in"
+- **GeminiService:** friendly 503 error message added
+- **HabitPlanService:** (REVERTED in batch 4 — see below)
+- **MomentCameraView:** Open Settings button now uses `open(_:options:completionHandler:)` directly
+- **supabase/functions/seed-daily-moment:** new Edge Function deployed via Supabase MCP
 
-### Batch 2 — uncommitted at session end (commit immediately)
-- **ProfileView `saveProfileName`:** Fixed to use `[String: AnyJSON]` (was `[String: String]`, not persisting)
-- **DailyMomentService:** Added fallback — if no location in profile, `windowStart = startOfDay` so gate opens for location-less accounts during testing
-- **ContentView:** Returning (already-onboarded) users opening an invite deep link now get `JoinFromLinkView` sheet instead of being silently routed to the main tab
-- **New file `JoinFromLinkView.swift`:** Thin wrapper around `JoinCircleView` with pre-filled code for deep link join
-- **HomeView FAB:** Lowered `.padding(.bottom, 88)` → `16` (was floating too high above tab bar)
-- **HabitDetailView:** Weekly plan cards now default to all-collapsed; after `generatePlan()` succeeds, Week 1 is auto-expanded so user sees it generated
+### Batch 4 — commit pending at session end
+- **HabitPlanService `applyRefinement`:** reverted incorrect `[HabitPlan]` array decode; now uses `.single()` → forces PostgREST single-object response. This fixes "data couldn't be read because it isn't in the correct format" on refinement.
+- **ProfileView:** added `avatarUploadError` state + alert so upload failures surface to user instead of silently failing
+- **Storage RLS policies applied via Supabase MCP:** `avatars` bucket had **zero upload policies** — that was why profile picture upload was silently failing. Applied 3 policies: INSERT (own folder), UPDATE (own folder), SELECT (public).
+- **daily_moments row:** seeded `2026-04-02` with `prayer_name = 'asr'` via MCP SQL
+- **seed-daily-moment Edge Function:** deployed live via Supabase MCP (status: ACTIVE, verify_jwt: false)
 
-## Open QA items still to test / fix
+## Daily moment cron — one manual step remaining
 
-- **Joiner onboarding flow:** User to test with deep link `circles://join/Z5QZTNN5` (Isha at Masjid, brothers). Note: for an already-onboarded user, the `JoinFromLinkView` sheet now surfaces. For testing the full joiner **onboarding** flow (MemberOnboardingCoordinator), user must be on a fresh account that hasn't completed onboarding.
-- **Circle Moment:** `daily_moments` row exists for today (dhuhr). DailyMomentService now opens gate for accounts with no location (fallback = start of day). User needs to reload/relaunch app to pick up the new row.
+The `seed-daily-moment` Edge Function is deployed. To make it fire daily automatically:
+
+1. Go to **Supabase Dashboard → Database → Extensions**
+2. Enable **`pg_cron`** (search for it)
+3. Go to **Database → Cron Jobs → New cron job**
+   - Name: `seed-daily-moment`
+   - Schedule: `0 0 * * *` (midnight UTC)
+   - Type: HTTP request
+   - URL: `https://<project-ref>.supabase.co/functions/v1/seed-daily-moment`
+   - Method: POST
+
+Alternatively via pg_net SQL once extensions are enabled:
+```sql
+SELECT cron.schedule('seed-daily-moment', '0 0 * * *',
+  $$SELECT net.http_post('https://<ref>.supabase.co/functions/v1/seed-daily-moment','{}','application/json')$$
+);
+```
+
+## Items still to test after this session
+
+- **Profile picture upload** — should now work (storage RLS policies added). User needs to relaunch app and retry.
+- **AI plan refinement** — should now work (`.single()` decode fix). User should retry refining.
+- **Circle Moment camera** — user needs to grant camera permission on device and test posting.
+- **Feed names** — should now show real names after `preferred_name` column fix.
+- **Circle attribution on feed cards** — new; should appear on all card types.
+
+## Open QA items (carried from before)
+
 - **Member onboarding flow** — not fully tested yet by user
-- **Generate 28-day plan** — user confirmed it's working ✓ after constraint fix
+- **Joiner deep link** — `circles://join/Z5QZTNN5` — test with fresh account
 
 ## Swift / Xcode 26 note
 
@@ -47,9 +75,8 @@
 
 ## Deep link format
 
-Custom URL scheme (not universal links): `circles://join/INVITECODE`
+Custom URL scheme: `circles://join/INVITECODE`
 Example: `circles://join/Z5QZTNN5`
-Paste in Safari address bar or Notes and tap to open app.
 
 ## Invite codes (for testing)
 

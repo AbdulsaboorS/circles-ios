@@ -96,15 +96,11 @@ final class HabitPlanService {
             "p_milestones": Self.milestonesAsAnyJSON(milestones)
         ]
         do {
-            // PostgREST wraps a RETURNS row_type function in an array — decode as [HabitPlan]
-            let rows: [HabitPlan] = try await client
+            return try await client
                 .rpc("apply_habit_plan_refinement", params: params)
+                .single()
                 .execute()
                 .value
-            guard let plan = rows.first else {
-                throw URLError(.cannotParseResponse)
-            }
-            return plan
         } catch {
             let msg = String(describing: error).lowercased()
             if msg.contains("refinement limit") || msg.contains("p0001") {

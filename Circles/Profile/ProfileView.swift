@@ -25,6 +25,7 @@ struct ProfileView: View {
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var isUploadingAvatar = false
     @State private var avatarUrl: String? = nil
+    @State private var avatarUploadError: String? = nil
 
     // Edit profile sheet
     @State private var showEditProfile = false
@@ -67,6 +68,11 @@ struct ProfileView: View {
             .onChange(of: selectedPhoto) { _, item in
                 guard let item else { return }
                 Task { await handleAvatarPick(item) }
+            }
+            .alert("Upload Failed", isPresented: .constant(avatarUploadError != nil)) {
+                Button("OK") { avatarUploadError = nil }
+            } message: {
+                Text(avatarUploadError ?? "")
             }
         }
     }
@@ -398,13 +404,18 @@ struct ProfileView: View {
     private func handleAvatarPick(_ item: PhotosPickerItem) async {
         guard let userId = auth.session?.user.id else { return }
         isUploadingAvatar = true
+        avatarUploadError = nil
         do {
-            if let data = try await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                avatarUrl = try await AvatarService.shared.uploadAvatar(userId: userId, image: image)
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw AvatarError.imageConversionFailed
             }
+            guard let image = UIImage(data: data) else {
+                throw AvatarError.imageConversionFailed
+            }
+            avatarUrl = try await AvatarService.shared.uploadAvatar(userId: userId, image: image)
         } catch {
             print("[ProfileView] Avatar upload failed: \(error)")
+            avatarUploadError = error.localizedDescription
         }
         isUploadingAvatar = false
     }
