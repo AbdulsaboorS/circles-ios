@@ -25,6 +25,8 @@ struct HabitDetailView: View {
     @State private var isGeneratingPlan = false
     @State private var errorMessage: String?
     @State private var showRefineSheet = false
+    @State private var showReflectionSheet = false
+    @State private var todayReflection = ""
     // Collapsible weeks: default all collapsed; week 1 opens after plan generates
     @State private var expandedWeeks: Set<Int> = []
     // Editing
@@ -64,6 +66,8 @@ struct HabitDetailView: View {
 
                     historySection   // heatmap first
 
+                    reflectionSection
+
                     roadmapSection
                 }
                 .padding(.vertical)
@@ -75,6 +79,7 @@ struct HabitDetailView: View {
         .task {
             await fetchLogs()
             await loadPlan()
+            loadTodayReflection()
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
             Button("OK") { errorMessage = nil }
@@ -86,6 +91,15 @@ struct HabitDetailView: View {
                 isRefining: $isGeneratingPlan,
                 onRefine: { userNote in
                     await refineWithAI(userNote: userNote)
+                }
+            )
+        }
+        .sheet(isPresented: $showReflectionSheet) {
+            ReflectionLogSheet(
+                dateLabel: todayReflectionDateLabel,
+                initialNote: todayReflection,
+                onSave: { note in
+                    saveTodayReflection(note)
                 }
             )
         }
@@ -125,6 +139,50 @@ struct HabitDetailView: View {
     }
 
     // MARK: - Roadmap
+
+    private var reflectionSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Reflection Log")
+                        .font(.system(size: 18, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
+                    Text(todayReflectionDateLabel)
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted)
+                }
+                Spacer()
+                Button(todayReflection.isEmpty ? "Add Note" : "Edit Note") {
+                    showReflectionSheet = true
+                }
+                .font(.appCaptionMedium)
+                .foregroundStyle(Color.msGold)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("A private space for your progress, setbacks, or spiritual state today.")
+                    .font(.appSubheadline)
+                    .foregroundStyle(Color.msTextMuted)
+
+                if todayReflection.isEmpty {
+                    Text("No reflection saved for today yet.")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.msTextMuted)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 14))
+                } else {
+                    Text(todayReflection)
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.msTextPrimary)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 14))
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+    }
 
     private var roadmapSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -419,6 +477,31 @@ struct HabitDetailView: View {
         let day = String(dateString.suffix(2))
         return day.hasPrefix("0") ? String(day.dropFirst()) : day
     }
+
+    private var todayReflectionDateLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        return formatter.string(from: Date())
+    }
+
+    private func loadTodayReflection() {
+        todayReflection = ReflectionLogStore.load(
+            habitId: habit.id,
+            date: ReflectionLogStore.todayString()
+        )
+    }
+
+    private func saveTodayReflection(_ note: String) {
+        ReflectionLogStore.save(
+            note,
+            habitId: habit.id,
+            date: ReflectionLogStore.todayString()
+        )
+        todayReflection = ReflectionLogStore.load(
+            habitId: habit.id,
+            date: ReflectionLogStore.todayString()
+        )
+    }
 }
 
 // MARK: - Refine sheet
@@ -461,11 +544,76 @@ private struct RefinePlanSheet: View {
                     Button("Refine with AI") {
                         Task {
                             let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+                            dismiss()
                             await onRefine(trimmed.isEmpty ? nil : trimmed)
                         }
                     }
                     .foregroundStyle(Color.msGold)
                     .disabled(isRefining)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+private struct ReflectionLogSheet: View {
+    let dateLabel: String
+    let initialNote: String
+    let onSave: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var note: String
+
+    init(dateLabel: String, initialNote: String, onSave: @escaping (String) -> Void) {
+        self.dateLabel = dateLabel
+        self.initialNote = initialNote
+        self.onSave = onSave
+        _note = State(initialValue: initialNote)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackground.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(dateLabel)
+                        .font(.appCaptionMedium)
+                        .foregroundStyle(Color.msGold)
+
+                    Text("Private reflection for today")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.msTextMuted)
+
+                    TextField(
+                        "Write about your consistency, intention, or spiritual state today…",
+                        text: $note,
+                        axis: .vertical
+                    )
+                    .lineLimit(8 ... 16)
+                    .foregroundStyle(Color.msTextPrimary)
+                    .padding(14)
+                    .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                    .tint(Color.msGold)
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("Reflection Log")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Color.msGold)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(note)
+                        dismiss()
+                    }
+                    .foregroundStyle(Color.msGold)
                 }
             }
         }
