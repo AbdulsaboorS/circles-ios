@@ -111,7 +111,9 @@ struct MomentPreviewView: View {
             try await onPost(caption.isEmpty ? nil : caption)
             dismiss()
         } catch {
-            errorMessage = "Failed to post. Try again."
+            let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            errorMessage = message.isEmpty ? String(describing: error) : message
+            print("[MomentPreviewView] post failed: \(error)")
             isPosting = false
         }
     }

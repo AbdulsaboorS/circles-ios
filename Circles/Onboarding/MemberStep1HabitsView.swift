@@ -16,6 +16,7 @@ struct MemberStep1HabitsView: View {
 
     @State private var showCustomField = false
     @State private var customInput = ""
+    @FocusState private var isCustomFieldFocused: Bool
     private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// Core habits the circle focuses on — shown first as must-select
@@ -24,6 +25,14 @@ struct MemberStep1HabitsView: View {
     /// Extra curated habits the member can optionally add as personal
     private var additionalHabits: [(name: String, icon: String)] {
         AmiirOnboardingCoordinator.curatedHabits.filter { !coreHabits.contains($0.name) }
+    }
+
+    private var knownHabitNames: Set<String> {
+        Set(AmiirOnboardingCoordinator.curatedHabits.map(\.name)).union(coreHabits)
+    }
+
+    private var selectedCoreHabitCount: Int {
+        coordinator.selectedHabits.filter { coreHabits.contains($0) }.count
     }
 
     var body: some View {
@@ -59,12 +68,18 @@ struct MemberStep1HabitsView: View {
                         // Core habits (must pick ≥ 1)
                         if !coreHabits.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Circle Habits")
-                                    .font(.appCaptionMedium)
-                                    .textCase(.uppercase)
-                                    .tracking(0.6)
-                                    .foregroundStyle(Color.msTextMuted)
-                                    .padding(.horizontal, 24)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Circle Habits")
+                                        .font(.appCaptionMedium)
+                                        .textCase(.uppercase)
+                                        .tracking(0.6)
+                                        .foregroundStyle(Color.msTextMuted)
+
+                                    Text("Choose at least 1 to continue.")
+                                        .font(.appCaption)
+                                        .foregroundStyle(Color.msTextMuted)
+                                }
+                                .padding(.horizontal, 24)
 
                                 ForEach(coreHabits, id: \.self) { habitName in
                                     let isSelected = coordinator.selectedHabits.contains(habitName)
@@ -87,9 +102,9 @@ struct MemberStep1HabitsView: View {
 
                         // Additional personal habits
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Add Personal Habits (optional)")
-                                .font(.appCaptionMedium)
-                                .textCase(.uppercase)
+                                Text("Add Personal Habits (optional)")
+                                    .font(.appCaptionMedium)
+                                    .textCase(.uppercase)
                                 .tracking(0.6)
                                 .foregroundStyle(Color.msTextMuted)
                                 .padding(.horizontal, 24)
@@ -130,71 +145,82 @@ struct MemberStep1HabitsView: View {
                                 }
 
                                 // Custom habit tile
-                                let customSelected = showCustomField && !customTrimmed.isEmpty && coordinator.selectedHabits.contains(customTrimmed)
-                                Button {
-                                    showCustomField = true
-                                } label: {
+                                if showCustomField {
                                     HStack(spacing: 8) {
-                                        Image(systemName: showCustomField && !customTrimmed.isEmpty
-                                              ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed)
-                                              : "plus.circle.fill")
+                                        Image(systemName: customTrimmed.isEmpty
+                                              ? "plus.circle.fill"
+                                              : AmiirOnboardingCoordinator.iconForHabit(customTrimmed))
                                             .font(.system(size: 14))
-                                            .foregroundStyle(customSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
-                                        Text(showCustomField && !customTrimmed.isEmpty ? customTrimmed : "Custom")
+                                            .foregroundStyle(customTrimmed.isEmpty ? Color.msGold : Color.msBackground)
+
+                                        TextField("Custom habit", text: $customInput)
                                             .font(.appCaption)
-                                            .foregroundStyle(customSelected ? Color(hex: "1A2E1E") : Color(hex: "F0EAD6"))
-                                            .lineLimit(1)
-                                        Spacer()
+                                            .foregroundStyle(customTrimmed.isEmpty ? Color.msTextPrimary : Color.msBackground)
+                                            .focused($isCustomFieldFocused)
+                                            .tint(customTrimmed.isEmpty ? Color.msGold : Color.msBackground)
+                                            .onChange(of: customInput) { _, newValue in
+                                                let previousCustoms = coordinator.selectedHabits.subtracting(knownHabitNames)
+                                                for old in previousCustoms {
+                                                    coordinator.selectedHabits.remove(old)
+                                                }
+
+                                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                                if !trimmed.isEmpty {
+                                                    coordinator.selectedHabits.insert(trimmed)
+                                                }
+                                            }
+
+                                        if !customTrimmed.isEmpty {
+                                            Button {
+                                                coordinator.selectedHabits.remove(customTrimmed)
+                                                customInput = ""
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 16))
+                                                    .foregroundStyle(Color.msBackground.opacity(0.8))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
                                     }
                                     .padding(10)
                                     .background(
-                                        customSelected ? Color(hex: "D4A240") : Color(hex: "243828"),
+                                        customTrimmed.isEmpty ? Color.msCardShared : Color.msGold,
                                         in: RoundedRectangle(cornerRadius: 10)
                                     )
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1)
+                                            .stroke(Color.msGold.opacity(0.25), lineWidth: 1)
                                     )
+                                    .onAppear {
+                                        isCustomFieldFocused = true
+                                    }
+                                } else {
+                                    Button {
+                                        showCustomField = true
+                                        DispatchQueue.main.async {
+                                            isCustomFieldFocused = true
+                                        }
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 14))
+                                                .foregroundStyle(Color.msGold)
+                                            Text("Custom")
+                                                .font(.appCaption)
+                                                .foregroundStyle(Color.msTextPrimary)
+                                            Spacer()
+                                        }
+                                        .padding(10)
+                                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.msGold.opacity(0.18), lineWidth: 1)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 24)
-
-                            // Custom text field + add button
-                            if showCustomField {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    TextField("e.g. Morning walk, Journaling…", text: $customInput)
-                                        .foregroundStyle(Color.msTextPrimary)
-                                        .padding(12)
-                                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
-                                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
-                                        .tint(Color.msGold)
-                                        .onChange(of: customInput) { _, _ in
-                                            let curated = Set(AmiirOnboardingCoordinator.curatedHabits.map(\.name))
-                                            let prev = coordinator.selectedHabits.subtracting(curated).subtracting(Set(coreHabits))
-                                            for old in prev { coordinator.selectedHabits.remove(old) }
-                                        }
-
-                                    if !customTrimmed.isEmpty {
-                                        Button {
-                                            if coordinator.selectedHabits.contains(customTrimmed) {
-                                                coordinator.selectedHabits.remove(customTrimmed)
-                                            } else {
-                                                coordinator.selectedHabits.insert(customTrimmed)
-                                            }
-                                        } label: {
-                                            Text(coordinator.selectedHabits.contains(customTrimmed) ? "Remove" : "Add \"\(customTrimmed)\"")
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundStyle(Color.msBackground)
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 9)
-                                                .background(Color.msGold, in: Capsule())
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .padding(.horizontal, 24)
-                            }
                         }
 
                         Spacer(minLength: 20)
@@ -203,6 +229,14 @@ struct MemberStep1HabitsView: View {
 
                 VStack(spacing: 16) {
                     StepIndicator(current: 0, total: 2)
+
+                    if selectedCoreHabitCount == 0 {
+                        Text("Select at least one circle habit before continuing.")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
 
                     Button {
                         coordinator.proceedToLocation()
@@ -215,8 +249,8 @@ struct MemberStep1HabitsView: View {
                             .background(Color.msGold, in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    .disabled(coordinator.selectedHabits.filter { coreHabits.contains($0) }.isEmpty)
-                    .opacity(coordinator.selectedHabits.filter { coreHabits.contains($0) }.isEmpty ? 0.45 : 1)
+                    .disabled(selectedCoreHabitCount == 0)
+                    .opacity(selectedCoreHabitCount == 0 ? 0.45 : 1)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }
