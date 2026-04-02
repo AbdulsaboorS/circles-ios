@@ -24,6 +24,8 @@ struct HabitDetailView: View {
     @State private var isLoadingPlan = false
     @State private var isGeneratingPlan = false
     @State private var errorMessage: String?
+    @State private var planLoadingTitle = ""
+    @State private var planLoadingSubtitle = ""
     @State private var showRefineSheet = false
     @State private var showReflectionSheet = false
     @State private var todayReflection = ""
@@ -71,6 +73,10 @@ struct HabitDetailView: View {
                     roadmapSection
                 }
                 .padding(.vertical)
+            }
+
+            if isGeneratingPlan {
+                planLoadingOverlay
             }
         }
         .navigationTitle(habit.name)
@@ -139,6 +145,36 @@ struct HabitDetailView: View {
     }
 
     // MARK: - Roadmap
+
+    private var planLoadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.28).ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                Text(planLoadingTitle)
+                    .font(.system(size: 20, weight: .semibold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+
+                Text(planLoadingSubtitle)
+                    .font(.appSubheadline)
+                    .foregroundStyle(Color.msTextMuted)
+                    .multilineTextAlignment(.center)
+
+                ProgressView()
+                    .tint(Color.msGold)
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(20)
+            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.msBorder, lineWidth: 1)
+            )
+            .padding(.horizontal, 28)
+        }
+        .transition(.opacity)
+    }
 
     private var reflectionSection: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -415,6 +451,8 @@ struct HabitDetailView: View {
 
     private func generatePlan() async {
         guard let userId = auth.session?.user.id else { return }
+        planLoadingTitle = "Generating your roadmap..."
+        planLoadingSubtitle = "Building a gentle 28-day path for this habit."
         isGeneratingPlan = true
         errorMessage = nil
         defer { isGeneratingPlan = false }
@@ -437,6 +475,8 @@ struct HabitDetailView: View {
 
     private func refineWithAI(userNote: String?) async {
         guard let userId = auth.session?.user.id, let existing = plan else { return }
+        planLoadingTitle = "Updating your roadmap..."
+        planLoadingSubtitle = "Applying your feedback and regenerating all 28 days."
         isGeneratingPlan = true
         errorMessage = nil
         defer { isGeneratingPlan = false }
