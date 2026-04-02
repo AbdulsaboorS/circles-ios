@@ -12,11 +12,11 @@
 
 ## Current position
 
-- **Product:** v2.4 — Phase **11.2 (E2E QA + UX polish) IN PROGRESS**
+- **Product:** v2.4 — Phase **11.2 (E2E QA + UX polish) COMPLETE**
 - **Branch:** `main`
 - **Remote:** `origin` → GitHub `AbdulsaboorS/circles-ios`
-- **Latest pushed commit:** `7c07287`
-- **User is testing on a real iPhone and plans to finish Phase 11.2 polish next, then move to Phase 11.3.**
+- **Latest pushed commit:** pending close-out push from this session
+- **Next session should begin Phase 11.3 onboarding rebuild work.**
 
 ## What shipped this session
 
@@ -24,7 +24,7 @@
 - `df2b2f9` — QA batch 4: roadmap refinement decode fixed, avatar upload error surfaced, avatar bucket RLS added, `daily_moments` row seeded
 - `97d316e` — auto-commit wrapper
 
-### Pushed this session
+### Pushed before this close-out
 - `4fa6ce6` — local **Reflection Log** for `HabitDetailView` (`UserDefaults`, one note per habit per day, today-only UI)
 - `d5bf103` — invite preview refresh + **username-based test login** (`username` maps to `username@circles.test`)
 - `0c858d2` — camera permission fix (`NSCameraUsageDescription`), debug camera shortcuts, lowercase storage paths for avatar/moment uploads
@@ -32,52 +32,45 @@
 - `fcc4c9c` — roadmap loading overlay for generate/refine
 - `7c07287` — capture reset fix + member onboarding CTA validation/unblock attempt
 
+### Implemented in this closing session
+- AI roadmap overlay now shows a lightweight animated progress treatment during generate/refine instead of a static loading state.
+- Moment camera/preview flow was refactored:
+  - first-shot white screen fixed by moving preview presentation to item-based draft state
+  - stale preview fixed by capture-generation tracking in `CameraManager`
+  - shutter gated on `isSessionReady`
+  - debug camera shortcuts removed after QA
+- Feed cards now use a shared identity header with **avatar + name + circle + timestamp**.
+- Habit check-in copy now follows the requested structure:
+  - `PFP - NAME > CIRCLE`
+  - second line `checking into 'habit'`
+- Feed author avatars now come from a shared author-profile cache in `FeedViewModel`, not only reaction profiles.
+- Invite preview now shows a cleaner member face pile + avatar-backed member preview rows.
+
 ## What is confirmed working
 
 - Profile photo upload now works.
 - AI refinement decode path now works; token-limit message appears correctly when applicable.
 - Reflection Log is implemented on `HabitDetailView`.
 - Camera permission prompt now appears and the camera can capture.
-- Invite preview page is on the green Midnight Sanctuary styling and includes test-account login.
+- First-shot white-screen path is fixed.
+- Feed header/avatar polish is implemented and approved by the user.
+- Invite preview page is on the green Midnight Sanctuary styling, includes test-account login, and shows member PFPS/face pile where preview fetch permits it.
 
-## Open blockers paused for next session
+## Deferred items for later verification
 
-### 1. Moment posting still fails with RLS
-- **Observed error on device:** `new row violates row level security policy`
-- Camera capture works, but posting a Moment still fails at the backend insert step.
-- This is no longer a camera problem; it is likely a **Supabase RLS policy issue on `circle_moments`**.
-- UI now surfaces the actual error in `MomentPreviewView`.
-- Likely next step: inspect `circle_moments` INSERT policy in Supabase and align it with current authenticated circle-member rules.
+### 1. Moment posting should be re-tested only in a real prayer window
+- Out-of-window/debug-style post testing surfaced `StorageError(... "new row violates row-level security policy" ...)`.
+- User considers that acceptable for now because the post path should be verified against a **real live Moment window**, not a forced test shortcut.
+- Do not spend more time on this in Phase 11.2. Re-check only when a real Moment of the Day triggers.
+- UI already surfaces the real error in `MomentPreviewView` if it fails again.
 
-### 2. First camera capture sometimes shows a white screen
-- User reports a one-time bug on the first camera attempt: tap shutter → white screen.
-- If they back out and retry, camera flow behaves more normally.
-- Capture reset logic was added, but this one-time white-screen bug is **not confirmed fixed**.
+### 2. Moment compositing/output still needs polish later
+- Core camera bugs were fixed, but the actual composited image treatment may still need visual polish once real posting is verified.
+- Treat this as a future quality pass, not a current blocker.
 
-### 3. Preview image can still look stale/weird
-- User reported that the preview sometimes looked like the previous shot instead of the latest one.
-- Reset logic was added in camera and presentation flow, but this is **not yet verified resolved**.
-
-### 4. Member onboarding still blocks at first screen
-- Even after habit-step UX updates, user still says they **cannot get past the first message/screen**.
-- The relevant files are:
-  - `Circles/Onboarding/MemberStep1HabitsView.swift`
-  - `Circles/Onboarding/MemberOnboardingFlowView.swift`
-  - `Circles/Onboarding/MemberOnboardingCoordinator.swift`
-- User specifically said: "**STIL not leting me get past the first message.**"
-- Next agent should watch for whether:
-  - validation is shown but navigation does not occur,
-  - navigation path updates but screen does not transition,
-  - or the user is still blocked before habit selection is recognized.
-
-## UX follow-ups requested but not yet done
-
-- Feed card consolidation:
-  - desired layout: `PFP - NAME > CIRCLE`
-  - second line: `checking into 'habit'`
-- PFP persistence/consistency across more surfaces, especially onboarding and feed.
-- Invite preview should show user PFPS if backend preview access permits it.
-- Moment compositing/output still needs polish after backend posting is unblocked.
+### 3. Member onboarding blocker is superseded
+- The remaining joiner/onboarding rough edges are intentionally deferred because Phase 11.3 will rebuild onboarding in depth.
+- Do not chase the old first-screen blocker unless it blocks Phase 11.3 migration work itself.
 
 ## Testing notes for next agent
 
@@ -97,22 +90,23 @@
 
 - `Circles/Home/HabitDetailView.swift`
 - `Circles/Home/ReflectionLogStore.swift`
-- `Circles/Auth/AuthView.swift`
 - `Circles/Onboarding/CirclePreviewView.swift`
-- `Circles/Info.plist`
-- `Circles/Services/AvatarService.swift`
-- `Circles/Services/MomentService.swift`
+- `Circles/Feed/FeedIdentityHeader.swift`
+- `Circles/Feed/FeedView.swift`
+- `Circles/Feed/FeedViewModel.swift`
+- `Circles/Feed/HabitCheckinRow.swift`
+- `Circles/Feed/MomentFeedCard.swift`
+- `Circles/Feed/StreakMilestoneCard.swift`
 - `Circles/Moment/MomentPreviewView.swift`
 - `Circles/Moment/MomentCameraView.swift`
 - `Circles/Moment/CameraManager.swift`
-- `Circles/Onboarding/MemberStep1HabitsView.swift`
 - `Circles/Community/CommunityView.swift`
 - `Circles/Circles/CircleDetailView.swift`
 
 ## Quick next-session priority order
 
-1. Fix `circle_moments` RLS so posting works.
-2. Reproduce and fix the first-capture white-screen / stale-preview bug if still present.
-3. Fix the member onboarding first-screen blocker.
-4. Finish Phase 11.2 feed/PFP polish.
-5. Then begin Phase 11.3 onboarding-in-depth work.
+1. Begin **Phase 11.3 — Onboarding In Depth**.
+2. Use `.planning/phases/11.3-onboarding-in-depth/` plans as the implementation guide.
+3. Carry forward only these deferred checks from 11.2:
+   - re-test Moment posting during a real prayer window
+   - polish composited Moment output later if needed

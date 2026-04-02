@@ -24,8 +24,7 @@ struct CircleDetailView: View {
     @State private var windowSecondsRemaining: Int = 0
     @State private var windowTimer: Timer?
     @State private var showCamera = false
-    @State private var capturedImage: UIImage?
-    @State private var showPreview = false
+    @State private var draftMoment: MomentDraft?
     @State private var showAmirSettings = false
 
     @Environment(AuthManager.self) private var auth
@@ -94,8 +93,7 @@ struct CircleDetailView: View {
                                     ReciprocityGateView(
                                         prayerName: DailyMomentService.shared.prayerDisplayName
                                     ) {
-                                        capturedImage = nil
-                                        showPreview = false
+                                        draftMoment = nil
                                         showCamera = true
                                     }
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -120,16 +118,6 @@ struct CircleDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
-#if DEBUG
-                    Button {
-                        capturedImage = nil
-                        showPreview = false
-                        showCamera = true
-                    } label: {
-                        Image(systemName: "camera.fill")
-                            .foregroundStyle(Color.msGold)
-                    }
-#endif
                     if isAmir {
                         Button {
                             showAmirSettings = true
@@ -168,36 +156,38 @@ struct CircleDetailView: View {
         .onDisappear { windowTimer?.invalidate() }
         .fullScreenCover(isPresented: $showCamera) {
             MomentCameraView(circleId: circle.id) { image in
-                capturedImage = image
                 showCamera = false
-                showPreview = true
+                Task { @MainActor in
+                    await Task.yield()
+                    draftMoment = MomentDraft(image: image)
+                }
             }
         }
-        .sheet(isPresented: $showPreview) {
-            if let image = capturedImage {
-                MomentPreviewView(
-                    image: image,
-                    onPost: { caption in
-                        guard let userId = auth.session?.user.id else { return }
-                        let _ = try await MomentService.shared.postMoment(
-                            image: image,
-                            circleId: circle.id,
-                            userId: userId,
-                            caption: caption,
-                            windowStart: circle.momentWindowStart
-                        )
-                        DailyMomentService.shared.markPostedToday()
-                        await reloadCircleFromServer()
-                        await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
-                    },
-                    onRetake: {
-                        showPreview = false
-                        capturedImage = nil
+        .sheet(item: $draftMoment) { draft in
+            MomentPreviewView(
+                image: draft.image,
+                onPost: { caption in
+                    guard let userId = auth.session?.user.id else { return }
+                    let _ = try await MomentService.shared.postMoment(
+                        image: draft.image,
+                        circleId: circle.id,
+                        userId: userId,
+                        caption: caption,
+                        windowStart: circle.momentWindowStart
+                    )
+                    DailyMomentService.shared.markPostedToday()
+                    await reloadCircleFromServer()
+                    await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
+                },
+                onRetake: {
+                    draftMoment = nil
+                    Task { @MainActor in
+                        await Task.yield()
                         showCamera = true
                     }
-                )
-                .interactiveDismissDisabled(true)
-            }
+                }
+            )
+            .interactiveDismissDisabled(true)
         }
     }
 

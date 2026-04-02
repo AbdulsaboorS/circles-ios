@@ -3,30 +3,23 @@ import SwiftUI
 struct HabitCheckinRow: View {
     let item: HabitCheckinFeedItem
     let currentUserId: UUID
+    let profile: Profile?
     @Bindable var viewModel: FeedViewModel
     var onComment: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("\(item.userName) checked in")
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color(hex: "F0EAD6"))
-                    Text(item.habitName)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color(hex: "D4A240"))
-                    if !item.circleName.isEmpty {
-                        Text(item.circleName)
-                            .font(.appCaption)
-                            .foregroundStyle(Color(hex: "8FAF94"))
-                    }
-                }
-                Spacer()
-                Text(relativeTimestamp(item.checkedAt))
-                    .font(.appCaption)
-                    .foregroundStyle(Color(hex: "8FAF94"))
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            FeedIdentityHeader(
+                avatarUrl: profile?.avatarUrl,
+                displayName: displayName,
+                circleName: item.circleName,
+                timestamp: relativeTimestamp(item.checkedAt)
+            )
+
+            Text("checking into '\(item.habitName)'")
+                .font(.appSubheadline)
+                .foregroundStyle(Color(hex: "F0EAD6"))
+
             HStack {
                 ReactionBar(
                     itemId: item.id, itemType: "habit_checkin",
@@ -50,6 +43,11 @@ struct HabitCheckinRow: View {
                 .fill(Color(hex: "243828"))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
         )
+    }
+
+    private var displayName: String {
+        let preferred = profile?.preferredName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return preferred.isEmpty ? item.userName : preferred
     }
 
     private func relativeTimestamp(_ iso: String) -> String {

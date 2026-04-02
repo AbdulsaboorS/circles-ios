@@ -10,6 +10,11 @@ private extension Color {
     static let msTextMuted   = Color(hex: "8FAF94")
 }
 
+struct MomentDraft: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 struct MomentPreviewView: View {
     let image: UIImage
     let onPost: (String?) async throws -> Void

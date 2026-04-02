@@ -3,31 +3,27 @@ import SwiftUI
 struct StreakMilestoneCard: View {
     let item: StreakMilestoneFeedItem
     let currentUserId: UUID
+    let profile: Profile?
     @Bindable var viewModel: FeedViewModel
     var onComment: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            FeedIdentityHeader(
+                avatarUrl: profile?.avatarUrl,
+                displayName: displayName,
+                circleName: item.circleName,
+                timestamp: relativeTimestamp(item.achievedAt)
+            )
+
             HStack(spacing: 8) {
-                Text("🔥").font(.title2)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("\(item.userName) hit a \(item.streakDays)-day streak!")
-                        .font(.appSubheadline).fontWeight(.semibold)
-                        .foregroundStyle(Color(hex: "F0EAD6"))
-                    Text(item.habitName)
-                        .font(.appCaption)
-                        .foregroundStyle(Color(hex: "D4A240"))
-                    if !item.circleName.isEmpty {
-                        Text(item.circleName)
-                            .font(.appCaption)
-                            .foregroundStyle(Color(hex: "8FAF94"))
-                    }
-                }
-                Spacer()
-                Text(relativeTimestamp(item.achievedAt))
-                    .font(.appCaption)
-                    .foregroundStyle(Color(hex: "8FAF94"))
+                Text("🔥")
+                    .font(.title3)
+                Text("hit a \(item.streakDays)-day streak in '\(item.habitName)'")
+                    .font(.appSubheadline)
+                    .foregroundStyle(Color(hex: "F0EAD6"))
             }
+
             HStack {
                 ReactionBar(
                     itemId: item.id, itemType: "streak_milestone",
@@ -50,6 +46,11 @@ struct StreakMilestoneCard: View {
                 .fill(Color(hex: "243828"))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "D4A240").opacity(0.35), lineWidth: 1))
         )
+    }
+
+    private var displayName: String {
+        let preferred = profile?.preferredName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return preferred.isEmpty ? item.userName : preferred
     }
 
     private func relativeTimestamp(_ iso: String) -> String {

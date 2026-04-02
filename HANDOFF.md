@@ -4,8 +4,8 @@ Use [`.planning/HANDOFF.md`](/Users/abdulsaboorshaikh/Desktop/Circles/.planning/
 
 ## Current status
 
-- Phase **11.2** is still active.
-- Latest pushed commit: `7c07287`
+- Phase **11.2** is complete.
+- Latest pushed commit: pending close-out push from this session
 - Branch: `main`
 - Remote: `origin` (`AbdulsaboorS/circles-ios`)
 
@@ -13,29 +13,23 @@ Use [`.planning/HANDOFF.md`](/Users/abdulsaboorshaikh/Desktop/Circles/.planning/
 
 - Local daily **Reflection Log** on `HabitDetailView`
 - Invite preview redesign + username-based test login
-- Camera permission fix + debug camera shortcuts
-- Lowercase storage paths for avatar/moment uploads
-- Real Moment post error surfaced in UI
-- Member onboarding habit-step UX pass
+- AI roadmap loading progress treatment in `HabitDetailView`
+- Moment camera flow refactor: first-shot white-screen fix, stale-preview fix, camera-ready gating
+- Feed card consolidation + avatar consistency pass
+- Invite preview face pile / PFP polish
+- Debug camera shortcuts removed
 - Roadmap loading overlay for generate/refine
 
-## Paused blockers
+## Deferred checks
 
 1. **Moment posting**
-   Device error: `new row violates row level security policy`
-   This points to Supabase RLS on `circle_moments`, not camera capture.
+   Re-test only during a real prayer window. Forced/debug-style posting is intentionally not being chased further in 11.2.
 
-2. **Moment camera first-shot issue**
-   First capture can show a white screen and/or stale preview image.
-   Reset logic was added, but not verified fixed.
-
-3. **Member onboarding**
-   User still reports being blocked on the first joiner screen.
+2. **Moment compositing polish**
+   Camera bugs are fixed, but visual output polish can be revisited later once real posting is verified.
 
 ## Next-session focus
 
-1. Fix `circle_moments` RLS / posting flow
-2. Fix first-capture / stale-preview Moment bug
-3. Fix member onboarding blocker
-4. Finish Phase 11.2 UX polish
-5. Move on to Phase 11.3
+1. Start **Phase 11.3**
+2. Follow the plans under `.planning/phases/11.3-onboarding-in-depth/`
+3. Keep 11.2 closed unless a real prayer-window Moment test exposes a new production bug

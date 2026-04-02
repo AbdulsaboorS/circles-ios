@@ -1,15 +1,15 @@
 ---
 version: 2.4
-last_updated: "2026-03-30"
-current_phase: "Phase 11.1 — Full UI Vision Pass"
-status: "In Progress"
+last_updated: "2026-04-02"
+current_phase: "Phase 11.3 — Onboarding In Depth"
+status: "Ready To Start"
 ---
 
 # Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Phase 11.2 — E2E QA + Bug Fixes** — User is actively testing the app. Phase 11.1 (Midnight Sanctuary UI pass) is fully complete across all screens. Fix open issues below and anything surfaced during testing.
+**Phase 11.3 — Onboarding In Depth** — Phase 11.2 QA/polish is closed. Next session should begin the onboarding rebuild using the plans in `.planning/phases/11.3-onboarding-in-depth/`.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -96,6 +96,25 @@ status: "In Progress"
 **Implementation note:** Xcode 26 / Swift 6 requires explicit `Color.msToken` prefix — shorthand dot syntax (`.msGold`) fails to infer `Color` when the expected type is `ShapeStyle`.
 
 **Phase 11.1 complete.** Next: Phase 11.2 — E2E QA + Bug Fixes.
+
+### Phase 11.2 — E2E QA + Bug Fixes ✓
+- `HabitDetailView`: Reflection Log landed and AI roadmap loading now shows animated progress treatment during generate/refine.
+- Moment flow:
+  - first-shot white-screen bug fixed by moving preview presentation to a single draft item state
+  - stale-preview bug fixed by capture-generation tracking in `CameraManager`
+  - shutter now waits for `isSessionReady`
+  - debug camera shortcuts removed after QA
+- Feed polish:
+  - shared author header with avatar + name + circle + timestamp
+  - habit check-in copy now uses the requested `checking into 'habit'` line
+  - feed author avatars now come from a dedicated author-profile cache in `FeedViewModel`
+- Invite preview polish:
+  - retained test-account login path
+  - improved member preview with face pile + avatar-backed member rows
+- Deferred out of 11.2:
+  - Moment posting should be re-tested only during a real live prayer window
+  - Moment compositing/output polish can happen after real posting is verified
+  - old member onboarding blocker is superseded by Phase 11.3 rebuild
 
 **Per-screen implementation pattern:**
 1. Add `private extension Color` with MS tokens at top of file
@@ -218,8 +237,8 @@ status: "In Progress"
 | 10 — Group Streak + Face Piles | ✓ Complete | UTC trigger SQL, refetch after moment, face piles, Amir settings |
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
 | 11.1 — Full UI Vision Pass | ✓ Complete | Full Midnight Sanctuary redesign — all screens |
-| 11.2 — E2E QA + Bug Fixes | 🔄 Active | User testing in progress; fix known issues + anything found |
-| 11.3 — Onboarding In Depth | ⬜ Planned | Finalized onboarding flows (Amir + Joiner), animations, deep links, data persistence |
+| 11.2 — E2E QA + Bug Fixes | ✓ Complete | QA fixes landed: reflection log, roadmap loading feedback, moment camera fixes, feed/PFP polish, invite preview polish |
+| 11.3 — Onboarding In Depth | 🔄 Next | Finalized onboarding flows (Amir + Joiner), animations, deep links, data persistence |
 | 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
 | 13 — Landing Page Web | ⬜ Planned | Marketing landing page (HTML/Tailwind, design system applied) |
 
@@ -227,7 +246,7 @@ status: "In Progress"
 
 ## Open issues & QA (handoff)
 
-*Last triage: 2026-03-31 — from device testing; fixes not necessarily implemented yet.*
+*Last triage: 2026-04-02 — Phase 11.2 close-out.*
 
 ### A. Generate 28-day plan — `NSURLErrorDomain error -1011`
 
@@ -249,11 +268,16 @@ status: "In Progress"
 
 - Schema-related failures get friendly text via `HabitPlanService.userFacingMessage(from:)`. Raw `localizedDescription` still appears for some URLErrors (-1011).
 
+### E. Moment posting / compositing follow-up
+
+- Camera-state bugs were fixed in Phase 11.2, but real posting should be verified during an actual prayer window instead of a forced debug-style path.
+- If posting succeeds in the real window, evaluate whether the composited image still needs visual polish.
+
 ---
 
 ## Blockers
 
-None for **shipping Phase 12 planning work**; **AI generate path** may be blocked by **Gemini API/key/model** until -1011 is diagnosed (see A above).
+None for **starting Phase 11.3 planning/implementation work**; **AI generate path** may still be blocked by **Gemini API/key/model** until -1011 is diagnosed (see A above).
 
 ---
 

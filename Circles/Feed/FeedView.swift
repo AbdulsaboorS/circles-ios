@@ -62,12 +62,15 @@ struct FeedView: View {
         case .moment(let m):
             MomentFeedCard(item: m, currentUserId: currentUserId,
                            hasPostedToday: viewModel.hasPostedToday,
+                           profile: viewModel.authorProfiles[m.userId],
                            viewModel: viewModel, onComment: { commentingOnItem = item })
         case .habitCheckin(let h):
             HabitCheckinRow(item: h, currentUserId: currentUserId,
+                            profile: viewModel.authorProfiles[h.userId],
                             viewModel: viewModel, onComment: { commentingOnItem = item })
         case .streakMilestone(let s):
             StreakMilestoneCard(item: s, currentUserId: currentUserId,
+                                profile: viewModel.authorProfiles[s.userId],
                                 viewModel: viewModel, onComment: { commentingOnItem = item })
         }
     }

@@ -27,6 +27,9 @@ final class CameraManager: NSObject {
     private var rearImage: UIImage?
     private var frontImage: UIImage?
     private var pendingCaptureCount: Int = 0
+    private var captureGeneration: Int = 0
+    private var activeCaptureGeneration: Int = 0
+    private var captureRequests: [Int64: CaptureRequest] = [:]
 
     // Dedicated serial queue — all AVFoundation work runs here, never main thread
     nonisolated private let sessionQueue = DispatchQueue(label: "com.circles.camera.session", qos: .userInitiated)
@@ -35,6 +38,17 @@ final class CameraManager: NSObject {
 
     var activeSession: AVCaptureSession? {
         multiCamSession ?? singleSession
+    }
+
+    private struct CaptureRequest {
+        let generation: Int
+        let source: CaptureSource
+    }
+
+    private enum CaptureSource {
+        case rear
+        case front
+        case single
     }
 
     // MARK: - Permission
@@ -162,21 +176,41 @@ final class CameraManager: NSObject {
         rearImage = nil
         frontImage = nil
         pendingCaptureCount = 0
+        captureRequests = [:]
     }
 
     func capturePhoto() {
         capturedImage = nil
+        captureGeneration += 1
+        activeCaptureGeneration = captureGeneration
+        captureRequests = [:]
         if isMultiCamSupported, let rearOut = rearPhotoOutput, let frontOut = frontPhotoOutput {
             rearImage = nil
             frontImage = nil
             pendingCaptureCount = 2
+            let rearSettings = AVCapturePhotoSettings()
+            let frontSettings = AVCapturePhotoSettings()
+            captureRequests[Int64(rearSettings.uniqueID)] = CaptureRequest(
+                generation: activeCaptureGeneration,
+                source: .rear
+            )
+            captureRequests[Int64(frontSettings.uniqueID)] = CaptureRequest(
+                generation: activeCaptureGeneration,
+                source: .front
+            )
             sessionQueue.async {
-                rearOut.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
-                frontOut.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
+                rearOut.capturePhoto(with: rearSettings, delegate: self)
+                frontOut.capturePhoto(with: frontSettings, delegate: self)
             }
         } else if let singleOut = singlePhotoOutput {
+            pendingCaptureCount = 1
+            let settings = AVCapturePhotoSettings()
+            captureRequests[Int64(settings.uniqueID)] = CaptureRequest(
+                generation: activeCaptureGeneration,
+                source: .single
+            )
             sessionQueue.async {
-                singleOut.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
+                singleOut.capturePhoto(with: settings, delegate: self)
             }
         }
     }
@@ -241,23 +275,28 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
               let image = UIImage(data: data) else {
             return
         }
-
-        // Determine which camera fired without crossing actor boundary with non-Sendable output.
-        // ObjectIdentifier is Sendable and safe to capture.
-        let outputId = ObjectIdentifier(output)
+        let requestId = Int64(photo.resolvedSettings.uniqueID)
 
         Task { @MainActor in
-            await self.handleCapturedImage(image, outputId: outputId)
+            await self.handleCapturedImage(image, requestId: requestId)
         }
     }
 
     @MainActor
-    private func handleCapturedImage(_ image: UIImage, outputId: ObjectIdentifier) async {
+    private func handleCapturedImage(_ image: UIImage, requestId: Int64) async {
+        guard let request = captureRequests.removeValue(forKey: requestId),
+              request.generation == activeCaptureGeneration else {
+            return
+        }
+
         if isMultiCamSupported {
-            if let rearOut = rearPhotoOutput, outputId == ObjectIdentifier(rearOut) {
+            switch request.source {
+            case .rear:
                 rearImage = image
-            } else if let frontOut = frontPhotoOutput, outputId == ObjectIdentifier(frontOut) {
+            case .front:
                 frontImage = image
+            case .single:
+                break
             }
 
             pendingCaptureCount -= 1

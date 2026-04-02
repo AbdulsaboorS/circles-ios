@@ -1,6 +1,6 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-03-30
+**Updated:** 2026-04-02
 **Direction:** Private Islamic BeReal. 14-phase execution plan.
 
 ---
@@ -102,7 +102,7 @@
 
 ---
 
-## Phase 11.1 — Full UI Vision Pass 🔄 Active
+## Phase 11.1 — Full UI Vision Pass ✓ Complete
 **Scope:** Full vision redesign of every screen. Scrappy, iterative — designed live with Stitch MCP.
 - Auth / onboarding flows (Amir + Member)
 - Home (Daily Intentions, HabitDetailView, AI roadmap)
@@ -115,17 +115,28 @@
 
 ---
 
-## Phase 11.2 — End-to-End QA + Bug Fixes ⬜ Planned
+## Phase 11.2 — End-to-End QA + Bug Fixes ✓ Complete
 **Scope:** Full E2E test of every user flow; fix everything found + known open issues.
 - Known open issues from STATE.md:
   - **A. Gemini -1011** — surface HTTP status + body; verify API key + model id
   - **C. Habit detail icon** — `Image(systemName:)` + fallback; fix `Color.textSecondary` contrast
 - E2E flows to test: Amir onboarding → circle creation → invite → Member join → moment post → feed → reactions → comments → streak → AI roadmap → refine → profile
 - Document all new bugs found; fix before App Store submission
+- Closed in this phase:
+  - Reflection Log on `HabitDetailView`
+  - invite preview refresh + test-account login
+  - roadmap generate/refine loading progress treatment
+  - first-shot white-screen and stale-preview fixes in Moment camera flow
+  - feed card consolidation (`PFP - NAME > CIRCLE`, `checking into 'habit'`)
+  - feed/onboarding avatar consistency pass
+  - invite preview face pile / PFP treatment
+- Deferred forward:
+  - re-test Moment posting only during a real prayer window
+  - Moment compositing/output polish after real posting is verified
 
 ---
 
-## Phase 11.3 — Onboarding In Depth ⬜ Planned
+## Phase 11.3 — Onboarding In Depth 🔄 Next
 **Scope:** Finalize onboarding flows with refined UX, animations, deep links, and data persistence.
 - **Flow 1: Build My Circle (Amir Journey)**
   - Landing Sanctuary: looping video + emotive copy + Build/Join CTAs

@@ -4,6 +4,7 @@ struct MomentFeedCard: View {
     let item: MomentFeedItem
     let currentUserId: UUID
     let hasPostedToday: Bool
+    let profile: Profile?
     @Bindable var viewModel: FeedViewModel
     var onComment: (() -> Void)? = nil
 
@@ -11,20 +12,15 @@ struct MomentFeedCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Circle name header
-            if !item.circleName.isEmpty {
-                HStack {
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color(hex: "8FAF94"))
-                    Text(item.circleName)
-                        .font(.appCaption)
-                        .foregroundStyle(Color(hex: "8FAF94"))
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-            }
+            FeedIdentityHeader(
+                avatarUrl: profile?.avatarUrl,
+                displayName: displayName,
+                circleName: item.circleName,
+                timestamp: timestampLabel
+            )
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
 
             // Photo with caption + lock overlays
             ZStack(alignment: .bottom) {
@@ -54,9 +50,6 @@ struct MomentFeedCard: View {
 
                 if !isLocked {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(item.userName)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
                         if let caption = item.caption, !caption.isEmpty {
                             Text(caption)
                                 .font(.appCaption)
@@ -121,5 +114,25 @@ struct MomentFeedCard: View {
             .overlay(Capsule().stroke(Color(hex: "D4A240").opacity(0.25), lineWidth: 1))
             .padding(10)
         }
+    }
+
+    private var displayName: String {
+        let preferred = profile?.preferredName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return preferred.isEmpty ? item.userName : preferred
+    }
+
+    private var timestampLabel: String {
+        relativeTimestamp(item.postedAt)
+    }
+
+    private func relativeTimestamp(_ iso: String) -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = f.date(from: iso) ?? { f.formatOptions = [.withInternetDateTime]; return f.date(from: iso) }()
+        else { return "" }
+        let diff = Date().timeIntervalSince(date)
+        if diff < 3600 { return "\(max(1, Int(diff / 60)))m ago" }
+        if diff < 86400 { return "\(Int(diff / 3600))h ago" }
+        return "\(Int(diff / 86400))d ago"
     }
 }

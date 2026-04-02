@@ -13,6 +13,20 @@ private extension Color {
     static let msBorder      = Color(hex: "D4A240").opacity(0.18)
 }
 
+private enum PlanLoadingMode {
+    case generating
+    case refining
+
+    var steps: [String] {
+        switch self {
+        case .generating:
+            ["Shaping the plan", "Balancing the 28 days", "Saving your roadmap"]
+        case .refining:
+            ["Reading your feedback", "Reworking the 28 days", "Saving the update"]
+        }
+    }
+}
+
 struct HabitDetailView: View {
     let habit: Habit
 
@@ -26,6 +40,7 @@ struct HabitDetailView: View {
     @State private var errorMessage: String?
     @State private var planLoadingTitle = ""
     @State private var planLoadingSubtitle = ""
+    @State private var planLoadingMode: PlanLoadingMode = .generating
     @State private var showRefineSheet = false
     @State private var showReflectionSheet = false
     @State private var todayReflection = ""
@@ -159,6 +174,8 @@ struct HabitDetailView: View {
                     .font(.appSubheadline)
                     .foregroundStyle(Color.msTextMuted)
                     .multilineTextAlignment(.center)
+
+                RoadmapLoadingIndicator(mode: planLoadingMode)
 
                 ProgressView()
                     .tint(Color.msGold)
@@ -451,6 +468,7 @@ struct HabitDetailView: View {
 
     private func generatePlan() async {
         guard let userId = auth.session?.user.id else { return }
+        planLoadingMode = .generating
         planLoadingTitle = "Generating your roadmap..."
         planLoadingSubtitle = "Building a gentle 28-day path for this habit."
         isGeneratingPlan = true
@@ -474,7 +492,8 @@ struct HabitDetailView: View {
     }
 
     private func refineWithAI(userNote: String?) async {
-        guard let userId = auth.session?.user.id, let existing = plan else { return }
+        guard plan != nil else { return }
+        planLoadingMode = .refining
         planLoadingTitle = "Updating your roadmap..."
         planLoadingSubtitle = "Applying your feedback and regenerating all 28 days."
         isGeneratingPlan = true
@@ -757,5 +776,44 @@ private struct StatBadge: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct RoadmapLoadingIndicator: View {
+    let mode: PlanLoadingMode
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.9, paused: false)) { context in
+            let steps = mode.steps
+            let activeIndex = Int(context.date.timeIntervalSinceReferenceDate / 1.2) % steps.count
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.msGold)
+                    Text(steps[activeIndex])
+                        .font(.appCaptionMedium)
+                        .foregroundStyle(Color.msTextPrimary)
+                        .animation(.easeInOut(duration: 0.25), value: activeIndex)
+                }
+
+                HStack(spacing: 8) {
+                    ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Capsule()
+                                .fill(index == activeIndex ? Color.msGold : Color.msGold.opacity(index < activeIndex ? 0.45 : 0.18))
+                                .frame(height: 6)
+                            Text(step)
+                                .font(.system(size: 10, weight: index == activeIndex ? .semibold : .regular))
+                                .foregroundStyle(index == activeIndex ? Color.msTextPrimary : Color.msTextMuted)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
     }
 }

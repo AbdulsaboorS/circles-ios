@@ -87,6 +87,16 @@ struct CirclePreviewView: View {
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
                     }
+
+                    if !previewMembers.isEmpty {
+                        VStack(spacing: 8) {
+                            previewFacePile
+
+                            Text(memberPreviewSummary)
+                                .font(.appCaption)
+                                .foregroundStyle(Color.msTextMuted)
+                        }
+                    }
                 }
                 .padding(.top, 56)
                 .padding(.horizontal, 24)
@@ -246,11 +256,11 @@ struct CirclePreviewView: View {
                     HStack(spacing: 10) {
                         AvatarView(
                             avatarUrl: previewProfiles[member.userId]?.avatarUrl,
-                            name: previewProfiles[member.userId]?.preferredName ?? "Member",
+                            name: displayName(for: member),
                             size: 36
                         )
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(previewProfiles[member.userId]?.preferredName ?? "Member")
+                            Text(displayName(for: member))
                                 .font(.appSubheadline)
                                 .foregroundStyle(Color.msTextPrimary)
                             Text(member.role == "admin" ? "Amir" : "Member")
@@ -262,6 +272,47 @@ struct CirclePreviewView: View {
                 }
             }
         }
+    }
+
+    private var previewFacePile: some View {
+        HStack(spacing: -10) {
+            ForEach(Array(previewMembers.prefix(4))) { member in
+                AvatarView(
+                    avatarUrl: previewProfiles[member.userId]?.avatarUrl,
+                    name: displayName(for: member),
+                    size: 42
+                )
+                .overlay(
+                    SwiftUI.Circle()
+                        .stroke(Color.msBackground, lineWidth: 2)
+                )
+            }
+
+            if previewMembers.count > 4 {
+                Text("+\(previewMembers.count - 4)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.msTextPrimary)
+                    .frame(width: 42, height: 42)
+                    .background(Color.msCardShared, in: SwiftUI.Circle())
+                    .overlay(
+                        SwiftUI.Circle()
+                            .stroke(Color.msBorder, lineWidth: 1)
+                    )
+                    .padding(.leading, 6)
+            }
+        }
+    }
+
+    private var memberPreviewSummary: String {
+        let count = previewMembers.count
+        guard count > 0 else { return "" }
+        return count == 1 ? "1 member already inside" : "\(count) members already inside"
+    }
+
+    private func displayName(for member: CircleMember) -> String {
+        let preferred = previewProfiles[member.userId]?.preferredName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !preferred.isEmpty { return preferred }
+        return member.role == "admin" ? "Amir" : "Member"
     }
 
     private func detailRow(icon: String, text: String) -> some View {

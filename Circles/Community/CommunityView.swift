@@ -19,8 +19,7 @@ struct CommunityView: View {
     @State private var feedViewModel = FeedViewModel()
     @State private var selectedPage = 0
     @State private var showGlobalCamera = false
-    @State private var globalCapturedImage: UIImage? = nil
-    @State private var showGlobalPreview = false
+    @State private var draftMoment: MomentDraft?
     private var momentService = DailyMomentService.shared
 
     var body: some View {
@@ -48,18 +47,6 @@ struct CommunityView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 14) {
-#if DEBUG
-                        if !viewModel.circles.isEmpty {
-                            Button {
-                                globalCapturedImage = nil
-                                showGlobalPreview = false
-                                showGlobalCamera = true
-                            } label: {
-                                Image(systemName: "camera.fill")
-                                    .foregroundStyle(Color.msGold)
-                            }
-                        }
-#endif
                         Menu {
                             Button {
                                 viewModel.showCreateSheet = true
@@ -87,21 +74,22 @@ struct CommunityView: View {
             .fullScreenCover(isPresented: $showGlobalCamera) {
                 if let circleId = viewModel.circles.first?.id {
                     MomentCameraView(circleId: circleId) { image in
-                        globalCapturedImage = image
                         showGlobalCamera = false
-                        showGlobalPreview = true
+                        Task { @MainActor in
+                            await Task.yield()
+                            draftMoment = MomentDraft(image: image)
+                        }
                     }
                 }
             }
-            .sheet(isPresented: $showGlobalPreview) {
-                if let image = globalCapturedImage,
-                   let circleId = viewModel.circles.first?.id {
+            .sheet(item: $draftMoment) { draft in
+                if let circleId = viewModel.circles.first?.id {
                     MomentPreviewView(
-                        image: image,
+                        image: draft.image,
                         onPost: { caption in
                             guard let userId = auth.session?.user.id else { return }
                             _ = try await MomentService.shared.postMoment(
-                                image: image,
+                                image: draft.image,
                                 circleId: circleId,
                                 userId: userId,
                                 caption: caption,
@@ -112,9 +100,11 @@ struct CommunityView: View {
                             await viewModel.loadCircles(userId: userId)
                         },
                         onRetake: {
-                            showGlobalPreview = false
-                            globalCapturedImage = nil
-                            showGlobalCamera = true
+                            draftMoment = nil
+                            Task { @MainActor in
+                                await Task.yield()
+                                showGlobalCamera = true
+                            }
                         }
                     )
                     .environment(auth)
@@ -213,8 +203,7 @@ struct CommunityView: View {
 
                     if momentService.isGateActive {
                         ReciprocityGateView(prayerName: momentService.prayerDisplayName) {
-                            globalCapturedImage = nil
-                            showGlobalPreview = false
+                            draftMoment = nil
                             showGlobalCamera = true
                         }
                     }

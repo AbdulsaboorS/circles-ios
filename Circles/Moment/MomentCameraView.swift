@@ -17,6 +17,10 @@ struct MomentCameraView: View {
     @State private var cameraManager = CameraManager()
     @State private var flashOpacity: Double = 0
     @State private var isShutterPressed: Bool = false
+    
+    private var isCaptureReady: Bool {
+        cameraManager.permissionGranted && cameraManager.isSessionReady
+    }
 
     var body: some View {
         ZStack {
@@ -31,6 +35,10 @@ struct MomentCameraView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
                 .animation(.easeOut(duration: 0.3), value: flashOpacity)
+
+            if cameraManager.permissionGranted && !cameraManager.isSessionReady {
+                loadingOverlay
+            }
         }
         .ignoresSafeArea()
         .task {
@@ -144,6 +152,8 @@ struct MomentCameraView: View {
         }
         .scaleEffect(isShutterPressed ? 0.92 : 1.0)
         .animation(.spring(response: 0.2), value: isShutterPressed)
+        .disabled(!isCaptureReady)
+        .opacity(isCaptureReady ? 1.0 : 0.55)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in isShutterPressed = true }
@@ -153,6 +163,7 @@ struct MomentCameraView: View {
     }
 
     private func triggerCapture() {
+        guard isCaptureReady else { return }
         cameraManager.resetCapture()
         cameraManager.capturePhoto()
         // Flash animation
@@ -160,6 +171,19 @@ struct MomentCameraView: View {
         withAnimation(.easeOut(duration: 0.3)) {
             flashOpacity = 0
         }
+    }
+
+    private var loadingOverlay: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .tint(Color.msGold)
+            Text("Warming up camera…")
+                .font(.appSubheadline)
+                .foregroundStyle(Color.msTextPrimary)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .background(Color.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Permission Denied

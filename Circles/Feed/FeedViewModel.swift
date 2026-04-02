@@ -12,6 +12,7 @@ final class FeedViewModel {
     var reactions: [UUID: [FeedReaction]] = [:]
     /// Avatars for users who reacted (merged across feed items).
     var reactionProfiles: [UUID: Profile] = [:]
+    var authorProfiles: [UUID: Profile] = [:]
     var isLoadingInitial = false
     var isLoadingNextPage = false
     var hasMorePages = true
@@ -53,6 +54,7 @@ final class FeedViewModel {
             } else {
                 reactions = [:]
             }
+            await mergeAuthorProfiles()
             await mergeReactionProfiles()
         } catch {
             errorMessage = error.localizedDescription
@@ -76,7 +78,10 @@ final class FeedViewModel {
                 for reaction in newReactions {
                     reactions[reaction.itemId, default: []].append(reaction)
                 }
+                await mergeAuthorProfiles()
                 await mergeReactionProfiles()
+            } else {
+                await mergeAuthorProfiles()
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -88,6 +93,7 @@ final class FeedViewModel {
         items = []
         reactions = [:]
         reactionProfiles = [:]
+        authorProfiles = [:]
         await loadInitial(circleIds: circleIds, currentUserId: currentUserId, singleCircleId: singleCircleId)
     }
 
@@ -169,5 +175,26 @@ final class FeedViewModel {
         var next = reactionProfiles
         for p in profiles { next[p.id] = p }
         reactionProfiles = next
+    }
+
+    private func mergeAuthorProfiles() async {
+        let ids = Set(items.map { item -> UUID in
+            switch item {
+            case .moment(let moment):
+                return moment.userId
+            case .habitCheckin(let habit):
+                return habit.userId
+            case .streakMilestone(let streak):
+                return streak.userId
+            }
+        })
+        guard !ids.isEmpty else {
+            authorProfiles = [:]
+            return
+        }
+        let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: Array(ids))) ?? []
+        var next = authorProfiles
+        for profile in profiles { next[profile.id] = profile }
+        authorProfiles = next
     }
 }
