@@ -6,89 +6,113 @@
 
 | File | Purpose |
 |------|---------|
-| [`STATE.md`](STATE.md) | What's built, phase list, **open issues & QA** |
-| [`ROADMAP.md`](ROADMAP.md) | Phase 12 scope + remaining work |
-| [`../CLAUDE.md`](../CLAUDE.md) | Repo layout, conventions, SQL notes, troubleshooting |
+| [`STATE.md`](STATE.md) | Built features, open QA, and remaining risks |
+| [`ROADMAP.md`](ROADMAP.md) | Phase order and upcoming scope |
+| [`../CLAUDE.md`](../CLAUDE.md) | Repo conventions, secrets, Xcode/Supabase notes |
 
 ## Current position
 
-- **Product:** v2.4 — Phase **11.2 (E2E QA + Bug Fixes) IN PROGRESS**
-- **Latest commits:** `bd6fe75` (QA batch 3) + `[pending commit]` (QA batch 4 — refinement + avatar)
-- **User is actively testing on their real device.**
+- **Product:** v2.4 — Phase **11.2 (E2E QA + UX polish) IN PROGRESS**
+- **Branch:** `main`
+- **Remote:** `origin` → GitHub `AbdulsaboorS/circles-ios`
+- **Latest pushed commit:** `7c07287`
+- **User is testing on a real iPhone and plans to finish Phase 11.2 polish next, then move to Phase 11.3.**
 
-## What was done this session (Phase 11.2 QA fixes — batch 3 + 4)
+## What shipped this session
 
-### Batch 3 — commit `bd6fe75`
-- **FeedService:** fixed column query `preferred_name` (was `display_name` — caused UUID fallback)
-- **FeedItem + FeedService:** added `circleName` to all 3 feed item structs; fetched in parallel with display names
-- **HabitCheckinRow / StreakMilestoneCard / MomentFeedCard:** circle name shown on every feed card
-- **MomentFeedCard:** photo height 280→420px; circle name header strip added
-- **HomeView:** personal intentions button "Update" → "Check in"
-- **GeminiService:** friendly 503 error message added
-- **HabitPlanService:** (REVERTED in batch 4 — see below)
-- **MomentCameraView:** Open Settings button now uses `open(_:options:completionHandler:)` directly
-- **supabase/functions/seed-daily-moment:** new Edge Function deployed via Supabase MCP
+### Already pushed before this session
+- `df2b2f9` — QA batch 4: roadmap refinement decode fixed, avatar upload error surfaced, avatar bucket RLS added, `daily_moments` row seeded
+- `97d316e` — auto-commit wrapper
 
-### Batch 4 — commit pending at session end
-- **HabitPlanService `applyRefinement`:** reverted incorrect `[HabitPlan]` array decode; now uses `.single()` → forces PostgREST single-object response. This fixes "data couldn't be read because it isn't in the correct format" on refinement.
-- **ProfileView:** added `avatarUploadError` state + alert so upload failures surface to user instead of silently failing
-- **Storage RLS policies applied via Supabase MCP:** `avatars` bucket had **zero upload policies** — that was why profile picture upload was silently failing. Applied 3 policies: INSERT (own folder), UPDATE (own folder), SELECT (public).
-- **daily_moments row:** seeded `2026-04-02` with `prayer_name = 'asr'` via MCP SQL
-- **seed-daily-moment Edge Function:** deployed live via Supabase MCP (status: ACTIVE, verify_jwt: false)
+### Pushed this session
+- `4fa6ce6` — local **Reflection Log** for `HabitDetailView` (`UserDefaults`, one note per habit per day, today-only UI)
+- `d5bf103` — invite preview refresh + **username-based test login** (`username` maps to `username@circles.test`)
+- `0c858d2` — camera permission fix (`NSCameraUsageDescription`), debug camera shortcuts, lowercase storage paths for avatar/moment uploads
+- `459772a` — member onboarding habit-step UX simplification + real Moment post error exposure
+- `fcc4c9c` — roadmap loading overlay for generate/refine
+- `7c07287` — capture reset fix + member onboarding CTA validation/unblock attempt
 
-## Daily moment cron — one manual step remaining
+## What is confirmed working
 
-The `seed-daily-moment` Edge Function is deployed. To make it fire daily automatically:
+- Profile photo upload now works.
+- AI refinement decode path now works; token-limit message appears correctly when applicable.
+- Reflection Log is implemented on `HabitDetailView`.
+- Camera permission prompt now appears and the camera can capture.
+- Invite preview page is on the green Midnight Sanctuary styling and includes test-account login.
 
-1. Go to **Supabase Dashboard → Database → Extensions**
-2. Enable **`pg_cron`** (search for it)
-3. Go to **Database → Cron Jobs → New cron job**
-   - Name: `seed-daily-moment`
-   - Schedule: `0 0 * * *` (midnight UTC)
-   - Type: HTTP request
-   - URL: `https://<project-ref>.supabase.co/functions/v1/seed-daily-moment`
-   - Method: POST
+## Open blockers paused for next session
 
-Alternatively via pg_net SQL once extensions are enabled:
-```sql
-SELECT cron.schedule('seed-daily-moment', '0 0 * * *',
-  $$SELECT net.http_post('https://<ref>.supabase.co/functions/v1/seed-daily-moment','{}','application/json')$$
-);
-```
+### 1. Moment posting still fails with RLS
+- **Observed error on device:** `new row violates row level security policy`
+- Camera capture works, but posting a Moment still fails at the backend insert step.
+- This is no longer a camera problem; it is likely a **Supabase RLS policy issue on `circle_moments`**.
+- UI now surfaces the actual error in `MomentPreviewView`.
+- Likely next step: inspect `circle_moments` INSERT policy in Supabase and align it with current authenticated circle-member rules.
 
-## Items still to test after this session
+### 2. First camera capture sometimes shows a white screen
+- User reports a one-time bug on the first camera attempt: tap shutter → white screen.
+- If they back out and retry, camera flow behaves more normally.
+- Capture reset logic was added, but this one-time white-screen bug is **not confirmed fixed**.
 
-- **Profile picture upload** — should now work (storage RLS policies added). User needs to relaunch app and retry.
-- **AI plan refinement** — should now work (`.single()` decode fix). User should retry refining.
-- **Circle Moment camera** — user needs to grant camera permission on device and test posting.
-- **Feed names** — should now show real names after `preferred_name` column fix.
-- **Circle attribution on feed cards** — new; should appear on all card types.
+### 3. Preview image can still look stale/weird
+- User reported that the preview sometimes looked like the previous shot instead of the latest one.
+- Reset logic was added in camera and presentation flow, but this is **not yet verified resolved**.
 
-## Open QA items (carried from before)
+### 4. Member onboarding still blocks at first screen
+- Even after habit-step UX updates, user still says they **cannot get past the first message/screen**.
+- The relevant files are:
+  - `Circles/Onboarding/MemberStep1HabitsView.swift`
+  - `Circles/Onboarding/MemberOnboardingFlowView.swift`
+  - `Circles/Onboarding/MemberOnboardingCoordinator.swift`
+- User specifically said: "**STIL not leting me get past the first message.**"
+- Next agent should watch for whether:
+  - validation is shown but navigation does not occur,
+  - navigation path updates but screen does not transition,
+  - or the user is still blocked before habit selection is recognized.
 
-- **Member onboarding flow** — not fully tested yet by user
-- **Joiner deep link** — `circles://join/Z5QZTNN5` — test with fresh account
+## UX follow-ups requested but not yet done
 
-## Swift / Xcode 26 note
+- Feed card consolidation:
+  - desired layout: `PFP - NAME > CIRCLE`
+  - second line: `checking into 'habit'`
+- PFP persistence/consistency across more surfaces, especially onboarding and feed.
+- Invite preview should show user PFPS if backend preview access permits it.
+- Moment compositing/output still needs polish after backend posting is unblocked.
 
-**`Color.msToken` must be explicit** — Xcode 26 / Swift 6 does NOT infer `Color` from shorthand dot syntax (`.msGold`). Always use `Color.msGold`, `Color.msTextPrimary`, etc.
+## Testing notes for next agent
 
-## Deep link format
+- For deep-link testing on iPhone, **do not use Chrome’s address bar**.
+- Current supported deep-link path is custom URL scheme:
+  - `circles://join/Z5QZTNN5`
+- Use a tappable link from Notes, Messages, Mail, or Safari.
+- `https://joinlegacy.app/join/...` is **not** a universal-link app open flow yet.
 
-Custom URL scheme: `circles://join/INVITECODE`
-Example: `circles://join/Z5QZTNN5`
+## Backend/manual items still outstanding
 
-## Invite codes (for testing)
+- `seed-daily-moment` Edge Function is deployed, but **daily cron setup is still manual**:
+  1. Enable `pg_cron`
+  2. Create daily HTTP cron job hitting `/functions/v1/seed-daily-moment`
 
-| Circle | Invite Code | Type |
-|--------|-------------|------|
-| Isha at Masjid (Abdulsaboor's) | `Z5QZTNN5` | Brothers |
-| Fair | `JMY7P3UE` | Brothers |
+## Relevant files touched this session
 
-## Secrets (local only)
+- `Circles/Home/HabitDetailView.swift`
+- `Circles/Home/ReflectionLogStore.swift`
+- `Circles/Auth/AuthView.swift`
+- `Circles/Onboarding/CirclePreviewView.swift`
+- `Circles/Info.plist`
+- `Circles/Services/AvatarService.swift`
+- `Circles/Services/MomentService.swift`
+- `Circles/Moment/MomentPreviewView.swift`
+- `Circles/Moment/MomentCameraView.swift`
+- `Circles/Moment/CameraManager.swift`
+- `Circles/Onboarding/MemberStep1HabitsView.swift`
+- `Circles/Community/CommunityView.swift`
+- `Circles/Circles/CircleDetailView.swift`
 
-`Circles/Secrets.plist`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`.
+## Quick next-session priority order
 
-## Git
-
-`main` → `origin` (GitHub: AbdulsaboorS/circles-ios)
+1. Fix `circle_moments` RLS so posting works.
+2. Reproduce and fix the first-capture white-screen / stale-preview bug if still present.
+3. Fix the member onboarding first-screen blocker.
+4. Finish Phase 11.2 feed/PFP polish.
+5. Then begin Phase 11.3 onboarding-in-depth work.
