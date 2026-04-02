@@ -20,7 +20,7 @@ struct AuthView: View {
     @State private var errorMessage = ""
 
     // Email/password test login
-    @State private var email = ""
+    @State private var username = ""
     @State private var password = ""
     @State private var isSignUp = false
     @State private var isLoadingEmail = false
@@ -99,8 +99,7 @@ struct AuthView: View {
 
                     if showEmailSection {
                         VStack(spacing: 10) {
-                            TextField("Email", text: $email)
-                                .keyboardType(.emailAddress)
+                            TextField("Username", text: $username)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .foregroundStyle(Color.msTextPrimary)
@@ -132,8 +131,8 @@ struct AuthView: View {
                                 .background(Color.msGold, in: RoundedRectangle(cornerRadius: 10))
                             }
                             .buttonStyle(.plain)
-                            .disabled(isLoadingEmail || email.isEmpty || password.isEmpty)
-                            .opacity((isLoadingEmail || email.isEmpty || password.isEmpty) ? 0.5 : 1)
+                            .disabled(isLoadingEmail || username.isEmpty || password.isEmpty)
+                            .opacity((isLoadingEmail || username.isEmpty || password.isEmpty) ? 0.5 : 1)
 
                             Button {
                                 withAnimation { isSignUp.toggle() }
@@ -176,6 +175,7 @@ struct AuthView: View {
         showError = false
         defer { isLoadingEmail = false }
         do {
+            let email = Self.testEmail(for: username)
             if isSignUp {
                 try await SupabaseService.shared.client.auth.signUp(email: email, password: password)
             } else {
@@ -185,6 +185,14 @@ struct AuthView: View {
             errorMessage = error.localizedDescription
             showError = true
         }
+    }
+
+    private static func testEmail(for username: String) -> String {
+        let normalized = username
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "")
+        return "\(normalized)@circles.test"
     }
 
     // MARK: - Apple

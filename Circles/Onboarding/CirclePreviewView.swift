@@ -4,176 +4,293 @@ import GoogleSignIn
 import GoogleSignInSwift
 import Supabase
 
+private extension Color {
+    static let msBackground  = Color(hex: "1A2E1E")
+    static let msCardShared  = Color(hex: "243828")
+    static let msGold        = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted   = Color(hex: "8FAF94")
+    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+}
+
 /// Unauthenticated landing page shown when a user taps an invite link.
-/// Fetches circle preview data (name, core habits, streak) and shows sign-in buttons.
 struct CirclePreviewView: View {
     let inviteCode: String
 
     @State private var circle: Circle? = nil
+    @State private var previewMembers: [CircleMember] = []
+    @State private var previewProfiles: [UUID: Profile] = [:]
     @State private var isLoading = true
     @State private var showError = false
     @State private var errorMessage = ""
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var colors: AppColors { AppColors.resolve(colorScheme) }
+    @State private var username = ""
+    @State private var password = ""
+    @State private var isSignUp = false
+    @State private var isLoadingEmail = false
+    @State private var showEmailSection = false
 
     var body: some View {
         ZStack {
-            AppBackground()
+            Color.msBackground.ignoresSafeArea()
 
             if isLoading {
                 VStack(spacing: 16) {
-                    ProgressView().tint(Color.accent).scaleEffect(1.2)
+                    ProgressView().tint(Color.msGold).scaleEffect(1.2)
                     Text("Loading your circle…")
                         .font(.appCaption)
-                        .foregroundStyle(colors.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                 }
             } else if let circle {
                 previewContent(circle: circle)
             } else {
-                // Circle not found
                 VStack(spacing: 16) {
                     Image(systemName: "link.badge.plus")
                         .font(.system(size: 48))
-                        .foregroundStyle(Color.accent.opacity(0.6))
+                        .foregroundStyle(Color.msGold.opacity(0.7))
                     Text("Invite link not found.")
                         .font(.appHeadline)
-                        .foregroundStyle(colors.textPrimary)
+                        .foregroundStyle(Color.msTextPrimary)
                     Text("Check the link and try again.")
                         .font(.appSubheadline)
-                        .foregroundStyle(colors.textSecondary)
+                        .foregroundStyle(Color.msTextMuted)
                 }
+                .padding(.horizontal, 28)
             }
         }
+        .preferredColorScheme(.dark)
         .task {
-            circle = try? await CircleService.shared.fetchCircleByCode(inviteCode)
-            isLoading = false
+            await loadPreview()
         }
     }
 
-    // MARK: - Preview Content
-
     private func previewContent(circle: Circle) -> some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 60)
-
-            // Header
-            VStack(spacing: 16) {
-                // Circle icon
-                ZStack {
-                    SwiftUI.Circle()
-                        .fill(Color.accent.opacity(0.12))
-                        .frame(width: 88, height: 88)
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(Color.accent)
-                }
-
-                VStack(spacing: 8) {
-                    Text(circle.name)
-                        .font(.appTitle)
-                        .foregroundStyle(colors.textPrimary)
-                        .multilineTextAlignment(.center)
-
-                    Text("A private accountability circle")
-                        .font(.appSubheadline)
-                        .foregroundStyle(colors.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            .padding(.horizontal, 32)
-
-            Spacer(minLength: 24)
-
-            // Circle details card
-            AppCard {
+        ScrollView {
+            VStack(spacing: 22) {
                 VStack(spacing: 14) {
-                    // Group streak
-                    if circle.groupStreakDaysSafe > 0 {
-                        HStack {
-                            Image(systemName: "flame.fill")
-                                .foregroundStyle(Color.accent)
-                            Text("\(circle.groupStreakDaysSafe)-day group streak")
-                                .font(.appSubheadline)
-                                .foregroundStyle(colors.textPrimary)
-                            Spacer()
-                        }
-                        Divider().opacity(0.2)
+                    ZStack {
+                        SwiftUI.Circle()
+                            .fill(Color.msGold.opacity(0.12))
+                            .frame(width: 88, height: 88)
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(Color.msGold)
                     }
 
-                    // Core habits
+                    VStack(spacing: 8) {
+                        Text(circle.name)
+                            .font(.appTitle)
+                            .foregroundStyle(Color.msTextPrimary)
+                            .multilineTextAlignment(.center)
+
+                        Text("A private accountability circle")
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.top, 56)
+                .padding(.horizontal, 24)
+
+                VStack(spacing: 14) {
+                    if !previewMembers.isEmpty {
+                        memberPreview
+                    }
+
+                    if circle.groupStreakDaysSafe > 0 {
+                        detailRow(icon: "flame.fill", text: "\(circle.groupStreakDaysSafe)-day group streak")
+                    }
+
                     if !circle.coreHabitsSafe.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Circle Focus")
                                 .font(.appCaption)
                                 .textCase(.uppercase)
                                 .tracking(0.6)
-                                .foregroundStyle(colors.textSecondary)
+                                .foregroundStyle(Color.msTextMuted)
 
                             FlowHabitsRow(habits: circle.coreHabitsSafe)
                         }
                     }
 
-                    // Gender setting
                     if circle.genderSettingSafe != "mixed" {
-                        HStack {
-                            Image(systemName: circle.genderSettingSafe == "brothers" ? "person.fill" : "person.fill.checkmark")
-                                .font(.appCaption)
-                                .foregroundStyle(Color.accent)
-                            Text(circle.genderSettingSafe == "brothers" ? "Brothers-only circle" : "Sisters-only circle")
-                                .font(.appCaption)
-                                .foregroundStyle(colors.textSecondary)
-                            Spacer()
-                        }
+                        detailRow(
+                            icon: circle.genderSettingSafe == "brothers" ? "person.fill" : "person.fill.checkmark",
+                            text: circle.genderSettingSafe == "brothers" ? "Brothers-only circle" : "Sisters-only circle"
+                        )
                     }
                 }
                 .padding(16)
-            }
-            .padding(.horizontal, 24)
+                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(Color.msBorder, lineWidth: 1)
+                )
+                .padding(.horizontal, 24)
 
-            Spacer()
+                VStack(spacing: 12) {
+                    Text("Join \(circle.name)")
+                        .font(.system(size: 18, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
 
-            // Sign-in section
-            VStack(spacing: 12) {
-                Text("Join \(circle.name)")
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
-                    .foregroundStyle(colors.textPrimary)
-
-                SignInWithAppleButton { request in
-                    request.requestedScopes = [.email, .fullName]
-                } onCompletion: { result in
-                    Task { await handleAppleSignIn(result: result) }
-                }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
-                .cornerRadius(12)
-
-                Button(action: { Task { await signInWithGoogle() } }) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "globe")
-                        Text("Continue with Google")
-                            .font(.system(.body, weight: .medium))
+                    SignInWithAppleButton { request in
+                        request.requestedScopes = [.email, .fullName]
+                    } onCompletion: { result in
+                        Task { await handleAppleSignIn(result: result) }
                     }
-                    .foregroundStyle(colors.textPrimary)
-                    .frame(maxWidth: .infinity)
+                    .signInWithAppleButtonStyle(.white)
                     .frame(height: 50)
-                    .background(Color.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accent.opacity(0.2), lineWidth: 1))
-                }
+                    .cornerRadius(12)
 
-                if showError {
-                    Text(errorMessage)
-                        .font(.appCaption)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
+                    Button(action: { Task { await signInWithGoogle() } }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "globe")
+                            Text("Continue with Google")
+                                .font(.system(.body, weight: .medium))
+                        }
+                        .foregroundStyle(Color.msTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
+                    }
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { showEmailSection.toggle() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Rectangle().fill(Color.msTextMuted.opacity(0.25)).frame(height: 1)
+                            Text("test account")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.msTextMuted.opacity(0.7))
+                            Rectangle().fill(Color.msTextMuted.opacity(0.25)).frame(height: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if showEmailSection {
+                        VStack(spacing: 10) {
+                            TextField("Username", text: $username)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .foregroundStyle(Color.msTextPrimary)
+                                .padding(12)
+                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.msBorder, lineWidth: 1))
+                                .tint(Color.msGold)
+
+                            SecureField("Password", text: $password)
+                                .foregroundStyle(Color.msTextPrimary)
+                                .padding(12)
+                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.msBorder, lineWidth: 1))
+                                .tint(Color.msGold)
+
+                            Button {
+                                Task { await handleEmailAuth() }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    if isLoadingEmail {
+                                        ProgressView().tint(Color.msBackground).scaleEffect(0.8)
+                                    }
+                                    Text(isSignUp ? "Create Test Account" : "Sign In")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundStyle(Color.msBackground)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 46)
+                                .background(Color.msGold, in: RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isLoadingEmail || username.isEmpty || password.isEmpty)
+                            .opacity((isLoadingEmail || username.isEmpty || password.isEmpty) ? 0.5 : 1)
+
+                            Text("Testing only: username becomes `username@circles.test`.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.msTextMuted)
+
+                            Button {
+                                withAnimation { isSignUp.toggle() }
+                            } label: {
+                                Text(isSignUp ? "Already have a test account? Sign in" : "Need a fresh test account? Create one")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color.msTextMuted)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    if showError {
+                        Text(errorMessage)
+                            .font(.appCaption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    }
                 }
+                .padding(.horizontal, 28)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 48)
         }
     }
 
-    // MARK: - Auth
+    private var memberPreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Members")
+                .font(.appCaption)
+                .textCase(.uppercase)
+                .tracking(0.6)
+                .foregroundStyle(Color.msTextMuted)
+
+            VStack(spacing: 10) {
+                ForEach(Array(previewMembers.prefix(3))) { member in
+                    HStack(spacing: 10) {
+                        AvatarView(
+                            avatarUrl: previewProfiles[member.userId]?.avatarUrl,
+                            name: previewProfiles[member.userId]?.preferredName ?? "Member",
+                            size: 36
+                        )
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(previewProfiles[member.userId]?.preferredName ?? "Member")
+                                .font(.appSubheadline)
+                                .foregroundStyle(Color.msTextPrimary)
+                            Text(member.role == "admin" ? "Amir" : "Member")
+                                .font(.appCaption)
+                                .foregroundStyle(Color.msTextMuted)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    private func detailRow(icon: String, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.msGold)
+            Text(text)
+                .font(.appSubheadline)
+                .foregroundStyle(Color.msTextPrimary)
+            Spacer()
+        }
+    }
+
+    private func loadPreview() async {
+        do {
+            let circle = try await CircleService.shared.fetchCircleByCode(inviteCode)
+            self.circle = circle
+
+            if let members = try? await CircleService.shared.fetchMembers(circleId: circle.id) {
+                previewMembers = members
+                let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: members.map { $0.userId })) ?? []
+                previewProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+        isLoading = false
+    }
 
     @MainActor
     private func handleAppleSignIn(result: Result<ASAuthorization, Error>) async {
@@ -211,9 +328,33 @@ struct CirclePreviewView: View {
             showError = true
         }
     }
-}
 
-// MARK: - Flow Habits Row
+    @MainActor
+    private func handleEmailAuth() async {
+        isLoadingEmail = true
+        showError = false
+        defer { isLoadingEmail = false }
+        do {
+            let email = Self.testEmail(for: username)
+            if isSignUp {
+                try await SupabaseService.shared.client.auth.signUp(email: email, password: password)
+            } else {
+                try await SupabaseService.shared.client.auth.signIn(email: email, password: password)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private static func testEmail(for username: String) -> String {
+        let normalized = username
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "")
+        return "\(normalized)@circles.test"
+    }
+}
 
 private struct FlowHabitsRow: View {
     let habits: [String]
@@ -228,10 +369,10 @@ private struct FlowHabitsRow: View {
                     Text(habit)
                         .font(.appCaption)
                 }
-                .foregroundStyle(Color.accent)
+                .foregroundStyle(Color.msGold)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Color.accent.opacity(0.1), in: Capsule())
+                .background(Color.msGold.opacity(0.1), in: Capsule())
             }
             Spacer()
         }
