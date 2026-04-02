@@ -183,9 +183,7 @@ struct MomentCameraView: View {
 
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
-                        Task { @MainActor in
-                            UIApplication.shared.open(url)
-                        }
+                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
                     }
                 }
                 .font(.body.weight(.medium))

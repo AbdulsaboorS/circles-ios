@@ -44,8 +44,13 @@ private struct ProfileRow: Decodable {
     let id: UUID
     let displayName: String
     enum CodingKeys: String, CodingKey {
-        case id; case displayName = "display_name"
+        case id; case displayName = "preferred_name"
     }
+}
+
+private struct CircleNameRow: Decodable {
+    let id: UUID
+    let name: String
 }
 
 // MARK: - FeedService
@@ -90,12 +95,16 @@ final class FeedService {
         activityRows.forEach { userIdSet.insert($0.userId) }
         momentRows.forEach { userIdSet.insert($0.userId) }
 
-        // 4. Build display name lookup from profiles table
-        let nameMap = await fetchDisplayNames(userIds: Array(userIdSet))
+        // 4. Build display name + circle name lookups
+        async let nameMapTask = fetchDisplayNames(userIds: Array(userIdSet))
+        async let circleNameMapTask = fetchCircleNames(circleIds: circleIds)
+        let nameMap = await nameMapTask
+        let circleNameMap = await circleNameMapTask
 
         // 5. Map ActivityFeedRow -> FeedItem (habitCheckin or streakMilestone)
         let activityFeedItems: [FeedItem] = activityRows.compactMap { row in
             let userName = nameMap[row.userId] ?? String(row.userId.uuidString.prefix(8))
+            let circleName = circleNameMap[row.circleId] ?? ""
             switch row.eventType {
             case "habit_checkin":
                 return .habitCheckin(HabitCheckinFeedItem(
@@ -103,6 +112,7 @@ final class FeedService {
                     circleId: row.circleId,
                     userId: row.userId,
                     userName: userName,
+                    circleName: circleName,
                     habitName: row.habitName,
                     checkedAt: row.createdAt
                 ))
@@ -113,6 +123,7 @@ final class FeedService {
                     circleId: row.circleId,
                     userId: row.userId,
                     userName: userName,
+                    circleName: circleName,
                     habitName: row.habitName,
                     streakDays: streakDays,
                     achievedAt: row.createdAt
@@ -125,11 +136,13 @@ final class FeedService {
         // 6. Map CircleMomentRow -> FeedItem.moment
         let momentFeedItems: [FeedItem] = momentRows.map { row in
             let userName = nameMap[row.userId] ?? String(row.userId.uuidString.prefix(8))
+            let circleName = circleNameMap[row.circleId] ?? ""
             return .moment(MomentFeedItem(
                 id: row.id,
                 circleId: row.circleId,
                 userId: row.userId,
                 userName: userName,
+                circleName: circleName,
                 photoUrl: row.photoUrl,
                 caption: row.caption,
                 postedAt: row.postedAt,
@@ -223,7 +236,7 @@ final class FeedService {
         do {
             let profiles: [ProfileRow] = try await client
                 .from("profiles")
-                .select("id, display_name")
+                .select("id, preferred_name")
                 .in("id", values: userIds.map { $0.uuidString })
                 .execute()
                 .value
@@ -233,7 +246,24 @@ final class FeedService {
             }
             return map
         } catch {
-            // Profiles table may not exist yet — fall back to UUID prefix
+            return [:]
+        }
+    }
+
+    /// Fetch circle names for a set of circle IDs.
+    private func fetchCircleNames(circleIds: [UUID]) async -> [UUID: String] {
+        guard !circleIds.isEmpty else { return [:] }
+        do {
+            let rows: [CircleNameRow] = try await client
+                .from("circles")
+                .select("id, name")
+                .in("id", values: circleIds.map { $0.uuidString })
+                .execute()
+                .value
+            var map = [UUID: String]()
+            for row in rows { map[row.id] = row.name }
+            return map
+        } catch {
             return [:]
         }
     }

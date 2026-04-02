@@ -11,6 +11,21 @@ struct MomentFeedCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Circle name header
+            if !item.circleName.isEmpty {
+                HStack {
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color(hex: "8FAF94"))
+                    Text(item.circleName)
+                        .font(.appCaption)
+                        .foregroundStyle(Color(hex: "8FAF94"))
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+
             // Photo with caption + lock overlays
             ZStack(alignment: .bottom) {
                 AsyncImage(url: URL(string: item.photoUrl)) { image in
@@ -19,7 +34,7 @@ struct MomentFeedCard: View {
                     Color(hex: "243828")
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 280)
+                .frame(height: 420)
                 .clipped()
                 .blur(radius: isLocked ? 20 : 0)
 
@@ -38,9 +53,9 @@ struct MomentFeedCard: View {
                 }
 
                 if !isLocked {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(item.userName)
-                            .font(.appCaptionMedium)
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
                         if let caption = item.caption, !caption.isEmpty {
                             Text(caption)
@@ -50,10 +65,10 @@ struct MomentFeedCard: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
+                    .padding(12)
                     .background(
                         LinearGradient(
-                            colors: [.clear, .black.opacity(0.6)],
+                            colors: [.clear, .black.opacity(0.7)],
                             startPoint: .top, endPoint: .bottom
                         )
                     )
@@ -76,8 +91,8 @@ struct MomentFeedCard: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
         }
         .background(
             RoundedRectangle(cornerRadius: 16)

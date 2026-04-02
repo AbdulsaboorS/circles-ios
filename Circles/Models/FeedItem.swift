@@ -7,6 +7,7 @@ struct MomentFeedItem: Identifiable, Sendable {
     let circleId: UUID
     let userId: UUID
     let userName: String  // display name — fetched alongside (see FeedService note)
+    let circleName: String
     let photoUrl: String
     let caption: String?
     let postedAt: String  // ISO8601 string, per project date-as-string convention
@@ -18,6 +19,7 @@ struct HabitCheckinFeedItem: Identifiable, Sendable {
     let circleId: UUID
     let userId: UUID
     let userName: String
+    let circleName: String
     let habitName: String
     let checkedAt: String // ISO8601 string (activity_feed.created_at)
 }
@@ -27,6 +29,7 @@ struct StreakMilestoneFeedItem: Identifiable, Sendable {
     let circleId: UUID
     let userId: UUID
     let userName: String
+    let circleName: String
     let habitName: String
     let streakDays: Int
     let achievedAt: String // ISO8601 string (activity_feed.created_at)

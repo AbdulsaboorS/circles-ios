@@ -10,13 +10,18 @@ struct StreakMilestoneCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text("🔥").font(.title2)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("\(item.userName) hit a \(item.streakDays)-day streak!")
                         .font(.appSubheadline).fontWeight(.semibold)
                         .foregroundStyle(Color(hex: "F0EAD6"))
                     Text(item.habitName)
                         .font(.appCaption)
                         .foregroundStyle(Color(hex: "D4A240"))
+                    if !item.circleName.isEmpty {
+                        Text(item.circleName)
+                            .font(.appCaption)
+                            .foregroundStyle(Color(hex: "8FAF94"))
+                    }
                 }
                 Spacer()
                 Text(relativeTimestamp(item.achievedAt))

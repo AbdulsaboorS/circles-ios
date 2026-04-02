@@ -10,6 +10,7 @@ enum GeminiError: LocalizedError {
         case .httpError(let code, let body):
             switch code {
             case 429: return "Gemini quota exceeded (429). Please wait a few minutes and try again."
+            case 503: return "Gemini is temporarily unavailable (503). Please try again in a moment."
             case 403: return "Gemini API key rejected (403). Check your GEMINI_API_KEY in Secrets.plist."
             case 404: return "Gemini model not found (404). The model ID may have changed — check GeminiService."
             default:

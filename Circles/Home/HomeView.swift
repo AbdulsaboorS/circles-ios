@@ -416,7 +416,7 @@ private struct PersonalHabitCard: View {
             Spacer(minLength: 4)
 
             Button(action: onToggle) {
-                Text(isCompleted ? "Done" : "Update")
+                Text(isCompleted ? "Done" : "Check in")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(isCompleted ? Color.msGold : Color.msTextMuted)
                     .frame(maxWidth: .infinity)

@@ -7,11 +7,21 @@ struct HabitCheckinRow: View {
     var onComment: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("\(item.userName) checked in \(item.habitName)")
-                    .font(.appSubheadline)
-                    .foregroundStyle(Color(hex: "F0EAD6"))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(item.userName) checked in")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color(hex: "F0EAD6"))
+                    Text(item.habitName)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(hex: "D4A240"))
+                    if !item.circleName.isEmpty {
+                        Text(item.circleName)
+                            .font(.appCaption)
+                            .foregroundStyle(Color(hex: "8FAF94"))
+                    }
+                }
                 Spacer()
                 Text(relativeTimestamp(item.checkedAt))
                     .font(.appCaption)
@@ -33,8 +43,8 @@ struct HabitCheckinRow: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(hex: "243828"))
