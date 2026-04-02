@@ -16,6 +16,7 @@ struct MemberStep1HabitsView: View {
 
     @State private var showCustomField = false
     @State private var customInput = ""
+    @State private var validationMessage: String?
     @FocusState private var isCustomFieldFocused: Bool
     private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -238,8 +239,21 @@ struct MemberStep1HabitsView: View {
                             .padding(.horizontal, 24)
                     }
 
+                    if let validationMessage {
+                        Text(validationMessage)
+                            .font(.appCaption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+
                     Button {
-                        coordinator.proceedToLocation()
+                        if selectedCoreHabitCount == 0 {
+                            validationMessage = "Pick at least one circle habit first."
+                        } else {
+                            validationMessage = nil
+                            coordinator.proceedToLocation()
+                        }
                     } label: {
                         Text("I'm In")
                             .font(.system(size: 17, weight: .semibold))
@@ -249,8 +263,7 @@ struct MemberStep1HabitsView: View {
                             .background(Color.msGold, in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    .disabled(selectedCoreHabitCount == 0)
-                    .opacity(selectedCoreHabitCount == 0 ? 0.45 : 1)
+                    .opacity(selectedCoreHabitCount == 0 ? 0.7 : 1)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }

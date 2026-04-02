@@ -34,6 +34,7 @@ struct MomentCameraView: View {
         }
         .ignoresSafeArea()
         .task {
+            cameraManager.resetCapture()
             cameraManager.checkPermission()
         }
         .onChange(of: cameraManager.capturedImage) { _, image in
@@ -152,6 +153,7 @@ struct MomentCameraView: View {
     }
 
     private func triggerCapture() {
+        cameraManager.resetCapture()
         cameraManager.capturePhoto()
         // Flash animation
         flashOpacity = 1

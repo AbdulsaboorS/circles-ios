@@ -51,6 +51,8 @@ struct CommunityView: View {
 #if DEBUG
                         if !viewModel.circles.isEmpty {
                             Button {
+                                globalCapturedImage = nil
+                                showGlobalPreview = false
                                 showGlobalCamera = true
                             } label: {
                                 Image(systemName: "camera.fill")
@@ -211,6 +213,8 @@ struct CommunityView: View {
 
                     if momentService.isGateActive {
                         ReciprocityGateView(prayerName: momentService.prayerDisplayName) {
+                            globalCapturedImage = nil
+                            showGlobalPreview = false
                             showGlobalCamera = true
                         }
                     }

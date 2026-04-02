@@ -157,7 +157,15 @@ final class CameraManager: NSObject {
 
     // MARK: - Capture
 
+    func resetCapture() {
+        capturedImage = nil
+        rearImage = nil
+        frontImage = nil
+        pendingCaptureCount = 0
+    }
+
     func capturePhoto() {
+        capturedImage = nil
         if isMultiCamSupported, let rearOut = rearPhotoOutput, let frontOut = frontPhotoOutput {
             rearImage = nil
             frontImage = nil

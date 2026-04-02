@@ -94,6 +94,8 @@ struct CircleDetailView: View {
                                     ReciprocityGateView(
                                         prayerName: DailyMomentService.shared.prayerDisplayName
                                     ) {
+                                        capturedImage = nil
+                                        showPreview = false
                                         showCamera = true
                                     }
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -120,6 +122,8 @@ struct CircleDetailView: View {
                 HStack(spacing: 16) {
 #if DEBUG
                     Button {
+                        capturedImage = nil
+                        showPreview = false
                         showCamera = true
                     } label: {
                         Image(systemName: "camera.fill")
