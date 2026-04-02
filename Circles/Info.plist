@@ -4,6 +4,8 @@
 <dict>
 	<key>GIDClientID</key>
 	<string>211096154573-pgqg7br0jpu9s0ngdmqhuo0dm91ft7i6.apps.googleusercontent.com</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Circles needs camera access so you can post your daily Moment to your circle.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

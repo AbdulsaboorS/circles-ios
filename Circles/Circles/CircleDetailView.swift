@@ -118,6 +118,14 @@ struct CircleDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
+#if DEBUG
+                    Button {
+                        showCamera = true
+                    } label: {
+                        Image(systemName: "camera.fill")
+                            .foregroundStyle(Color.msGold)
+                    }
+#endif
                     if isAmir {
                         Button {
                             showAmirSettings = true
@@ -143,6 +151,7 @@ struct CircleDetailView: View {
         .task {
             guard let userId = auth.session?.user.id else { return }
             await NotificationService.shared.refreshPermissionStatus()
+            await DailyMomentService.shared.load(userId: userId)
             async let membersFetch = CircleService.shared.fetchMembers(circleId: circle.id)
             members = (try? await membersFetch) ?? []
             checkedInCount = 0

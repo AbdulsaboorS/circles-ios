@@ -47,20 +47,32 @@ struct CommunityView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            viewModel.showCreateSheet = true
-                        } label: {
-                            Label("Create Circle", systemImage: "plus.circle")
+                    HStack(spacing: 14) {
+#if DEBUG
+                        if !viewModel.circles.isEmpty {
+                            Button {
+                                showGlobalCamera = true
+                            } label: {
+                                Image(systemName: "camera.fill")
+                                    .foregroundStyle(Color.msGold)
+                            }
                         }
-                        Button {
-                            viewModel.showJoinSheet = true
+#endif
+                        Menu {
+                            Button {
+                                viewModel.showCreateSheet = true
+                            } label: {
+                                Label("Create Circle", systemImage: "plus.circle")
+                            }
+                            Button {
+                                viewModel.showJoinSheet = true
+                            } label: {
+                                Label("Join Circle", systemImage: "person.badge.plus")
+                            }
                         } label: {
-                            Label("Join Circle", systemImage: "person.badge.plus")
+                            Image(systemName: "plus")
+                                .foregroundStyle(Color.msGold)
                         }
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundStyle(Color.msGold)
                     }
                 }
             }

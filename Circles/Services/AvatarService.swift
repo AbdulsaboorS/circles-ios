@@ -19,7 +19,7 @@ final class AvatarService {
         guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
             throw AvatarError.imageConversionFailed
         }
-        let path = "\(userId.uuidString)/avatar.jpg"
+        let path = "\(userId.uuidString.lowercased())/avatar.jpg"
         try await client.storage
             .from("avatars")
             .upload(path, data: jpegData, options: FileOptions(contentType: "image/jpeg", upsert: true))

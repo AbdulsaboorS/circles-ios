@@ -35,7 +35,7 @@ final class MomentService {
         guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
             throw MomentError.imageConversionFailed
         }
-        let filename = "\(circleId.uuidString)/\(userId.uuidString)_\(Self.todayDateString()).jpg"
+        let filename = "\(circleId.uuidString.lowercased())/\(userId.uuidString.lowercased())_\(Self.todayDateString()).jpg"
         try await client.storage
             .from("circle-moments")
             .upload(
