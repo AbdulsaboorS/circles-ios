@@ -139,7 +139,7 @@ struct AmiirStep2HabitsView: View {
                     StepIndicator(current: 1, total: 7)
 
                     Button {
-                        coordinator.proceedToIdentity()
+                        coordinator.proceedToTransitionToPersonal()
                     } label: {
                         Text("Build the Foundation")
                             .font(.system(size: 17, weight: .semibold))

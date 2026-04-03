@@ -19,10 +19,8 @@ struct AuthView: View {
     @State private var showError = false
     @State private var errorMessage = ""
 
-    // Email/password test login
+    // Test account login (username only, fixed password)
     @State private var username = ""
-    @State private var password = ""
-    @State private var isSignUp = false
     @State private var isLoadingEmail = false
     @State private var showEmailSection = false
 
@@ -99,16 +97,9 @@ struct AuthView: View {
 
                     if showEmailSection {
                         VStack(spacing: 10) {
-                            TextField("Username", text: $username)
+                            TextField("Username (e.g. amir1)", text: $username)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
-                                .foregroundStyle(Color.msTextPrimary)
-                                .padding(12)
-                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.msBorder, lineWidth: 1))
-                                .tint(Color.msGold)
-
-                            SecureField("Password", text: $password)
                                 .foregroundStyle(Color.msTextPrimary)
                                 .padding(12)
                                 .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
@@ -122,7 +113,7 @@ struct AuthView: View {
                                     if isLoadingEmail {
                                         ProgressView().tint(Color.msBackground).scaleEffect(0.8)
                                     }
-                                    Text(isSignUp ? "Create Account" : "Sign In")
+                                    Text("Enter as \(username.isEmpty ? "..." : username)")
                                         .font(.system(size: 16, weight: .semibold))
                                         .foregroundStyle(Color.msBackground)
                                 }
@@ -131,17 +122,12 @@ struct AuthView: View {
                                 .background(Color.msGold, in: RoundedRectangle(cornerRadius: 10))
                             }
                             .buttonStyle(.plain)
-                            .disabled(isLoadingEmail || username.isEmpty || password.isEmpty)
-                            .opacity((isLoadingEmail || username.isEmpty || password.isEmpty) ? 0.5 : 1)
+                            .disabled(isLoadingEmail || username.isEmpty)
+                            .opacity((isLoadingEmail || username.isEmpty) ? 0.5 : 1)
 
-                            Button {
-                                withAnimation { isSignUp.toggle() }
-                            } label: {
-                                Text(isSignUp ? "Already have an account? Sign in" : "No account? Create one")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color.msTextMuted)
-                            }
-                            .buttonStyle(.plain)
+                            Text("Creates or signs into your test account")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.msTextMuted.opacity(0.6))
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
@@ -174,11 +160,13 @@ struct AuthView: View {
         isLoadingEmail = true
         showError = false
         defer { isLoadingEmail = false }
+        let email = Self.testEmail(for: username)
+        let password = "circles123"
         do {
-            let email = Self.testEmail(for: username)
-            if isSignUp {
+            // Try sign-up first; if account exists, fall back to sign-in
+            do {
                 try await SupabaseService.shared.client.auth.signUp(email: email, password: password)
-            } else {
+            } catch {
                 try await SupabaseService.shared.client.auth.signIn(email: email, password: password)
             }
         } catch {

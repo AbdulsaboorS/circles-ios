@@ -121,7 +121,7 @@ struct AmiirStep1IdentityView: View {
                 StepIndicator(current: 2, total: 7)
 
                 Button {
-                    coordinator.proceedToTransitionToPersonal()
+                    coordinator.proceedToTransitionToAI()
                 } label: {
                     Text("Continue")
                         .font(.system(size: 17, weight: .semibold))

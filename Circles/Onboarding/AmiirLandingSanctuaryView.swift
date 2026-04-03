@@ -13,6 +13,7 @@ struct AmiirLandingSanctuaryView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
 
     @State private var animating = false
+    @State private var showLogin = false
 
     private let orbSymbols = ["moon.stars.fill", "book.fill", "circle.grid.3x3.fill"]
 
@@ -67,9 +68,21 @@ struct AmiirLandingSanctuaryView: View {
                             .frame(height: 44)
                     }
                     .buttonStyle(.plain)
+
+                    Button {
+                        showLogin = true
+                    } label: {
+                        Text("Already have an account? Log in")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.msTextMuted.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 48)
+                .sheet(isPresented: $showLogin) {
+                    AuthView()
+                }
             }
         }
         .navigationBarBackButtonHidden()

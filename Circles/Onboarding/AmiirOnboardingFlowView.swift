@@ -16,20 +16,22 @@ struct AmiirOnboardingFlowView: View {
                     case .circleIdentity:
                         AmiirStep1IdentityView()
                     case .transitionToPersonal:
+                        // "Iron sharpens iron" — shown after habits, leads into circle creation
                         OnboardingTransitionView(
                             quote: OnboardingTransitionQuote.amirSharedToPrivate,
                             attribution: nil
                         ) {
-                            coordinator.proceedToPersonalIntentions()
+                            coordinator.proceedToIdentity()
                         }
                     case .personalIntentions:
                         AmiirStep3PersonalView()
                     case .transitionToAI:
+                        // "Some growth is private" — shown after circle creation, leads into personal intentions
                         OnboardingTransitionView(
                             quote: OnboardingTransitionQuote.amirPrivateToAI,
                             attribution: nil
                         ) {
-                            coordinator.proceedToAIGeneration()
+                            coordinator.proceedToPersonalIntentions()
                         }
                     case .aiGeneration:
                         AmiirAIGenerationView {
