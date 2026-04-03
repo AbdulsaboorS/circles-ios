@@ -1,32 +1,33 @@
 import SwiftUI
 
-// MARK: - Midnight Sanctuary tokens
-
 private extension Color {
-    static let msBackground   = Color(hex: "1A2E1E")
-    static let msCardShared   = Color(hex: "243828")
-    static let msGold         = Color(hex: "D4A240")
-    static let msTextPrimary  = Color(hex: "F0EAD6")
-    static let msTextMuted    = Color(hex: "8FAF94")
-    static let msBorder       = Color(hex: "D4A240").opacity(0.18)
+    static let msBackground = Color(hex: "1A2E1E")
+    static let msCardShared = Color(hex: "243828")
+    static let msGold = Color(hex: "D4A240")
+    static let msTextPrimary = Color(hex: "F0EAD6")
+    static let msTextMuted = Color(hex: "8FAF94")
+    static let msBorder = Color(hex: "D4A240").opacity(0.18)
 }
 
-struct AmiirStep3PersonalView: View {
-    @Environment(AmiirOnboardingCoordinator.self) private var coordinator
+struct JoinerPersonalHabitsView: View {
+    @Environment(MemberOnboardingCoordinator.self) private var coordinator
 
     @State private var showCustomField = false
     @State private var customInput = ""
 
-    private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var customTrimmed: String {
+        customInput.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
-    /// Curated habits not already picked as shared circle habits
     private var availableHabits: [(name: String, icon: String)] {
         AmiirOnboardingCoordinator.curatedHabits.filter {
-            !coordinator.selectedHabits.contains($0.name)
+            !coordinator.selectedCircleHabits.contains($0.name)
         }
     }
 
-    private var canSelectMore: Bool { coordinator.selectedPersonalHabits.count < 2 }
+    private var canSelectMore: Bool {
+        coordinator.selectedPersonalHabits.count < 2
+    }
 
     var body: some View {
         ZStack {
@@ -42,23 +43,19 @@ struct AmiirStep3PersonalView: View {
                                 .font(.system(size: 48))
                                 .foregroundStyle(Color.msGold)
 
-                            Text("Your Personal Journey")
+                            Text("Your Private Journey")
                                 .font(.appTitle)
                                 .foregroundStyle(Color.msTextPrimary)
                                 .multilineTextAlignment(.center)
 
-                            Text("Add intentions just for yourself — between you and Allah.")
+                            Text("These won't be seen by your circle.\nJust between you and Allah.")
                                 .font(.appSubheadline)
                                 .foregroundStyle(Color.msTextMuted)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.horizontal, 24)
 
-                        // Habit grid
-                        LazyVGrid(
-                            columns: [GridItem(.flexible()), GridItem(.flexible())],
-                            spacing: 12
-                        ) {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                             ForEach(availableHabits, id: \.name) { habit in
                                 let isSelected = coordinator.selectedPersonalHabits.contains(habit.name)
                                 let isDisabled = !isSelected && !canSelectMore
@@ -70,23 +67,26 @@ struct AmiirStep3PersonalView: View {
                                         coordinator.selectedPersonalHabits.append(habit.name)
                                     }
                                 } label: {
-                                    PersonalHabitTile(name: habit.name, icon: habit.icon, isSelected: isSelected, isDisabled: isDisabled)
+                                    JoinerPersonalTile(
+                                        name: habit.name,
+                                        icon: habit.icon,
+                                        isSelected: isSelected,
+                                        isDisabled: isDisabled
+                                    )
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(isDisabled)
                             }
 
-                            // Custom habit tile
-                            let customIsSelected = showCustomField && !customTrimmed.isEmpty && coordinator.selectedPersonalHabits.contains(customTrimmed)
+                            let customIsSelected = !customTrimmed.isEmpty && coordinator.selectedPersonalHabits.contains(customTrimmed)
                             let customDisabled = !customIsSelected && !canSelectMore
+
                             Button {
                                 showCustomField = true
                             } label: {
-                                PersonalHabitTile(
+                                JoinerPersonalTile(
                                     name: showCustomField && !customTrimmed.isEmpty ? customTrimmed : "Custom",
-                                    icon: showCustomField && !customTrimmed.isEmpty
-                                        ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed)
-                                        : "plus.circle.fill",
+                                    icon: showCustomField && !customTrimmed.isEmpty ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed) : "plus.circle.fill",
                                     isSelected: customIsSelected,
                                     isDisabled: customDisabled
                                 )
@@ -96,17 +96,15 @@ struct AmiirStep3PersonalView: View {
                         }
                         .padding(.horizontal, 24)
 
-                        // Custom input field
                         if showCustomField {
                             VStack(alignment: .leading, spacing: 8) {
-                                TextField("e.g. Morning walk, Journaling…", text: $customInput)
+                                TextField("e.g. Tahajjud, Journaling...", text: $customInput)
                                     .foregroundStyle(Color.msTextPrimary)
                                     .padding(14)
                                     .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
                                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
                                     .tint(Color.msGold)
                                     .onChange(of: customInput) { _, _ in
-                                        // Remove old custom entry when user edits the name
                                         let curated = Set(AmiirOnboardingCoordinator.curatedHabits.map(\.name))
                                         coordinator.selectedPersonalHabits.removeAll { !curated.contains($0) }
                                     }
@@ -172,6 +170,7 @@ struct AmiirStep3PersonalView: View {
                         .foregroundStyle(Color.msGold)
                 }
             }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Skip") {
                     coordinator.proceedToTransitionToAI()
@@ -183,9 +182,7 @@ struct AmiirStep3PersonalView: View {
     }
 }
 
-// MARK: - PersonalHabitTile
-
-private struct PersonalHabitTile: View {
+private struct JoinerPersonalTile: View {
     let name: String
     let icon: String
     let isSelected: Bool
@@ -201,23 +198,21 @@ private struct PersonalHabitTile: View {
                     .font(.system(size: 16))
                     .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
             }
+
             Text(name)
                 .font(.appSubheadline)
                 .foregroundStyle(isSelected ? Color(hex: "D4A240") : Color(hex: "F0EAD6"))
+
             Spacer()
+
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color(hex: "D4A240"))
                     .font(.system(size: 16))
+                    .foregroundStyle(Color(hex: "D4A240"))
             }
         }
         .padding(12)
-        .background(
-            isSelected
-                ? Color(hex: "D4A240").opacity(0.1)
-                : Color(hex: "243828"),
-            in: RoundedRectangle(cornerRadius: 14)
-        )
+        .background(isSelected ? Color(hex: "D4A240").opacity(0.1) : Color(hex: "243828"), in: RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
                 .stroke(isSelected ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.18), lineWidth: 1.5)

@@ -67,6 +67,6 @@ struct CirclesApp: App {
               url.host == "join",
               let code = url.pathComponents.dropFirst().first,
               !code.isEmpty else { return }
-        pendingInviteCode = code
+        pendingInviteCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 }

@@ -7,18 +7,25 @@ import Supabase
 final class MemberOnboardingCoordinator {
 
     enum Step: Hashable {
-        case habitAlignment
-        case location
+        case circleAlignment       // Step 2: Rich circle preview + habit selection
+        case transitionToPersonal  // Islamic transition
+        case personalHabits        // Step 4: Private habits, max 2
+        case transitionToAI        // Islamic transition
+        case aiGeneration          // Step 5: Background AI generation
+        case identity              // Step 6: Name + location + push ask
+        case authGate              // Step 7: Auth gate
     }
 
     // MARK: - Input
-    let inviteCode: String
+    var inviteCodeInput: String
 
     // MARK: - Fetched Data
     var circle: Circle? = nil
 
     // MARK: - Collected Data
-    var selectedHabits: Set<String> = []
+    var selectedCircleHabits: Set<String> = []   // min 1 required
+    var selectedPersonalHabits: [String] = []     // max 2
+    var preferredName: String = ""
     var cityName: String = ""
     var cityTimezone: String = ""
     var cityLatitude: Double = 0
@@ -32,77 +39,165 @@ final class MemberOnboardingCoordinator {
     var errorMessage: String? = nil
     private(set) var isComplete: Bool = false
 
-    init(inviteCode: String) {
-        self.inviteCode = inviteCode
+    /// Default argument keeps ContentView's `MemberOnboardingCoordinator(inviteCode:)` call valid
+    /// until Plan 06 updates ContentView to use the no-arg form.
+    init(inviteCode: String = "") {
+        self.inviteCodeInput = inviteCode
     }
 
-    // MARK: - Navigation
-    func proceedToLocation() {
-        navigationPath.append(.location)
+    // MARK: - Invite Code Submission
+    func submitInviteCode(_ code: String) async {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else {
+            errorMessage = "Enter a valid invite code."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        inviteCodeInput = trimmed
+        defer { isLoading = false }
+        do {
+            circle = try await CircleService.shared.fetchCircleByCode(trimmed)
+            if navigationPath.last != .circleAlignment {
+                navigationPath.append(.circleAlignment)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
-    /// Join circle + create accountable habits + save location → complete
-    func joinAndComplete(userId: UUID) async {
-        guard let circle = circle else {
-            errorMessage = "Circle data missing. Please try again."
+    // MARK: - Navigation Helpers
+    func proceedToCircleAlignment() {
+        navigationPath.append(.circleAlignment)
+    }
+
+    func proceedToTransitionToPersonal() {
+        navigationPath.append(.transitionToPersonal)
+    }
+
+    func proceedToPersonalHabits() {
+        navigationPath.append(.personalHabits)
+    }
+
+    func proceedToTransitionToAI() {
+        navigationPath.append(.transitionToAI)
+    }
+
+    func proceedToAIGeneration() {
+        navigationPath.append(.aiGeneration)
+    }
+
+    func proceedToIdentity() {
+        navigationPath.append(.identity)
+    }
+
+    func proceedToAuthGate() {
+        savePendingState()
+        navigationPath.append(.authGate)
+    }
+
+    func fireBackgroundPlans() async {
+        // Called from JoinerAIGenerationView — auth hasn't happened yet (auth-last).
+        // Real plan creation happens in flushToSupabase after auth succeeds.
+        print("[MemberCoordinator] fireBackgroundPlans — deferred until post-auth flush")
+    }
+
+    // MARK: - Post-Auth Flush
+    /// Called by ContentView AFTER auth succeeds. Writes everything to Supabase.
+    func flushToSupabase(userId: UUID) async {
+        guard let circle else {
+            errorMessage = "Circle data missing."
             return
         }
         isLoading = true
         errorMessage = nil
         do {
-            // 1. Save location
+            // 1. Save location + name to profiles
             try await saveLocation(userId: userId)
 
-            // 2. Join the circle
-            _ = try await CircleService.shared.joinByInviteCode(inviteCode, userId: userId)
+            // 2. Join circle
+            _ = try await CircleService.shared.joinByInviteCode(inviteCodeInput, userId: userId)
 
-            // 3. Create accountable habits linked to this circle
+            // 3. Create accountable habits
             var created: [Habit] = []
-            for habitName in selectedHabits {
+            for habitName in selectedCircleHabits {
                 let icon = AmiirOnboardingCoordinator.iconForHabit(habitName)
                 if let h = try? await HabitService.shared.createAccountableHabit(
                     userId: userId,
                     name: habitName,
                     icon: icon,
                     circleId: circle.id
-                ) {
-                    created.append(h)
+                ) { created.append(h) }
+            }
+
+            // 4. Create personal habits
+            for habitName in selectedPersonalHabits {
+                let icon = AmiirOnboardingCoordinator.iconForHabit(habitName)
+                _ = try? await HabitService.shared.createPrivateHabit(
+                    userId: userId,
+                    name: habitName,
+                    icon: icon,
+                    familiarity: "general"
+                )
+            }
+
+            // 5. Fire AI plans (background, non-blocking)
+            let habitsForPlan = created
+            Task {
+                for habit in habitsForPlan {
+                    await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
                 }
             }
 
-            completeOnboarding(userId: userId, habitsForRoadmap: created)
+            // 6. Complete + clear pending state
+            completeOnboarding(userId: userId)
+            OnboardingPendingState.clear()
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
-    func completeOnboarding(userId: UUID, habitsForRoadmap: [Habit] = []) {
-        let habits = habitsForRoadmap
-        Task {
-            for habit in habits {
-                await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
-            }
-        }
+    func completeOnboarding(userId: UUID) {
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(userId.uuidString)")
         isComplete = true
     }
 
-    // MARK: - Fetch circle on entry
+    // MARK: - Legacy
+    /// Kept for backward compat with ContentView pre-Plan-06. Uses inviteCodeInput already set.
     func loadCircle() async {
+        guard !inviteCodeInput.isEmpty else { return }
         isLoading = true
-        circle = try? await CircleService.shared.fetchCircleByCode(inviteCode)
+        circle = try? await CircleService.shared.fetchCircleByCode(inviteCodeInput)
         isLoading = false
     }
 
     // MARK: - Private
+    private func savePendingState() {
+        var state = OnboardingPendingState()
+        state.flowType = "member"
+        state.inviteCode = inviteCodeInput
+        state.preferredName = preferredName
+        state.selectedCircleHabits = Array(selectedCircleHabits)
+        state.selectedPersonalHabits = selectedPersonalHabits
+        state.cityName = cityName
+        state.cityTimezone = cityTimezone
+        state.cityLatitude = cityLatitude
+        state.cityLongitude = cityLongitude
+        OnboardingPendingState.save(state)
+    }
+
     private func saveLocation(userId: UUID) async throws {
-        let updates: [String: AnyJSON] = [
+        var updates: [String: AnyJSON] = [
             "city_name":  .string(cityName),
             "latitude":   .double(cityLatitude),
             "longitude":  .double(cityLongitude),
             "timezone":   .string(cityTimezone)
         ]
+        let trimmedName = preferredName.trimmingCharacters(in: .whitespaces)
+        if !trimmedName.isEmpty {
+            updates["preferred_name"] = .string(trimmedName)
+        }
         try await SupabaseService.shared.client
             .from("profiles")
             .update(updates)

@@ -7,10 +7,14 @@ import Supabase
 final class AmiirOnboardingCoordinator {
 
     enum Step: Hashable {
-        case coreHabits
-        case personalIntentions
-        case location
-        case soulGate
+        case coreHabits           // Step 2: The Struggle
+        case circleIdentity       // Step 3: Circle Identity
+        case transitionToPersonal // Islamic transition
+        case personalIntentions   // Step 4: Personal Intentions
+        case transitionToAI       // Islamic transition
+        case aiGeneration         // Step 5: AI Generation
+        case foundation           // Step 6: Foundation (location + push ask)
+        case activation           // Step 7: Auth Gate
     }
 
     // MARK: - Curated Islamic Habits
@@ -32,7 +36,7 @@ final class AmiirOnboardingCoordinator {
     var circleName: String = ""
     var genderSetting: String = "mixed"   // "mixed" | "brothers" | "sisters"
     var selectedHabits: Set<String> = []         // shared/accountable, max 3
-    var selectedPersonalHabits: [String] = []    // personal/private, max 3
+    var selectedPersonalHabits: [String] = []    // personal/private, max 2
 
     var cityName: String = ""
     var cityTimezone: String = ""
@@ -41,11 +45,11 @@ final class AmiirOnboardingCoordinator {
 
     // MARK: - Created Entities
     var createdCircle: Circle? = nil
-    /// Habits created in `createCircleAndProceed` — used for background AI roadmaps.
     private(set) var createdHabitsInSession: [Habit] = []
 
-    // MARK: - Soul Gate
+    // MARK: - Routing
     var hasSharedInvite: Bool = false
+    var shouldSwitchToJoinerFlow: Bool = false
 
     // MARK: - Navigation
     var navigationPath: [Step] = []
@@ -64,27 +68,59 @@ final class AmiirOnboardingCoordinator {
     var canSelectMoreHabits: Bool { selectedHabits.count < 3 }
 
     // MARK: - Navigation Helpers
-    func proceedToHabits() {
+    func proceedToStruggle() {
         navigationPath.append(.coreHabits)
+    }
+
+    func proceedToIdentity() {
+        navigationPath.append(.circleIdentity)
+    }
+
+    func proceedToTransitionToPersonal() {
+        navigationPath.append(.transitionToPersonal)
     }
 
     func proceedToPersonalIntentions() {
         navigationPath.append(.personalIntentions)
     }
 
-    func proceedToLocation() {
-        navigationPath.append(.location)
+    func proceedToTransitionToAI() {
+        navigationPath.append(.transitionToAI)
     }
 
-    /// Save location → create circle + accountable habits → proceed to Soul Gate.
-    func createCircleAndProceed(userId: UUID) async {
+    func proceedToAIGeneration() {
+        navigationPath.append(.aiGeneration)
+    }
+
+    func proceedToFoundation() {
+        navigationPath.append(.foundation)
+    }
+
+    func proceedToActivation() {
+        savePendingState()
+        navigationPath.append(.activation)
+    }
+
+    func showJoinFlow() {
+        shouldSwitchToJoinerFlow = true
+    }
+
+    func fireBackgroundPlans() async {
+        // Called from AmiirAIGenerationView — auth hasn't happened yet (auth-last).
+        // Real plan creation happens in flushToSupabase after auth succeeds.
+        print("[AmiirCoordinator] fireBackgroundPlans — deferred until post-auth flush")
+    }
+
+    // MARK: - Post-Auth Flush
+    /// Called by ContentView AFTER auth succeeds. Writes everything to Supabase.
+    func flushToSupabase(userId: UUID) async {
         isLoading = true
         errorMessage = nil
         do {
-            // 1. Save location to profiles
+            // 1. Save location + name to profiles
             try await saveLocation(userId: userId)
 
-            // 2. Create the circle
+            // 2. Create circle
             let circle = try await CircleService.shared.createCircleForAmir(
                 name: circleName,
                 genderSetting: genderSetting,
@@ -93,7 +129,7 @@ final class AmiirOnboardingCoordinator {
             )
             createdCircle = circle
 
-            // 3. Create accountable habit rows for each selected shared habit
+            // 3. Create accountable habits
             createdHabitsInSession = []
             for habitName in selectedHabits {
                 let icon = Self.iconForHabit(habitName)
@@ -107,7 +143,7 @@ final class AmiirOnboardingCoordinator {
                 }
             }
 
-            // 4. Create personal (private) habit rows
+            // 4. Create personal habits
             for habitName in selectedPersonalHabits {
                 let icon = Self.iconForHabit(habitName)
                 if let h = try? await HabitService.shared.createPrivateHabit(
@@ -120,21 +156,24 @@ final class AmiirOnboardingCoordinator {
                 }
             }
 
-            navigationPath.append(.soulGate)
+            // 5. Fire AI roadmap generation (background, non-blocking)
+            let habitsForPlan = createdHabitsInSession
+            Task {
+                for habit in habitsForPlan {
+                    await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
+                }
+            }
+
+            // 6. Mark complete + clear pending state
+            completeOnboarding(userId: userId)
+            OnboardingPendingState.clear()
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
-    /// Mark onboarding complete. Fire-and-forget 28-day plan generation per created habit.
     func completeOnboarding(userId: UUID) {
-        let habits = createdHabitsInSession
-        Task {
-            for habit in habits {
-                await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
-            }
-        }
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(userId.uuidString)")
         isComplete = true
     }
@@ -161,6 +200,21 @@ final class AmiirOnboardingCoordinator {
     }
 
     // MARK: - Private
+    private func savePendingState() {
+        var state = OnboardingPendingState()
+        state.flowType = "amir"
+        state.preferredName = preferredName
+        state.circleName = circleName
+        state.genderSetting = genderSetting
+        state.selectedCoreHabits = Array(selectedHabits)
+        state.selectedPersonalHabits = selectedPersonalHabits
+        state.cityName = cityName
+        state.cityTimezone = cityTimezone
+        state.cityLatitude = cityLatitude
+        state.cityLongitude = cityLongitude
+        OnboardingPendingState.save(state)
+    }
+
     private func saveLocation(userId: UUID) async throws {
         var updates: [String: AnyJSON] = [
             "city_name":  .string(cityName),

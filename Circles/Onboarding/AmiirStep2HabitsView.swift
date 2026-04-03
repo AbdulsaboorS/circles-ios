@@ -136,10 +136,10 @@ struct AmiirStep2HabitsView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 1, total: 5)
+                    StepIndicator(current: 1, total: 7)
 
                     Button {
-                        coordinator.proceedToPersonalIntentions()
+                        coordinator.proceedToIdentity()
                     } label: {
                         Text("Build the Foundation")
                             .font(.system(size: 17, weight: .semibold))

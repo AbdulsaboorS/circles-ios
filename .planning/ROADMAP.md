@@ -157,7 +157,7 @@
   - Auth Gate: save progress + preview
 - **Critical Implementation Details:**
   - Push notification framing: "Enable the Adhan for your circle" (Step E)
-  - Deep link logic: skip invite-code screen if deep link detected
+  - Deep link logic: prefill Joiner landing and auto-submit into circle preview if deep link detected
   - Data persistence: cache pending state before auth so user can resume
   - Animation timing: 1.5-2 second transitions (skippable) unless AI gen needs time
   - Deep link fail case: fallback "Enter Invite Code" button on landing
@@ -167,10 +167,10 @@
 **Plans:** 6 plans
 
 Plans:
-- [ ] 11.3-01-PLAN.md — Shared infrastructure: OnboardingPendingState, OnboardingTransitionView, deep link verification
-- [ ] 11.3-02-PLAN.md — New Amir step views: Landing Sanctuary, AI Generation, Activation/Auth Gate
+- [x] 11.3-01-PLAN.md — Shared infrastructure: OnboardingPendingState, OnboardingTransitionView, deep link verification
+- [x] 11.3-02-PLAN.md — New Amir step views: Landing Sanctuary, AI Generation, Activation/Auth Gate
 - [ ] 11.3-03-PLAN.md — Amir coordinator rewrite: 7-step auth-last state machine + FlowView wiring
-- [ ] 11.3-04-PLAN.md — New Joiner step views: Landing, Circle Alignment, Personal Habits, AI Gen, Identity, Auth Gate
+- [x] 11.3-04-PLAN.md — New Joiner step views: Landing, Circle Alignment, Personal Habits, AI Gen, Identity, Auth Gate
 - [ ] 11.3-05-PLAN.md — Joiner coordinator rewrite: 7-step auth-last state machine + FlowView wiring
 - [ ] 11.3-06-PLAN.md — ContentView auth-last routing + HomeView post-auth nudge (Soul Gate replacement)
 

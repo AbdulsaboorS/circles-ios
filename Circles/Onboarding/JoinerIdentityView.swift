@@ -1,19 +1,17 @@
 import SwiftUI
-import UserNotifications
-
-// MARK: - Midnight Sanctuary tokens
+import UIKit
 
 private extension Color {
-    static let msBackground  = Color(hex: "1A2E1E")
-    static let msCardShared  = Color(hex: "243828")
-    static let msGold        = Color(hex: "D4A240")
+    static let msBackground = Color(hex: "1A2E1E")
+    static let msCardShared = Color(hex: "243828")
+    static let msGold = Color(hex: "D4A240")
     static let msTextPrimary = Color(hex: "F0EAD6")
-    static let msTextMuted   = Color(hex: "8FAF94")
-    static let msBorder      = Color(hex: "D4A240").opacity(0.18)
+    static let msTextMuted = Color(hex: "8FAF94")
+    static let msBorder = Color(hex: "D4A240").opacity(0.18)
 }
 
-struct AmiirStep3LocationView: View {
-    @Environment(AmiirOnboardingCoordinator.self) private var coordinator
+struct JoinerIdentityView: View {
+    @Environment(MemberOnboardingCoordinator.self) private var coordinator
 
     @State private var searchText = ""
     @State private var pushRequested = false
@@ -28,78 +26,78 @@ struct AmiirStep3LocationView: View {
     }
 
     var body: some View {
+        @Bindable var coord = coordinator
+
         ZStack {
             Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
                 VStack(spacing: 12) {
                     Image(systemName: "location.fill")
-                        .font(.system(size: 44))
+                        .font(.system(size: 42))
                         .foregroundStyle(Color.msGold)
                         .padding(.top, 24)
 
-                    Text("Prayer Synchronization")
-                        .font(.appTitle)
+                    Text("Anchor your prayer times.")
+                        .font(.system(size: 26, weight: .semibold, design: .serif))
                         .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
 
-                    Text("Your location helps us anchor your Circle Moment to the right prayer.")
-                        .font(.appSubheadline)
+                    Text("Your name and city help us sync your prayer window.")
+                        .font(.system(size: 15))
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 }
                 .padding(.bottom, 12)
 
-                // Push notification soft ask
-                if !pushRequested {
-                    VStack(spacing: 8) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "bell.fill")
-                                .foregroundStyle(Color.msGold)
-                                .font(.system(size: 18))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Your Name")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.msTextMuted)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Enable the Adhan for your circle")
-                                    .font(.appCaptionMedium)
-                                    .foregroundStyle(Color.msGold)
-                                Text("Get notified when your prayer window opens for Circle Moment.")
-                                    .font(.appCaption)
-                                    .foregroundStyle(Color.msTextMuted)
-                            }
-
-                            Spacer()
-
-                            Button {
-                                Task {
-                                    let granted = await NotificationService.shared.requestPermission()
-                                    pushRequested = true
-                                    if !granted {
-                                        let status = await UNUserNotificationCenter.current().notificationSettings()
-                                        pushDenied = status.authorizationStatus == .denied
-                                    }
-                                }
-                            } label: {
-                                Text("Enable")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(Color.msBackground)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(Color.msGold, in: Capsule())
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    TextField("e.g. Omar", text: $coord.preferredName)
+                        .textInputAutocapitalization(.words)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color.msTextPrimary)
                         .padding(14)
                         .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
+                        .tint(Color.msGold)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+
+                if !pushRequested {
+                    Button {
+                        pushRequested = true
+                        Task {
+                            let granted = await NotificationService.shared.requestPermission()
+                            if !granted {
+                                pushDenied = true
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "bell.fill")
+                                .foregroundStyle(Color.msBackground)
+                            Text("Enable the Adhan for your circle")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color.msBackground)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color.msGold, in: RoundedRectangle(cornerRadius: 12))
                     }
+                    .buttonStyle(.plain)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 8)
                 } else if pushDenied {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         Text("Without the Adhan notification, your Circle Moment window won't alert you. Enable anytime in Settings.")
-                            .font(.appCaption)
+                            .font(.system(size: 13))
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
 
@@ -115,12 +113,12 @@ struct AmiirStep3LocationView: View {
                     .padding(.bottom, 8)
                 }
 
-                // Search bar
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(Color.msTextMuted)
-                    TextField("Search cities…", text: $searchText)
-                        .font(.appSubheadline)
+
+                    TextField("Search cities...", text: $searchText)
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(Color.msTextPrimary)
                         .tint(Color.msGold)
                 }
@@ -136,20 +134,23 @@ struct AmiirStep3LocationView: View {
                         coordinator.cityTimezone = city.tz
                         coordinator.cityLatitude = city.lat
                         coordinator.cityLongitude = city.lng
-                        coordinator.proceedToActivation()
+                        coordinator.proceedToAuthGate()
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(city.name)
-                                    .font(.appSubheadline)
+                                    .font(.system(size: 15, weight: .medium))
                                     .foregroundStyle(Color.msTextPrimary)
+
                                 Text(city.country)
-                                    .font(.appCaption)
+                                    .font(.system(size: 12))
                                     .foregroundStyle(Color.msTextMuted)
                             }
+
                             Spacer()
+
                             Image(systemName: "chevron.right")
-                                .font(.appCaption)
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(Color.msTextMuted)
                         }
                         .contentShape(Rectangle())
@@ -160,13 +161,6 @@ struct AmiirStep3LocationView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-
-                if let error = coordinator.errorMessage {
-                    Text(error)
-                        .font(.appCaption)
-                        .foregroundStyle(.red)
-                        .padding()
-                }
 
                 StepIndicator(current: 5, total: 7)
                     .padding(.bottom, 16)

@@ -1,20 +1,44 @@
 import SwiftUI
 
 /// Root view for the Amir onboarding flow.
-/// Manages the NavigationStack and routes between the 4 steps.
+/// Manages the NavigationStack and routes all 7 steps + 2 transition screens.
 struct AmiirOnboardingFlowView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
 
     var body: some View {
         @Bindable var coord = coordinator
         NavigationStack(path: $coord.navigationPath) {
-            AmiirStep1IdentityView()
+            AmiirLandingSanctuaryView()
                 .navigationDestination(for: AmiirOnboardingCoordinator.Step.self) { step in
                     switch step {
-                    case .coreHabits:          AmiirStep2HabitsView()
-                    case .personalIntentions:  AmiirStep3PersonalView()
-                    case .location:            AmiirStep3LocationView()
-                    case .soulGate:            AmiirStep4SoulGateView()
+                    case .coreHabits:
+                        AmiirStep2HabitsView()
+                    case .circleIdentity:
+                        AmiirStep1IdentityView()
+                    case .transitionToPersonal:
+                        OnboardingTransitionView(
+                            quote: OnboardingTransitionQuote.amirSharedToPrivate,
+                            attribution: nil
+                        ) {
+                            coordinator.proceedToPersonalIntentions()
+                        }
+                    case .personalIntentions:
+                        AmiirStep3PersonalView()
+                    case .transitionToAI:
+                        OnboardingTransitionView(
+                            quote: OnboardingTransitionQuote.amirPrivateToAI,
+                            attribution: nil
+                        ) {
+                            coordinator.proceedToAIGeneration()
+                        }
+                    case .aiGeneration:
+                        AmiirAIGenerationView {
+                            coordinator.proceedToFoundation()
+                        }
+                    case .foundation:
+                        AmiirStep3LocationView()
+                    case .activation:
+                        AmiirActivationView()
                     }
                 }
         }

@@ -76,7 +76,7 @@ struct MemberStep2LocationView: View {
                             coordinator.cityLatitude = city.lat
                             coordinator.cityLongitude = city.lng
                             if let userId = auth.session?.user.id {
-                                Task { await coordinator.joinAndComplete(userId: userId) }
+                                Task { await coordinator.flushToSupabase(userId: userId) }
                             }
                         } label: {
                             HStack {

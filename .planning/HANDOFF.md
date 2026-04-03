@@ -12,101 +12,72 @@
 
 ## Current position
 
-- **Product:** v2.4 — Phase **11.2 (E2E QA + UX polish) COMPLETE**
+- **Product:** v2.4 — Phase **11.3 (Onboarding In Depth) — Waves 1+2 COMPLETE**
 - **Branch:** `main`
 - **Remote:** `origin` → GitHub `AbdulsaboorS/circles-ios`
-- **Latest pushed commit:** pending close-out push from this session
-- **Next session should begin Phase 11.3 onboarding rebuild work.**
+- **Next session must execute `11.3-06`** — ContentView auth-last routing + HomeView post-auth nudge.
 
 ## What shipped this session
 
-### Already pushed before this session
-- `df2b2f9` — QA batch 4: roadmap refinement decode fixed, avatar upload error surfaced, avatar bucket RLS added, `daily_moments` row seeded
-- `97d316e` — auto-commit wrapper
+### Plans 11.3-03 and 11.3-05 both complete
 
-### Pushed before this close-out
-- `4fa6ce6` — local **Reflection Log** for `HabitDetailView` (`UserDefaults`, one note per habit per day, today-only UI)
-- `d5bf103` — invite preview refresh + **username-based test login** (`username` maps to `username@circles.test`)
-- `0c858d2` — camera permission fix (`NSCameraUsageDescription`), debug camera shortcuts, lowercase storage paths for avatar/moment uploads
-- `459772a` — member onboarding habit-step UX simplification + real Moment post error exposure
-- `fcc4c9c` — roadmap loading overlay for generate/refine
-- `7c07287` — capture reset fix + member onboarding CTA validation/unblock attempt
+**11.3-03 — Amir coordinator rewrite (auth-last):**
+- `AmiirOnboardingCoordinator`: full rewrite — 8-case Step enum (coreHabits, circleIdentity, transitionToPersonal, personalIntentions, transitionToAI, aiGeneration, foundation, activation); removed `soulGate`/`location`/`landing`
+- `flushToSupabase(userId:)`: post-auth Supabase writer (profile + circle + habits + AI plans); `savePendingState()` persists to UserDefaults before auth gate
+- `completeOnboarding(userId:)`: simplified to UserDefaults flag + `isComplete = true`
+- `AmiirOnboardingFlowView`: root is now `AmiirLandingSanctuaryView`; all 8 steps wired including `OnboardingTransitionView` for both transitions
+- `AmiirStep2HabitsView`: StepIndicator 1/7; CTA → `proceedToIdentity()`
+- `AmiirStep1IdentityView`: StepIndicator 2/7; CTA → `proceedToTransitionToPersonal()`
+- `AmiirStep3PersonalView`: cap 2 (not 3); StepIndicator 3/7; CTA/Skip → `proceedToTransitionToAI()`
+- `AmiirStep3LocationView`: auth removed; push notification soft ask added; city tap → `proceedToActivation()`; StepIndicator 5/7
 
-### Implemented in this closing session
-- AI roadmap overlay now shows a lightweight animated progress treatment during generate/refine instead of a static loading state.
-- Moment camera/preview flow was refactored:
-  - first-shot white screen fixed by moving preview presentation to item-based draft state
-  - stale preview fixed by capture-generation tracking in `CameraManager`
-  - shutter gated on `isSessionReady`
-  - debug camera shortcuts removed after QA
-- Feed cards now use a shared identity header with **avatar + name + circle + timestamp**.
-- Habit check-in copy now follows the requested structure:
-  - `PFP - NAME > CIRCLE`
-  - second line `checking into 'habit'`
-- Feed author avatars now come from a shared author-profile cache in `FeedViewModel`, not only reaction profiles.
-- Invite preview now shows a cleaner member face pile + avatar-backed member preview rows.
+**11.3-05 — Joiner coordinator rewrite (auth-last):**
+- `MemberOnboardingCoordinator`: full rewrite — 7-case Step enum (circleAlignment, transitionToPersonal, personalHabits, transitionToAI, aiGeneration, identity, authGate); removed `landing`/`location`/`habitAlignment`
+- `init(inviteCode: String = "")`: default arg keeps ContentView backward compat until 11.3-06 updates it
+- `flushToSupabase(userId:)`: post-auth Supabase writer (join circle + habits + AI plans); `savePendingState()` persists before auth gate
+- `MemberOnboardingFlowView`: clean 7-step routing from `JoinerLandingView` root; uses `OnboardingTransitionQuote` constants
+- `MemberStep1HabitsView` / `MemberStep2LocationView`: compile-only fixes (dead code in new flow)
 
 ## What is confirmed working
 
-- Profile photo upload now works.
-- AI refinement decode path now works; token-limit message appears correctly when applicable.
-- Reflection Log is implemented on `HabitDetailView`.
-- Camera permission prompt now appears and the camera can capture.
-- First-shot white-screen path is fixed.
-- Feed header/avatar polish is implemented and approved by the user.
-- Invite preview page is on the green Midnight Sanctuary styling, includes test-account login, and shows member PFPS/face pile where preview fetch permits it.
+- Phase 11.3 Waves 1+2 compile cleanly: `BUILD SUCCEEDED`
+- Both Amir and Joiner coordinator rewrites are auth-last
+- Both flow views root at the correct landing screens
+- `OnboardingPendingState` is saved before auth gate in both flows
+- `flushToSupabase` is ready to be called from ContentView post-auth
 
-## Deferred items for later verification
+## What is NOT yet done (for next session)
 
-### 1. Moment posting should be re-tested only in a real prayer window
-- Out-of-window/debug-style post testing surfaced `StorageError(... "new row violates row-level security policy" ...)`.
-- User considers that acceptable for now because the post path should be verified against a **real live Moment window**, not a forced test shortcut.
-- Do not spend more time on this in Phase 11.2. Re-check only when a real Moment of the Day triggers.
-- UI already surfaces the real error in `MomentPreviewView` if it fails again.
+### 11.3-06 — ContentView auth-last routing + HomeView post-auth nudge
 
-### 2. Moment compositing/output still needs polish later
-- Core camera bugs were fixed, but the actual composited image treatment may still need visual polish once real posting is verified.
-- Treat this as a future quality pass, not a current blocker.
+This is the final plan in Phase 11.3. It must:
+1. Update `ContentView` to detect a pending Amir or Joiner state after sign-in and call `flushToSupabase(userId:)` on the correct coordinator
+2. Route authenticated Amir users who have `OnboardingPendingState` (flowType = "amir") → call `amiirCoordinator.flushToSupabase(userId:)`
+3. Route authenticated Joiner users who have `OnboardingPendingState` (flowType = "member") → call `memberCoordinator.flushToSupabase(userId:)`
+4. Update `ContentView`'s `MemberOnboardingCoordinator(inviteCode: code)` calls to plain `MemberOnboardingCoordinator()` (since `inviteCodeInput` is now set via `submitInviteCode`)
+5. Add a HomeView post-auth nudge (optional per plan spec — read 11.3-06-PLAN.md carefully)
 
-### 3. Member onboarding blocker is superseded
-- The remaining joiner/onboarding rough edges are intentionally deferred because Phase 11.3 will rebuild onboarding in depth.
-- Do not chase the old first-screen blocker unless it blocks Phase 11.3 migration work itself.
+**Run this command to execute:**
+```
+/gsd:execute-phase 11.3-06 --interactive
+```
 
-## Testing notes for next agent
+## Testing notes
 
-- For deep-link testing on iPhone, **do not use Chrome’s address bar**.
-- Current supported deep-link path is custom URL scheme:
+- Deep link for Joiner testing (use Notes/Messages/Mail/Safari — not Chrome address bar):
   - `circles://join/Z5QZTNN5`
-- Use a tappable link from Notes, Messages, Mail, or Safari.
-- `https://joinlegacy.app/join/...` is **not** a universal-link app open flow yet.
+- Moment posting: re-test only during a real prayer window (deferred from 11.2)
 
 ## Backend/manual items still outstanding
 
-- `seed-daily-moment` Edge Function is deployed, but **daily cron setup is still manual**:
+- `seed-daily-moment` Edge Function deployed but **daily cron is not set up**:
   1. Enable `pg_cron`
-  2. Create daily HTTP cron job hitting `/functions/v1/seed-daily-moment`
+  2. Create daily HTTP cron job → `/functions/v1/seed-daily-moment`
 
-## Relevant files touched this session
+## Key files for 11.3-06
 
-- `Circles/Home/HabitDetailView.swift`
-- `Circles/Home/ReflectionLogStore.swift`
-- `Circles/Onboarding/CirclePreviewView.swift`
-- `Circles/Feed/FeedIdentityHeader.swift`
-- `Circles/Feed/FeedView.swift`
-- `Circles/Feed/FeedViewModel.swift`
-- `Circles/Feed/HabitCheckinRow.swift`
-- `Circles/Feed/MomentFeedCard.swift`
-- `Circles/Feed/StreakMilestoneCard.swift`
-- `Circles/Moment/MomentPreviewView.swift`
-- `Circles/Moment/MomentCameraView.swift`
-- `Circles/Moment/CameraManager.swift`
-- `Circles/Community/CommunityView.swift`
-- `Circles/Circles/CircleDetailView.swift`
-
-## Quick next-session priority order
-
-1. Begin **Phase 11.3 — Onboarding In Depth**.
-2. Use `.planning/phases/11.3-onboarding-in-depth/` plans as the implementation guide.
-3. Carry forward only these deferred checks from 11.2:
-   - re-test Moment posting during a real prayer window
-   - polish composited Moment output later if needed
+- `Circles/ContentView.swift` — main routing target
+- `Circles/Home/HomeView.swift` — post-auth nudge target
+- `Circles/Onboarding/OnboardingPendingState.swift` — `load()` / `hasPendingState()` / `clear()`
+- `Circles/Onboarding/AmiirOnboardingCoordinator.swift` — `flushToSupabase(userId:)`
+- `Circles/Onboarding/MemberOnboardingCoordinator.swift` — `flushToSupabase(userId:)`

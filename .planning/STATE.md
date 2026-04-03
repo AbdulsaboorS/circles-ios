@@ -1,15 +1,15 @@
 ---
 version: 2.4
-last_updated: "2026-04-02"
+last_updated: "2026-04-03"
 current_phase: "Phase 11.3 — Onboarding In Depth"
-status: "Ready To Start"
+status: "Waves 1+2 Complete — 11.3-06 remaining"
 ---
 
 # Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Phase 11.3 — Onboarding In Depth** — Phase 11.2 QA/polish is closed. Next session should begin the onboarding rebuild using the plans in `.planning/phases/11.3-onboarding-in-depth/`.
+**Phase 11.3 — Onboarding In Depth** — Waves 1 and 2 complete: `11.3-01`, `11.3-02`, `11.3-03`, `11.3-04`, `11.3-05` all done and building. **Next session: execute `11.3-06`** (ContentView auth-last routing + HomeView post-auth nudge).
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -238,7 +238,7 @@ status: "Ready To Start"
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
 | 11.1 — Full UI Vision Pass | ✓ Complete | Full Midnight Sanctuary redesign — all screens |
 | 11.2 — E2E QA + Bug Fixes | ✓ Complete | QA fixes landed: reflection log, roadmap loading feedback, moment camera fixes, feed/PFP polish, invite preview polish |
-| 11.3 — Onboarding In Depth | 🔄 Next | Finalized onboarding flows (Amir + Joiner), animations, deep links, data persistence |
+| 11.3 — Onboarding In Depth | 🔄 In Progress | Waves 1+2 done: all step views + both coordinators rewritten (auth-last). Next: 11.3-06 ContentView routing |
 | 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
 | 13 — Landing Page Web | ⬜ Planned | Marketing landing page (HTML/Tailwind, design system applied) |
 

@@ -33,7 +33,7 @@ struct MemberStep1HabitsView: View {
     }
 
     private var selectedCoreHabitCount: Int {
-        coordinator.selectedHabits.filter { coreHabits.contains($0) }.count
+        coordinator.selectedCircleHabits.filter { coreHabits.contains($0) }.count
     }
 
     var body: some View {
@@ -83,14 +83,14 @@ struct MemberStep1HabitsView: View {
                                 .padding(.horizontal, 24)
 
                                 ForEach(coreHabits, id: \.self) { habitName in
-                                    let isSelected = coordinator.selectedHabits.contains(habitName)
+                                    let isSelected = coordinator.selectedCircleHabits.contains(habitName)
                                     let icon = AmiirOnboardingCoordinator.curatedHabits.first { $0.name == habitName }?.icon ?? "star.fill"
 
                                     Button {
                                         if isSelected {
-                                            coordinator.selectedHabits.remove(habitName)
+                                            coordinator.selectedCircleHabits.remove(habitName)
                                         } else {
-                                            coordinator.selectedHabits.insert(habitName)
+                                            coordinator.selectedCircleHabits.insert(habitName)
                                         }
                                     } label: {
                                         coreHabitRow(name: habitName, icon: icon, isSelected: isSelected)
@@ -115,12 +115,12 @@ struct MemberStep1HabitsView: View {
                                 spacing: 10
                             ) {
                                 ForEach(additionalHabits, id: \.name) { habit in
-                                    let isSelected = coordinator.selectedHabits.contains(habit.name)
+                                    let isSelected = coordinator.selectedCircleHabits.contains(habit.name)
                                     Button {
                                         if isSelected {
-                                            coordinator.selectedHabits.remove(habit.name)
+                                            coordinator.selectedCircleHabits.remove(habit.name)
                                         } else {
-                                            coordinator.selectedHabits.insert(habit.name)
+                                            coordinator.selectedCircleHabits.insert(habit.name)
                                         }
                                     } label: {
                                         HStack(spacing: 8) {
@@ -160,20 +160,20 @@ struct MemberStep1HabitsView: View {
                                             .focused($isCustomFieldFocused)
                                             .tint(customTrimmed.isEmpty ? Color.msGold : Color.msBackground)
                                             .onChange(of: customInput) { _, newValue in
-                                                let previousCustoms = coordinator.selectedHabits.subtracting(knownHabitNames)
+                                                let previousCustoms = coordinator.selectedCircleHabits.subtracting(knownHabitNames)
                                                 for old in previousCustoms {
-                                                    coordinator.selectedHabits.remove(old)
+                                                    coordinator.selectedCircleHabits.remove(old)
                                                 }
 
                                                 let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
                                                 if !trimmed.isEmpty {
-                                                    coordinator.selectedHabits.insert(trimmed)
+                                                    coordinator.selectedCircleHabits.insert(trimmed)
                                                 }
                                             }
 
                                         if !customTrimmed.isEmpty {
                                             Button {
-                                                coordinator.selectedHabits.remove(customTrimmed)
+                                                coordinator.selectedCircleHabits.remove(customTrimmed)
                                                 customInput = ""
                                             } label: {
                                                 Image(systemName: "xmark.circle.fill")
@@ -252,7 +252,7 @@ struct MemberStep1HabitsView: View {
                             validationMessage = "Pick at least one circle habit first."
                         } else {
                             validationMessage = nil
-                            coordinator.proceedToLocation()
+                            coordinator.proceedToTransitionToPersonal()
                         }
                     } label: {
                         Text("I'm In")
