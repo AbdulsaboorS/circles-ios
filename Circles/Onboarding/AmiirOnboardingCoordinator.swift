@@ -175,6 +175,7 @@ final class AmiirOnboardingCoordinator {
 
     func completeOnboarding(userId: UUID) {
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(userId.uuidString)")
+        UserDefaults.standard.set(true, forKey: "should_show_invite_nudge_\(userId.uuidString)")
         isComplete = true
     }
 

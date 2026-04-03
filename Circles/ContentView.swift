@@ -7,86 +7,102 @@ struct ContentView: View {
     @Environment(\.pendingInviteCode) private var pendingInviteCode
 
     @State private var amiirCoordinator = AmiirOnboardingCoordinator()
-    @State private var memberCoordinator: MemberOnboardingCoordinator? = nil
-    @State private var showJoinSheet = false
+    @State private var memberCoordinator = MemberOnboardingCoordinator()
+    @State private var isFlushingToSupabase = false
+
+    /// True when the active flow is Joiner (member)
+    private var isJoinerFlow: Bool {
+        amiirCoordinator.shouldSwitchToJoinerFlow || pendingInviteCode != nil
+    }
 
     var body: some View {
         Group {
             if auth.isLoading {
                 loadingScreen
-            } else if !auth.isAuthenticated {
-                // Unauthenticated: show circle preview if invite link, else plain auth
-                if let code = pendingInviteCode {
-                    CirclePreviewView(inviteCode: code)
-                } else {
-                    AuthView()
-                }
-            } else if let userId = auth.session?.user.id,
-                      !AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) {
-                // New user: choose Amir or Member flow
-                if let coord = memberCoordinator, !coord.isComplete {
-                    // Member/Joiner flow (has invite code)
-                    MemberOnboardingFlowView()
-                        .environment(coord)
-                        .environment(auth)
-                } else if !amiirCoordinator.isComplete {
-                    // Amir/Creator flow (no invite code)
-                    AmiirOnboardingFlowView()
-                        .environment(amiirCoordinator)
-                        .environment(auth)
-                } else {
-                    // Amir just completed → Home tab
-                    MainTabView(initialTab: 0)
-                }
-            } else if memberCoordinator?.isComplete == true {
-                // Member just completed → Circles tab
-                MainTabView(initialTab: 1)
+            } else if auth.isAuthenticated {
+                authenticatedRouting
             } else {
-                // Returning user → Circles tab
-                // If they opened an invite link, surface JoinCircleView on top
-                MainTabView(initialTab: 1)
-                    .sheet(isPresented: $showJoinSheet, onDismiss: { showJoinSheet = false }) {
-                        JoinFromLinkView(inviteCode: pendingInviteCode ?? "")
-                            .environment(auth)
-                    }
+                unauthenticatedOnboarding
             }
         }
         .preferredColorScheme(themeManager.colorScheme)
         .onChange(of: auth.isAuthenticated) { _, isAuthenticated in
             guard isAuthenticated, let userId = auth.session?.user.id else { return }
-            // When user just signed in with a pending invite code → start Member flow
-            if let code = pendingInviteCode,
-               !AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) {
-                memberCoordinator = MemberOnboardingCoordinator(inviteCode: code)
-            }
+            handlePostAuth(userId: userId)
         }
         .onChange(of: pendingInviteCode) { _, code in
-            guard code != nil,
-                  let userId = auth.session?.user.id,
-                  AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) else { return }
-            // Returning user opened an invite link → show join sheet
-            showJoinSheet = true
+            if let code, !code.isEmpty {
+                memberCoordinator.inviteCodeInput = code
+                if !amiirCoordinator.shouldSwitchToJoinerFlow {
+                    amiirCoordinator.shouldSwitchToJoinerFlow = true
+                }
+            }
         }
         .onAppear {
-            // Handle case where user is already authenticated with a pending invite code
-            if let userId = auth.session?.user.id {
-                if let code = pendingInviteCode,
-                   !AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId),
-                   memberCoordinator == nil {
-                    memberCoordinator = MemberOnboardingCoordinator(inviteCode: code)
-                } else if pendingInviteCode != nil,
-                          AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) {
-                    showJoinSheet = true
-                }
+            if let code = pendingInviteCode, !code.isEmpty {
+                memberCoordinator.inviteCodeInput = code
+                amiirCoordinator.shouldSwitchToJoinerFlow = true
             }
         }
     }
 
+    // MARK: - Authenticated routing
+
+    @ViewBuilder
+    private var authenticatedRouting: some View {
+        if let userId = auth.session?.user.id {
+            if AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) {
+                MainTabView(initialTab: 1)
+            } else if isFlushingToSupabase {
+                loadingScreen
+            } else if amiirCoordinator.isComplete || memberCoordinator.isComplete {
+                let tab = memberCoordinator.isComplete ? 1 : 0
+                MainTabView(initialTab: tab)
+            } else {
+                loadingScreen
+            }
+        } else {
+            loadingScreen
+        }
+    }
+
+    // MARK: - Unauthenticated onboarding
+
+    @ViewBuilder
+    private var unauthenticatedOnboarding: some View {
+        if isJoinerFlow {
+            MemberOnboardingFlowView()
+                .environment(memberCoordinator)
+                .environment(auth)
+        } else {
+            AmiirOnboardingFlowView()
+                .environment(amiirCoordinator)
+                .environment(auth)
+        }
+    }
+
+    // MARK: - Post-auth flush
+
+    private func handlePostAuth(userId: UUID) {
+        guard !AmiirOnboardingCoordinator.hasCompletedOnboarding(userId: userId) else { return }
+        isFlushingToSupabase = true
+        Task {
+            if isJoinerFlow {
+                await memberCoordinator.flushToSupabase(userId: userId)
+            } else {
+                await amiirCoordinator.flushToSupabase(userId: userId)
+            }
+            isFlushingToSupabase = false
+        }
+    }
+
+    // MARK: - Loading screen
+
     private var loadingScreen: some View {
         ZStack {
-            Color.lightBackground.ignoresSafeArea()
+            Color(hex: "1A2E1E").ignoresSafeArea()
             ProgressView()
-                .tint(Color.accent)
+                .tint(Color(hex: "D4A240"))
                 .scaleEffect(1.4)
         }
     }

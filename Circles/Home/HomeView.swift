@@ -21,6 +21,9 @@ struct HomeView: View {
     @State private var preferredName: String = "Friend"
     @State private var showAddIntention = false
     @State private var navigationPath = NavigationPath()
+    @State private var showInviteNudge = false
+    @State private var showNudgeShare = false
+    @State private var nudgeInviteURL: URL = URL(string: "https://joinlegacy.app")!
 
     private let islamicQuotes = [
         "\"Verily, in the remembrance of Allah do hearts find rest.\"",
@@ -57,6 +60,12 @@ struct HomeView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 32)
 
+                        if showInviteNudge {
+                            inviteNudgeBanner
+                                .padding(.bottom, 20)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+
                         habitsSection
                             .padding(.horizontal, 20)
                             .padding(.bottom, 100)
@@ -81,6 +90,7 @@ struct HomeView: View {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadAll(userId: userId)
                 await loadPreferredName(userId: userId)
+                await loadNudgeState(userId: userId)
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") { viewModel.errorMessage = nil }
@@ -315,6 +325,75 @@ struct HomeView: View {
         if let name = rows.first?.preferred_name, !name.isEmpty {
             preferredName = name
         }
+    }
+
+    private func loadNudgeState(userId: UUID) async {
+        let shouldShow = UserDefaults.standard.bool(forKey: "should_show_invite_nudge_\(userId.uuidString)")
+        let isDismissed = UserDefaults.standard.bool(forKey: "invite_nudge_dismissed_\(userId.uuidString)")
+        guard shouldShow && !isDismissed else { return }
+        showInviteNudge = true
+        // Fetch invite URL from owned circle
+        if let circles = try? await CircleService.shared.fetchMyCircles(userId: userId),
+           let ownedCircle = circles.first,
+           let code = ownedCircle.inviteCode {
+            nudgeInviteURL = URL(string: "circles://join/\(code)") ?? URL(string: "https://joinlegacy.app")!
+        }
+    }
+
+    // MARK: - Invite Nudge Banner
+
+    private var inviteNudgeBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.badge.plus")
+                .font(.system(size: 20))
+                .foregroundStyle(Color.msGold)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Activate your group streak")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.msTextPrimary)
+                Text("Invite 2 brothers/sisters to begin.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.msTextMuted)
+            }
+            Spacer()
+
+            Button {
+                showNudgeShare = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.msBackground)
+                    .frame(width: 34, height: 34)
+                    .background(Color.msGold, in: SwiftUI.Circle())
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showNudgeShare) {
+                ShareSheet(url: nudgeInviteURL)
+                    .presentationDetents([.medium, .large])
+            }
+
+            Button {
+                withAnimation {
+                    showInviteNudge = false
+                }
+                if let userId = auth.session?.user.id {
+                    UserDefaults.standard.set(true, forKey: "invite_nudge_dismissed_\(userId.uuidString)")
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.msTextMuted)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.msCardShared)
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
+        )
+        .padding(.horizontal, 16)
     }
 }
 
