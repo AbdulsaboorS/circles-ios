@@ -139,7 +139,7 @@ struct AmiirStep2HabitsView: View {
                     StepIndicator(current: 1, total: 7)
 
                     Button {
-                        coordinator.proceedToTransitionToPersonal()
+                        coordinator.proceedToTransitionToAI()
                     } label: {
                         Text("Build the Foundation")
                             .font(.system(size: 17, weight: .semibold))
@@ -157,7 +157,6 @@ struct AmiirStep2HabitsView: View {
                 .background(Color.msBackground)
             }
         }
-        .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {

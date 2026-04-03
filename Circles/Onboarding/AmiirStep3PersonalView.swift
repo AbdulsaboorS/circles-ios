@@ -162,7 +162,6 @@ struct AmiirStep3PersonalView: View {
                 .background(Color.msBackground)
             }
         }
-        .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {

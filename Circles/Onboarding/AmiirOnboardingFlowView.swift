@@ -16,12 +16,12 @@ struct AmiirOnboardingFlowView: View {
                     case .circleIdentity:
                         AmiirStep1IdentityView()
                     case .transitionToPersonal:
-                        // "Iron sharpens iron" — shown after habits, leads into circle creation
+                        // Islamic brotherhood quote — shown after circle creation, leads into habits
                         OnboardingTransitionView(
                             quote: OnboardingTransitionQuote.amirSharedToPrivate,
                             attribution: nil
                         ) {
-                            coordinator.proceedToIdentity()
+                            coordinator.proceedToStruggle()
                         }
                     case .personalIntentions:
                         AmiirStep3PersonalView()

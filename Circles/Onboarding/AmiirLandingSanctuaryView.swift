@@ -48,7 +48,7 @@ struct AmiirLandingSanctuaryView: View {
 
                 VStack(spacing: 14) {
                     Button {
-                        coordinator.proceedToStruggle()
+                        coordinator.proceedToIdentity()
                     } label: {
                         Text("Build My Circle")
                             .font(.system(size: 17, weight: .semibold))

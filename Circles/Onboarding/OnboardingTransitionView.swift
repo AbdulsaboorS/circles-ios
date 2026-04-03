@@ -9,7 +9,7 @@ private extension Color {
 
 /// Shared transition quotes used between onboarding steps.
 enum OnboardingTransitionQuote {
-    static let amirSharedToPrivate = "Iron sharpens iron. We were never meant to grow alone."
+    static let amirSharedToPrivate = "The believers, in their mutual love and mercy, are like one body — when one part hurts, the whole body responds."
     static let amirPrivateToAI = "Some growth is shared; some is between you and your Creator."
     static let joinerSharedToPrivate = "Shared growth is powerful, but some habits are just for you and Allah."
 }

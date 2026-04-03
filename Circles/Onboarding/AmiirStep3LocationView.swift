@@ -172,7 +172,6 @@ struct AmiirStep3LocationView: View {
                     .padding(.bottom, 16)
             }
         }
-        .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {

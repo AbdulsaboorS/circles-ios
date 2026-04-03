@@ -19,6 +19,9 @@ struct AmiirActivationView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var revealPreview = false
+    @State private var showTestSection = false
+    @State private var testUsername = ""
+    @State private var isLoadingTest = false
 
     var body: some View {
         ZStack {
@@ -82,6 +85,49 @@ struct AmiirActivationView: View {
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { showTestSection.toggle() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Rectangle().fill(Color.msTextMuted.opacity(0.25)).frame(height: 1)
+                            Text("test account")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.msTextMuted.opacity(0.6))
+                            Rectangle().fill(Color.msTextMuted.opacity(0.25)).frame(height: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if showTestSection {
+                        VStack(spacing: 10) {
+                            TextField("Username (e.g. amir1)", text: $testUsername)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .foregroundStyle(Color.msTextPrimary)
+                                .padding(12)
+                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.msBorder, lineWidth: 1))
+                                .tint(Color.msGold)
+
+                            Button {
+                                Task { await handleTestAuth() }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    if isLoadingTest { ProgressView().tint(Color.msBackground).scaleEffect(0.8) }
+                                    Text("Enter as \(testUsername.isEmpty ? "..." : testUsername)")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(Color.msBackground)
+                                }
+                                .frame(maxWidth: .infinity).frame(height: 46)
+                                .background(Color.msGold, in: RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isLoadingTest || testUsername.isEmpty)
+                            .opacity((isLoadingTest || testUsername.isEmpty) ? 0.5 : 1)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
 
                     if showError {
                         Text(errorMessage)
@@ -154,6 +200,22 @@ struct AmiirActivationView: View {
             }
 
             Spacer()
+        }
+    }
+
+    @MainActor
+    private func handleTestAuth() async {
+        isLoadingTest = true
+        defer { isLoadingTest = false }
+        let normalized = testUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().replacingOccurrences(of: " ", with: "")
+        let email = "\(normalized)@circles.test"
+        let password = "circles123"
+        do {
+            do { try await SupabaseService.shared.client.auth.signUp(email: email, password: password) }
+            catch { try await SupabaseService.shared.client.auth.signIn(email: email, password: password) }
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
         }
     }
 
