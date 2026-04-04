@@ -144,7 +144,7 @@ struct JoinerPersonalHabitsView: View {
                     StepIndicator(current: 3, total: 7)
 
                     Button {
-                        coordinator.proceedToTransitionToAI()
+                        coordinator.proceedToAIGeneration()
                     } label: {
                         Text("Continue")
                             .font(.system(size: 17, weight: .semibold))
@@ -173,7 +173,7 @@ struct JoinerPersonalHabitsView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Skip") {
-                    coordinator.proceedToTransitionToAI()
+                    coordinator.proceedToAIGeneration()
                 }
                 .font(.appSubheadline)
                 .foregroundStyle(Color.msTextMuted)

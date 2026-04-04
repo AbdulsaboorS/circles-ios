@@ -91,6 +91,16 @@ struct JoinerLandingView: View {
             }
         }
         .navigationBarBackButtonHidden()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    coordinator.onBack?()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .foregroundStyle(Color.msGold)
+                }
+            }
+        }
         .onAppear {
             animating = true
             if !coordinator.inviteCodeInput.isEmpty && coordinator.circle == nil {

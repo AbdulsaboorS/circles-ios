@@ -1,34 +1,71 @@
-# Handoff — 2026-04-03
+# Handoff — 2026-04-03 (Session End: Context Limit)
 
 ## What Was Done This Session
 
-### Phase 11.3-06 Complete
-- ContentView rewritten with auth-last routing (no AuthView for new users)
-- HomeView invite nudge banner added post-onboarding
-- AmiirOnboardingCoordinator.completeOnboarding sets nudge flag
+### Phase 11.3 UAT + Bug Fixes
+- Ran full 12-test UAT for Phase 11.3. All 12 tests passed.
 
-### QA Fixes (mid-UAT)
-UAT file: `.planning/phases/11.3-onboarding-in-depth/11.3-UAT.md` (12 tests, all pending)
+**Amir flow fixes:**
+- `OnboardingTransitionView`: removed auto-advance timer; now tap-to-continue with "Tap to continue" hint
+- `AmiirStep2HabitsView`: added `navigationBarBackButtonHidden()` — was showing double back arrow
+- Back navigation through transition screens no longer gets stuck
 
-1. **Login CTA on Landing Sanctuary** — "Already have an account? Log in" → AuthView sheet
-2. **Test accounts** — username-only in AuthView + AmiirActivationView. Email: `{username}@circles.test`, password: `circles123`. signUp→signIn fallback.
-3. **Amir flow order** (corrected):
-   `Landing → Circle Creation → [Islamic quote] → Habits → [Some growth is private] → Personal → AI → Foundation → Activation`
-4. **Islamic quote** replacing "Iron sharpens iron": hadith on believers being one body
-5. **Back navigation** — removed navigationBarBackButtonHidden from Amir step views (habits, identity, personal, foundation). Kept on root, transitions, AI, activation.
+**Joiner flow fixes:**
+- Added `transitionToCircle` step: code lookup → Islamic quote ("believers like one body") → circle alignment
+- Removed `transitionToPersonal` (was causing double transition)
+- Transition now appears BEFORE personal habits: circleAlignment → transitionToAI → personalHabits → aiGeneration
+- Moved name field from `JoinerIdentityView` to `JoinerCircleAlignmentView`
+- `JoinerAIGenerationView`: fixed stuck-on-back — re-appear calls `onComplete()` immediately
+- Added back button on `JoinerLandingView` via `onBack` callback on coordinator
+
+**Roadmap generation banner:**
+- `RoadmapGenerationFlag.swift` — timestamp-based UserDefaults flag (5-min staleness guard)
+- Set before background Task fires, cleared when Task completes (both coordinators)
+- `HomeView`: subtle pulsing banner while flag active; re-checked on task + refresh
+
+### Phase 11.4 Scoped
+- Created `.planning/phases/11.4-circle-moment/11.4-CONTEXT.md`
+- Added Phase 11.4 to ROADMAP.md
+
+---
 
 ## Current State
-- Build: SUCCEEDED, commit 727118e
-- Amir flow: fully wired, correct order, back nav works
-- Joiner flow: built but NOT tested yet
-- UAT: 12 tests, 0 completed
 
-## Next Step
-Resume UAT: `/gsd:verify-work 11.3` — picks up from existing UAT file.
-Then test Joiner flow (tests 7-8), returning user (9-10), nudge banner (11-12).
-If issues found: `/gsd:plan-phase 11.3 --gaps` → `/gsd:execute-phase 11.3 --gaps-only`
+### Build: ✅ SUCCEEDED
 
-## Open Issues
-- Joiner flow completely untested
-- JoinerAuthGateView still has navigationBarBackButtonHidden (back nav not enabled for Joiner)
-- All 12 UAT tests still pending
+### Open Issues
+- **Moment posting RLS bug** — `circle_moments` INSERT blocked by RLS. First task in Phase 11.4.
+- **Notification trigger** — not yet verified end-to-end
+- **11.3-UAT.md** — needs `status: complete` in frontmatter
+
+---
+
+## Exact Next Steps
+
+1. **Run `/gsd:discuss-phase 11.4`** to finalize scope
+2. **Fix RLS bug first:**
+   - Check `circle_moments` INSERT policy: `auth.uid() = user_id`
+   - Check `circle-moments` Storage bucket policy
+3. After RLS fix: verify moment posting works end-to-end
+4. Run `/gsd:plan-phase 11.4`
+
+---
+
+## Key Files Modified This Session
+- `Circles/Onboarding/OnboardingTransitionView.swift`
+- `Circles/Onboarding/AmiirStep2HabitsView.swift`
+- `Circles/Onboarding/MemberOnboardingCoordinator.swift`
+- `Circles/Onboarding/MemberOnboardingFlowView.swift`
+- `Circles/Onboarding/JoinerCircleAlignmentView.swift`
+- `Circles/Onboarding/JoinerIdentityView.swift`
+- `Circles/Onboarding/JoinerPersonalHabitsView.swift`
+- `Circles/Onboarding/JoinerAIGenerationView.swift`
+- `Circles/Onboarding/JoinerLandingView.swift`
+- `Circles/Onboarding/MemberStep1HabitsView.swift`
+- `Circles/ContentView.swift`
+- `Circles/Services/RoadmapGenerationFlag.swift` — NEW
+- `Circles/Home/HomeView.swift`
+- `Circles/Onboarding/AmiirOnboardingCoordinator.swift`
+- `.planning/ROADMAP.md`
+- `.planning/phases/11.4-circle-moment/11.4-CONTEXT.md` — NEW
+- `.planning/phases/11.3-onboarding-in-depth/11.3-UAT.md`

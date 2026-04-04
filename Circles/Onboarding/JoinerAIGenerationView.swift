@@ -58,7 +58,11 @@ struct JoinerAIGenerationView: View {
         .navigationBarBackButtonHidden()
         .onAppear {
             pulse = true
-            guard !hasStarted else { return }
+            if hasStarted {
+                // Re-appearing after back navigation — push forward immediately
+                onComplete()
+                return
+            }
             hasStarted = true
             Task { await coordinator.fireBackgroundPlans() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {

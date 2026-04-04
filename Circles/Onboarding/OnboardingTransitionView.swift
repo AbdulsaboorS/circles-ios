@@ -20,7 +20,6 @@ struct OnboardingTransitionView: View {
     let onSkip: () -> Void
 
     @State private var opacity: Double = 0
-    @State private var hasCompleted = false
 
     var body: some View {
         ZStack {
@@ -44,26 +43,22 @@ struct OnboardingTransitionView: View {
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                 }
+
+                Text("Tap to continue")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.msTextMuted.opacity(0.6))
+                    .padding(.top, 12)
             }
             .opacity(opacity)
             .animation(.easeIn(duration: 0.4), value: opacity)
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            completeIfNeeded()
+            onSkip()
         }
         .onAppear {
             opacity = 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                completeIfNeeded()
-            }
         }
         .navigationBarBackButtonHidden()
-    }
-
-    private func completeIfNeeded() {
-        guard !hasCompleted else { return }
-        hasCompleted = true
-        onSkip()
     }
 }

@@ -176,6 +176,21 @@ Plans:
 
 ---
 
+## Phase 11.4 — Circle Moment (BeReal Mechanic) ⬜ Planned
+**Scope:** Finalize the core Circle Moment feature end-to-end.
+- Fix RLS bug blocking `circle_moments` insert (blocker)
+- Prayer-time notification trigger: 30-min window, randomized across daily prayers
+- Dual camera capture polish: shutter UX, front/back composited preview
+- Preview screen: "Share to all circles" disclaimer, Post CTA
+- Post flow: Storage upload + DB insert + error handling
+- Feed card: dual image layout, late badge (🕰, not shaming), reactions
+- Late posting: always allowed, encouraged, badge only
+- No retake tracking, no hard window block
+
+**Plans:** TBD — run `/gsd:discuss-phase 11.4` first to finalize scope, then `/gsd:plan-phase 11.4`
+
+---
+
 ## Phase 12 — Muslim-Native UX Polish + App Store ⬜ Planned
 **Scope:** Final pass before submission.
 - Full copy audit across every screen

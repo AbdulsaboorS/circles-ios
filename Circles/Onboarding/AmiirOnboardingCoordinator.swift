@@ -158,10 +158,12 @@ final class AmiirOnboardingCoordinator {
 
             // 5. Fire AI roadmap generation (background, non-blocking)
             let habitsForPlan = createdHabitsInSession
+            RoadmapGenerationFlag.set(userId: userId)
             Task {
                 for habit in habitsForPlan {
                     await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
                 }
+                RoadmapGenerationFlag.clear(userId: userId)
             }
 
             // 6. Mark complete + clear pending state

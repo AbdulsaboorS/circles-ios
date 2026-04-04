@@ -11,16 +11,16 @@ struct MemberOnboardingFlowView: View {
             JoinerLandingView()
                 .navigationDestination(for: MemberOnboardingCoordinator.Step.self) { step in
                     switch step {
-                    case .circleAlignment:
-                        JoinerCircleAlignmentView()
-
-                    case .transitionToPersonal:
+                    case .transitionToCircle:
                         OnboardingTransitionView(
-                            quote: OnboardingTransitionQuote.joinerSharedToPrivate,
+                            quote: OnboardingTransitionQuote.amirSharedToPrivate,
                             attribution: nil
                         ) {
-                            coordinator.proceedToPersonalHabits()
+                            coordinator.proceedToCircleAlignment()
                         }
+
+                    case .circleAlignment:
+                        JoinerCircleAlignmentView()
 
                     case .personalHabits:
                         JoinerPersonalHabitsView()
@@ -30,7 +30,7 @@ struct MemberOnboardingFlowView: View {
                             quote: OnboardingTransitionQuote.amirPrivateToAI,
                             attribution: nil
                         ) {
-                            coordinator.proceedToAIGeneration()
+                            coordinator.proceedToPersonalHabits()
                         }
 
                     case .aiGeneration:

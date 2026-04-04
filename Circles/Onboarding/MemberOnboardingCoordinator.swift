@@ -7,13 +7,13 @@ import Supabase
 final class MemberOnboardingCoordinator {
 
     enum Step: Hashable {
+        case transitionToCircle    // Islamic transition (before circle preview)
         case circleAlignment       // Step 2: Rich circle preview + habit selection
-        case transitionToPersonal  // Islamic transition
-        case personalHabits        // Step 4: Private habits, max 2
-        case transitionToAI        // Islamic transition
-        case aiGeneration          // Step 5: Background AI generation
-        case identity              // Step 6: Name + location + push ask
-        case authGate              // Step 7: Auth gate
+        case personalHabits        // Step 3: Private habits, max 2
+        case transitionToAI        // Islamic transition (after personal habits)
+        case aiGeneration          // Step 4: Background AI generation
+        case identity              // Step 5: Location + push ask
+        case authGate              // Step 6: Auth gate
     }
 
     // MARK: - Input
@@ -30,6 +30,9 @@ final class MemberOnboardingCoordinator {
     var cityTimezone: String = ""
     var cityLatitude: Double = 0
     var cityLongitude: Double = 0
+
+    // MARK: - Back to Amir flow
+    var onBack: (() -> Void)? = nil
 
     // MARK: - Navigation
     var navigationPath: [Step] = []
@@ -58,8 +61,8 @@ final class MemberOnboardingCoordinator {
         defer { isLoading = false }
         do {
             circle = try await CircleService.shared.fetchCircleByCode(trimmed)
-            if navigationPath.last != .circleAlignment {
-                navigationPath.append(.circleAlignment)
+            if navigationPath.last != .transitionToCircle {
+                navigationPath.append(.transitionToCircle)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -69,10 +72,6 @@ final class MemberOnboardingCoordinator {
     // MARK: - Navigation Helpers
     func proceedToCircleAlignment() {
         navigationPath.append(.circleAlignment)
-    }
-
-    func proceedToTransitionToPersonal() {
-        navigationPath.append(.transitionToPersonal)
     }
 
     func proceedToPersonalHabits() {
@@ -143,10 +142,12 @@ final class MemberOnboardingCoordinator {
 
             // 5. Fire AI plans (background, non-blocking)
             let habitsForPlan = created
+            RoadmapGenerationFlag.set(userId: userId)
             Task {
                 for habit in habitsForPlan {
                     await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
                 }
+                RoadmapGenerationFlag.clear(userId: userId)
             }
 
             // 6. Complete + clear pending state

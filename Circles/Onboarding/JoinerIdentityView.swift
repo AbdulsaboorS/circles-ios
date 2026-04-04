@@ -26,8 +26,6 @@ struct JoinerIdentityView: View {
     }
 
     var body: some View {
-        @Bindable var coord = coordinator
-
         ZStack {
             Color.msBackground.ignoresSafeArea()
 
@@ -43,31 +41,12 @@ struct JoinerIdentityView: View {
                         .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
 
-                    Text("Your name and city help us sync your prayer window.")
+                    Text("Your city helps us sync your prayer window.")
                         .font(.system(size: 15))
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 }
-                .padding(.bottom, 12)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Your Name")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color.msTextMuted)
-                        .textCase(.uppercase)
-                        .tracking(0.6)
-
-                    TextField("e.g. Omar", text: $coord.preferredName)
-                        .textInputAutocapitalization(.words)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Color.msTextPrimary)
-                        .padding(14)
-                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
-                        .tint(Color.msGold)
-                }
-                .padding(.horizontal, 20)
                 .padding(.bottom, 12)
 
                 if !pushRequested {

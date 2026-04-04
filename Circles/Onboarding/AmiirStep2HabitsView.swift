@@ -157,6 +157,7 @@ struct AmiirStep2HabitsView: View {
                 .background(Color.msBackground)
             }
         }
+        .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {

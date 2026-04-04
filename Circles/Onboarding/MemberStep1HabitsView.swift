@@ -252,7 +252,7 @@ struct MemberStep1HabitsView: View {
                             validationMessage = "Pick at least one circle habit first."
                         } else {
                             validationMessage = nil
-                            coordinator.proceedToTransitionToPersonal()
+                            coordinator.proceedToPersonalHabits()
                         }
                     } label: {
                         Text("I'm In")

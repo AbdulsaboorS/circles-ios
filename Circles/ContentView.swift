@@ -74,6 +74,11 @@ struct ContentView: View {
             MemberOnboardingFlowView()
                 .environment(memberCoordinator)
                 .environment(auth)
+                .onAppear {
+                    memberCoordinator.onBack = {
+                        amiirCoordinator.shouldSwitchToJoinerFlow = false
+                    }
+                }
         } else {
             AmiirOnboardingFlowView()
                 .environment(amiirCoordinator)
