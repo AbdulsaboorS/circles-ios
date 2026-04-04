@@ -17,31 +17,60 @@ Deno.serve(async (_req) => {
   );
 
   const now = new Date();
+  const todayUTC = now.toISOString().slice(0, 10); // "YYYY-MM-DD"
   const windowMs = 2 * 60 * 1000; // ±2 minutes
 
-  // Fetch all circle memberships with user location + circle prayer_time
+  // Step 1: Get today's prayer from daily_moments
+  const { data: dailyMoment } = await supabase
+    .from("daily_moments")
+    .select("prayer_name")
+    .eq("date", todayUTC)
+    .maybeSingle();
+
+  if (!dailyMoment?.prayer_name) {
+    return new Response(
+      JSON.stringify({ message: "no prayer scheduled today", date: todayUTC }),
+      { headers: { "content-type": "application/json" } }
+    );
+  }
+
+  const prayerName: string = dailyMoment.prayer_name;
+
+  // Step 2: Fetch all users with location, joined with their circle memberships
   const { data: memberships } = await supabase
     .from("circle_members")
     .select(`
       user_id,
       circle_id,
-      circles!inner(id, name, prayer_time),
+      circles!inner(id, name),
       profiles!inner(latitude, longitude, timezone)
     `)
     .not("profiles.latitude", "is", null);
 
-  if (!memberships) return new Response("no memberships", { status: 200 });
+  if (!memberships || memberships.length === 0) {
+    return new Response(JSON.stringify({ sent: 0 }), {
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  // Step 3: Deduplicate — one notification per user (pick first circle for title)
+  const userMap = new Map<string, { lat: number; lng: number; circleName: string }>();
+  for (const m of memberships) {
+    if (!userMap.has(m.user_id)) {
+      const profile = m.profiles as { latitude: number; longitude: number; timezone: string };
+      const circle = m.circles as { name: string };
+      userMap.set(m.user_id, {
+        lat: profile.latitude,
+        lng: profile.longitude,
+        circleName: circle.name,
+      });
+    }
+  }
 
   const sent: string[] = [];
 
-  for (const m of memberships) {
-    const prayerName: string = (m.circles as { prayer_time: string }).prayer_time ?? "fajr";
-    const lat: number = (m.profiles as { latitude: number }).latitude;
-    const lng: number = (m.profiles as { longitude: number }).longitude;
-    const circleId: string = m.circle_id;
-    const circleName: string = (m.circles as { name: string }).name;
-    const userId: string = m.user_id;
-
+  for (const [userId, { lat, lng, circleName }] of userMap.entries()) {
+    // Step 4: Calculate prayer time for this user's location
     const times = getPrayerTimes(lat, lng, now);
     const prayerTime = times[prayerName as keyof typeof times];
     if (!prayerTime) continue;
@@ -49,7 +78,7 @@ Deno.serve(async (_req) => {
     const diff = Math.abs(now.getTime() - prayerTime.getTime());
     if (diff > windowMs) continue;
 
-    // Fetch device tokens for this user
+    // Step 5: Fetch device tokens and send notification
     const { data: tokens } = await supabase
       .from("device_tokens")
       .select("device_token")
@@ -58,16 +87,20 @@ Deno.serve(async (_req) => {
     if (!tokens?.length) continue;
 
     for (const { device_token } of tokens) {
-      await sendAPNs(device_token, {
-        title: circleName,
-        body: "Your circle's Moment window is open — 30 minutes to post!",
-        data: { circleId, type: "moment_window" },
-      }, apnsConfig);
+      await sendAPNs(
+        device_token,
+        {
+          title: circleName,
+          body: "Time to capture this moment. Your circle is waiting. \u2728",
+          data: { type: "moment_window" },
+        },
+        apnsConfig
+      );
     }
     sent.push(userId);
   }
 
-  return new Response(JSON.stringify({ sent: sent.length }), {
+  return new Response(JSON.stringify({ sent: sent.length, prayer: prayerName }), {
     headers: { "content-type": "application/json" },
   });
 });
