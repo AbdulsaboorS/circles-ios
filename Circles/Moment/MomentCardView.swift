@@ -36,42 +36,27 @@ struct MomentCardView: View {
     // MARK: - Unlocked Card
 
     private func unlockedCard(moment: CircleMoment) -> some View {
-        ZStack(alignment: .topTrailing) {
-            AsyncImage(url: URL(string: moment.photoUrl)) { phase in
-                switch phase {
-                case .empty:
-                    Color(hex: "1A1D35")
-                        .overlay(ProgressView().tint(.white))
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    Color(hex: "1A1D35")
-                        .overlay(
-                            Image(systemName: "photo.fill")
-                                .foregroundStyle(.white.opacity(0.3))
-                        )
-                @unknown default:
-                    Color(hex: "1A1D35")
-                }
-            }
-            .aspectRatio(3.0 / 4.0, contentMode: .fill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            // On-time star badge
-            if moment.isOnTime {
-                ZStack {
-                    SwiftUI.Circle()
-                        .fill(.white)
-                        .frame(width: 22, height: 22)
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "E8834B"))
-                }
-                .padding(6)
+        AsyncImage(url: URL(string: moment.photoUrl)) { phase in
+            switch phase {
+            case .empty:
+                Color(hex: "1A1D35")
+                    .overlay(ProgressView().tint(.white))
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+            case .failure:
+                Color(hex: "1A1D35")
+                    .overlay(
+                        Image(systemName: "photo.fill")
+                            .foregroundStyle(.white.opacity(0.3))
+                    )
+            @unknown default:
+                Color(hex: "1A1D35")
             }
         }
+        .aspectRatio(3.0 / 4.0, contentMode: .fill)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Locked Card

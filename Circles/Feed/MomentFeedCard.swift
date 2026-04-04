@@ -30,7 +30,7 @@ struct MomentFeedCard: View {
                     Color(hex: "243828")
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 420)
+                .aspectRatio(3.0 / 4.0, contentMode: .fill)
                 .clipped()
                 .blur(radius: isLocked ? 20 : 0)
 
@@ -93,27 +93,6 @@ struct MomentFeedCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(alignment: .topTrailing) {
-            HStack(spacing: 4) {
-                if item.isOnTime {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color(hex: "D4A240"))
-                    Text("Posted at \(DailyMomentService.shared.prayerDisplayName)")
-                        .font(.appCaption)
-                        .foregroundStyle(Color(hex: "D4A240"))
-                } else {
-                    Text("Posted late")
-                        .font(.appCaption)
-                        .foregroundStyle(Color(hex: "8FAF94"))
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color(hex: "243828").opacity(0.9), in: Capsule())
-            .overlay(Capsule().stroke(Color(hex: "D4A240").opacity(0.25), lineWidth: 1))
-            .padding(10)
-        }
     }
 
     private var displayName: String {

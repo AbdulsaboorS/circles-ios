@@ -32,6 +32,8 @@ struct ProfileView: View {
     @State private var editNameDraft: String = ""
     @State private var isSavingName = false
 
+    @State private var showSettingsSheet = false
+
     private var displayName: String {
         if let name = profile?.preferredName, !name.isEmpty { return name }
         return auth.session?.user.email?.components(separatedBy: "@").first ?? "Member"
@@ -52,7 +54,6 @@ struct ProfileView: View {
                     VStack(spacing: 24) {
                         avatarSection
                         statsCard
-                        settingsSection
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -62,6 +63,23 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showSettingsSheet = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(Color.msGold)
+                            .font(.system(size: 17))
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
+            .sheet(isPresented: $showSettingsSheet) {
+                settingsSheetContent
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
             .task {
                 await loadAll()
             }
@@ -188,9 +206,6 @@ struct ProfileView: View {
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
-            .sheet(isPresented: $showEditProfile) {
-                editProfileSheet
-            }
 
             Button {
                 Task { await auth.signOut() }
@@ -239,6 +254,28 @@ struct ProfileView: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Settings Sheet Content
+
+    private var settingsSheetContent: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackground.ignoresSafeArea()
+                ScrollView {
+                    settingsSection
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .sheet(isPresented: $showEditProfile) {
+                editProfileSheet
+            }
+        }
     }
 
     // MARK: - Edit Profile Sheet
@@ -377,6 +414,19 @@ struct ProfileView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
                     .background(Color.blue.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                DailyMomentService.shared.forceOpenWindow()
+            } label: {
+                Text("Force Open Moment Window")
+                    .font(.appCaption)
+                    .foregroundStyle(Color.orange)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color.orange.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)

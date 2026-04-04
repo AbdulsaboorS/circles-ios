@@ -64,6 +64,14 @@ final class DailyMomentService {
         hasPostedToday = true
     }
 
+    #if DEBUG
+    /// Forces the gate open immediately — sets windowStart to 1 minute ago, clears hasPostedToday.
+    func forceOpenWindow() {
+        windowStart = Date().addingTimeInterval(-60)
+        hasPostedToday = false
+    }
+    #endif
+
     // MARK: - Private Helpers
 
     private func fetchTodayPrayer() async -> String {

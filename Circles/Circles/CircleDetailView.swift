@@ -26,6 +26,7 @@ struct CircleDetailView: View {
     @State private var showCamera = false
     @State private var draftMoment: MomentDraft?
     @State private var showAmirSettings = false
+    @State private var allUserCircleIds: [UUID] = []
 
     @Environment(AuthManager.self) private var auth
 
@@ -150,6 +151,8 @@ struct CircleDetailView: View {
             isLoadingMembers = false
             let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: members.map { $0.userId })) ?? []
             memberProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+            let allCircles = try? await CircleService.shared.fetchMyCircles(userId: userId)
+            allUserCircleIds = (allCircles ?? [circle]).map { $0.id }
             startWindowTimer()
             await feedViewModel.loadInitial(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
         }
@@ -168,16 +171,27 @@ struct CircleDetailView: View {
                 image: draft.image,
                 onPost: { caption in
                     guard let userId = auth.session?.user.id else { return }
-                    let _ = try await MomentService.shared.postMoment(
+                    let postCircleIds = allUserCircleIds.isEmpty ? [circle.id] : allUserCircleIds
+                    let windowStartStr: String? = DailyMomentService.shared.windowStart.map {
+                        ISO8601DateFormatter().string(from: $0)
+                    }
+                    let result = try await MomentService.shared.postMomentToAllCircles(
                         image: draft.image,
-                        circleId: circle.id,
+                        circleIds: postCircleIds,
                         userId: userId,
                         caption: caption,
-                        windowStart: circle.momentWindowStart
+                        windowStart: windowStartStr
                     )
                     DailyMomentService.shared.markPostedToday()
                     await reloadCircleFromServer()
                     await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
+                    if result.isPartialSuccess {
+                        let failCount = result.failedCircleIds.count
+                        let total = result.totalCount
+                        throw NSError(domain: "MomentPost", code: 0, userInfo: [
+                            NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failCount) failed — tap Post again to retry."
+                        ])
+                    }
                 },
                 onRetake: {
                     draftMoment = nil
@@ -186,7 +200,7 @@ struct CircleDetailView: View {
                         showCamera = true
                     }
                 },
-                circleCount: 1
+                circleCount: max(1, allUserCircleIds.count)
             )
             .interactiveDismissDisabled(true)
         }

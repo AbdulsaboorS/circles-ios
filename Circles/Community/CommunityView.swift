@@ -83,33 +83,39 @@ struct CommunityView: View {
                 }
             }
             .sheet(item: $draftMoment) { draft in
-                if let circleId = viewModel.circles.first?.id {
-                    MomentPreviewView(
-                        image: draft.image,
-                        onPost: { caption in
-                            guard let userId = auth.session?.user.id else { return }
-                            _ = try await MomentService.shared.postMoment(
-                                image: draft.image,
-                                circleId: circleId,
-                                userId: userId,
-                                caption: caption,
-                                windowStart: viewModel.circles.first?.momentWindowStart
-                            )
-                            DailyMomentService.shared.markPostedToday()
-                            await loadGlobalFeed()
-                            await viewModel.loadCircles(userId: userId)
-                        },
-                        onRetake: {
-                            draftMoment = nil
-                            Task { @MainActor in
-                                await Task.yield()
-                                showGlobalCamera = true
-                            }
-                        },
-                        circleCount: viewModel.circles.count
-                    )
-                    .environment(auth)
-                }
+                MomentPreviewView(
+                    image: draft.image,
+                    onPost: { caption in
+                        guard let userId = auth.session?.user.id else { return }
+                        let circleIds = viewModel.circles.map { $0.id }
+                        let result = try await MomentService.shared.postMomentToAllCircles(
+                            image: draft.image,
+                            circleIds: circleIds,
+                            userId: userId,
+                            caption: caption,
+                            windowStart: viewModel.circles.first?.momentWindowStart
+                        )
+                        DailyMomentService.shared.markPostedToday()
+                        await loadGlobalFeed()
+                        await viewModel.loadCircles(userId: userId)
+                        if result.isPartialSuccess {
+                            let failCount = result.failedCircleIds.count
+                            let total = result.totalCount
+                            throw NSError(domain: "MomentPost", code: 0, userInfo: [
+                                NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failCount) failed — tap Post again to retry."
+                            ])
+                        }
+                    },
+                    onRetake: {
+                        draftMoment = nil
+                        Task { @MainActor in
+                            await Task.yield()
+                            showGlobalCamera = true
+                        }
+                    },
+                    circleCount: viewModel.circles.count
+                )
+                .environment(auth)
             }
             .onChange(of: viewModel.circles) { _, _ in
                 Task { await loadGlobalFeed() }

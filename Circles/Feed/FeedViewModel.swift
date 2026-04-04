@@ -37,7 +37,11 @@ final class FeedViewModel {
         hasMorePages = true
         do {
             let firstPage = try await FeedService.shared.fetchFeedPage(circleIds: circleIds, page: 0, pageSize: pageSize)
-            items = firstPage
+            // Pin own moments to top in single-circle feed
+            let sorted = singleCircleId != nil
+                ? Self.pinOwnMoments(firstPage, currentUserId: currentUserId)
+                : firstPage
+            items = sorted
             hasMorePages = firstPage.count == pageSize
 
             // Reciprocity gate: only relevant for single-circle views
@@ -138,6 +142,21 @@ final class FeedViewModel {
             // If stricter revert is needed, reload reactions for this item
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Own-Moment Pinning
+
+    /// Moves the current user's moment items to the front, preserving relative order.
+    private static func pinOwnMoments(_ items: [FeedItem], currentUserId: UUID) -> [FeedItem] {
+        let ownMoments = items.filter {
+            if case .moment(let m) = $0 { return m.userId == currentUserId }
+            return false
+        }
+        let others = items.filter {
+            if case .moment(let m) = $0 { return m.userId != currentUserId }
+            return true
+        }
+        return ownMoments + others
     }
 
     // MARK: - Helpers

@@ -268,6 +268,13 @@ status: "Waves 1+2 Complete — 11.3-06 remaining"
 
 - Schema-related failures get friendly text via `HabitPlanService.userFacingMessage(from:)`. Raw `localizedDescription` still appears for some URLErrors (-1011).
 
+### F. Habit check-in → feed deduplication (deferred — Phase 12 polish)
+
+- **Symptom:** Toggling a habit checked → unchecked → checked multiple times inserts a new `activity_feed` row each time the habit is checked, producing duplicate feed cards for the same habit on the same day.
+- **Root cause:** `HabitService.broadcastHabitCompletion` inserts unconditionally — no guard checking if a row for `(user_id, habit_id, today)` already exists.
+- **Fix (when scheduled):** Before inserting, query `activity_feed` for an existing row with matching `user_id`, `habit_id`, and `created_at::date = today`. Skip insert if row exists. Keep the toggle itself — just cap the broadcast at 1 per habit per day.
+- **Scope:** `HabitService.broadcastHabitCompletion` + consider a DB-level unique index on `(user_id, source_id, created_at::date)` filtered to `post_type = 'habit_checkin'`.
+
 ### E. Moment posting / compositing follow-up
 
 - Camera-state bugs were fixed in Phase 11.2, but real posting should be verified during an actual prayer window instead of a forced debug-style path.
