@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import Combine
 
 // MARK: - Midnight Sanctuary tokens
 
@@ -17,6 +18,7 @@ struct MomentCameraView: View {
     @State private var cameraManager = CameraManager()
     @State private var flashOpacity: Double = 0
     @State private var isShutterPressed: Bool = false
+    @State private var windowSecondsRemaining: Int = 0
     
     private var isCaptureReady: Bool {
         cameraManager.permissionGranted && cameraManager.isSessionReady
@@ -44,6 +46,10 @@ struct MomentCameraView: View {
         .task {
             cameraManager.resetCapture()
             cameraManager.checkPermission()
+            updateWindowCountdown()
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            updateWindowCountdown()
         }
         .onChange(of: cameraManager.capturedImage) { _, image in
             if let image {
@@ -58,7 +64,7 @@ struct MomentCameraView: View {
     // MARK: - Camera Viewfinder
 
     private var cameraViewfinderView: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .top) {
             // Rear camera fills entire screen
             Color.black.ignoresSafeArea()
 
@@ -91,18 +97,31 @@ struct MomentCameraView: View {
                 .ignoresSafeArea()
             }
 
-            // Cancel button — top-right
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
+            // Top bar: countdown (left) + cancel (right)
+            HStack {
+                if windowSecondsRemaining > 0 {
+                    let mins = windowSecondsRemaining / 60
+                    let secs = windowSecondsRemaining % 60
+                    Label(String(format: "%02d:%02d", mins, secs), systemImage: "clock")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.msGold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Cancel camera")
             }
             .padding(.top, 16)
-            .padding(.trailing, 16)
-            .accessibilityLabel("Cancel camera")
+            .padding(.horizontal, 16)
 
             // Bottom controls
             VStack {
@@ -160,6 +179,14 @@ struct MomentCameraView: View {
                 .onEnded { _ in isShutterPressed = false }
         )
         .accessibilityLabel("Take Moment photo")
+    }
+
+    private func updateWindowCountdown() {
+        guard let start = DailyMomentService.shared.windowStart else {
+            windowSecondsRemaining = 0; return
+        }
+        let windowEnd = start.addingTimeInterval(30 * 60)
+        windowSecondsRemaining = max(0, Int(windowEnd.timeIntervalSince(Date())))
     }
 
     private func triggerCapture() {

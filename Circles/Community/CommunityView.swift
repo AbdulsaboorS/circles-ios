@@ -96,7 +96,7 @@ struct CommunityView: View {
                             windowStart: viewModel.circles.first?.momentWindowStart
                         )
                         DailyMomentService.shared.markPostedToday()
-                        await loadGlobalFeed()
+                        await feedViewModel.refresh(circleIds: circleIds, currentUserId: userId)
                         await viewModel.loadCircles(userId: userId)
                         if result.isPartialSuccess {
                             let failCount = result.failedCircleIds.count
@@ -200,7 +200,8 @@ struct CommunityView: View {
                             FeedView(
                                 circleIds: viewModel.circles.map { $0.id },
                                 currentUserId: userId,
-                                viewModel: feedViewModel
+                                viewModel: feedViewModel,
+                                showFilterTabs: true
                             )
                             .padding(.top, 8)
                             .padding(.bottom, 24)

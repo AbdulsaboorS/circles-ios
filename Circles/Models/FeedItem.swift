@@ -3,11 +3,13 @@ import Foundation
 // MARK: - Associated value types for each feed item variant
 
 struct MomentFeedItem: Identifiable, Sendable {
-    let id: UUID          // circle_moments.id
-    let circleId: UUID
+    let id: UUID          // circle_moments.id (first row after dedup)
+    let circleId: UUID    // primary circle — used for comment threading
     let userId: UUID
     let userName: String  // display name — fetched alongside (see FeedService note)
-    let circleName: String
+    let circleName: String  // primary circle name (= circleNames[0])
+    let circleIds: [UUID]   // all circles this photo was posted to
+    let circleNames: [String] // all circle names (parallel to circleIds)
     let photoUrl: String
     let caption: String?
     let postedAt: String  // ISO8601 string, per project date-as-string convention

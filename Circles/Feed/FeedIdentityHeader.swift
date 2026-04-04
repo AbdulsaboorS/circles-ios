@@ -3,7 +3,7 @@ import SwiftUI
 struct FeedIdentityHeader: View {
     let avatarUrl: String?
     let displayName: String
-    let circleName: String
+    let circleName: String?
     let timestamp: String
 
     var body: some View {
@@ -17,7 +17,7 @@ struct FeedIdentityHeader: View {
                         .foregroundStyle(Color(hex: "F0EAD6"))
                         .lineLimit(1)
 
-                    if !circleName.isEmpty {
+                    if let circleName, !circleName.isEmpty {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .bold))

@@ -94,6 +94,7 @@ final class FeedViewModel {
     }
 
     func refresh(circleIds: [UUID], currentUserId: UUID, singleCircleId: UUID? = nil) async {
+        isLoadingInitial = false  // allow reload even if a prior load is in flight
         items = []
         reactions = [:]
         reactionProfiles = [:]

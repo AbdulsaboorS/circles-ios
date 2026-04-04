@@ -8,19 +8,55 @@ struct MomentFeedCard: View {
     @Bindable var viewModel: FeedViewModel
     var onComment: (() -> Void)? = nil
 
-    var isLocked: Bool { !hasPostedToday && item.userId != currentUserId }
+    @State private var circleListExpanded = false
+
+    var isOwnPost: Bool { item.userId == currentUserId }
+    var isLocked: Bool { !hasPostedToday && !isOwnPost }
 
     var body: some View {
         VStack(spacing: 0) {
             FeedIdentityHeader(
                 avatarUrl: profile?.avatarUrl,
                 displayName: displayName,
-                circleName: item.circleName,
+                circleName: isOwnPost ? nil : item.circleName,
                 timestamp: timestampLabel
             )
             .padding(.horizontal, 14)
             .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.bottom, isOwnPost ? 4 : 10)
+
+            // Own-post: expandable circle list
+            if isOwnPost {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { circleListExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(circleListExpanded
+                             ? "Sent to \(item.circleNames.count) circle\(item.circleNames.count == 1 ? "" : "s") ▾"
+                             : "Sent to \(item.circleNames.count) circle\(item.circleNames.count == 1 ? "" : "s") ▸")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color(hex: "D4A240"))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                }
+                .buttonStyle(.plain)
+
+                if circleListExpanded {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(item.circleNames, id: \.self) { name in
+                            Text("• \(name)")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(hex: "8FAF94"))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 4)
+                }
+
+                Spacer().frame(height: 6)
+            }
 
             // Photo with caption + lock overlays
             ZStack(alignment: .bottom) {

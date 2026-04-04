@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // MARK: - Midnight Sanctuary tokens
 
@@ -24,6 +25,7 @@ struct MomentPreviewView: View {
     @State private var isPosting = false
     @State private var errorMessage: String?
     @State private var partialErrorMessage: String?
+    @State private var windowSecondsRemaining: Int = 0
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -86,6 +88,23 @@ struct MomentPreviewView: View {
 
                 Spacer().frame(height: 8)
 
+                // Window countdown
+                if windowSecondsRemaining > 0 {
+                    let mins = windowSecondsRemaining / 60
+                    let secs = windowSecondsRemaining % 60
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.msGold)
+                        Text(String(format: "%02d:%02d remaining", mins, secs))
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msGold)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    Spacer().frame(height: 8)
+                }
+
                 // Post button
                 Button {
                     Task {
@@ -131,6 +150,18 @@ struct MomentPreviewView: View {
             }
         }
         .interactiveDismissDisabled(isPosting)
+        .onAppear { updateWindowCountdown() }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            updateWindowCountdown()
+        }
+    }
+
+    private func updateWindowCountdown() {
+        guard let start = DailyMomentService.shared.windowStart else {
+            windowSecondsRemaining = 0; return
+        }
+        let windowEnd = start.addingTimeInterval(30 * 60)
+        windowSecondsRemaining = max(0, Int(windowEnd.timeIntervalSince(Date())))
     }
 
     // MARK: - Post Action

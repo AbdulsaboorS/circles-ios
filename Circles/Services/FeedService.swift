@@ -133,20 +133,35 @@ final class FeedService {
             }
         }
 
-        // 6. Map CircleMomentRow -> FeedItem.moment
-        let momentFeedItems: [FeedItem] = momentRows.map { row in
-            let userName = nameMap[row.userId] ?? String(row.userId.uuidString.prefix(8))
-            let circleName = circleNameMap[row.circleId] ?? ""
+        // 6. Deduplicate CircleMomentRows by (userId, date) → one card per photo
+        //    Group rows that share the same user and calendar day (prefix 10 of ISO8601 = YYYY-MM-DD).
+        typealias DedupeKey = String  // "\(userId)|\(YYYY-MM-DD)"
+        var groupOrder: [DedupeKey] = []
+        var groups: [DedupeKey: [CircleMomentRow]] = [:]
+        for row in momentRows {
+            let datePrefix = String(row.postedAt.prefix(10))
+            let key = "\(row.userId.uuidString)|\(datePrefix)"
+            if groups[key] == nil { groupOrder.append(key) }
+            groups[key, default: []].append(row)
+        }
+
+        let momentFeedItems: [FeedItem] = groupOrder.compactMap { key -> FeedItem? in
+            guard let rowGroup = groups[key], let first = rowGroup.first else { return nil }
+            let userName = nameMap[first.userId] ?? String(first.userId.uuidString.prefix(8))
+            let dedupedCircleIds = rowGroup.map { $0.circleId }
+            let dedupedCircleNames = rowGroup.map { circleNameMap[$0.circleId] ?? "" }
             return .moment(MomentFeedItem(
-                id: row.id,
-                circleId: row.circleId,
-                userId: row.userId,
+                id: first.id,
+                circleId: first.circleId,
+                userId: first.userId,
                 userName: userName,
-                circleName: circleName,
-                photoUrl: row.photoUrl,
-                caption: row.caption,
-                postedAt: row.postedAt,
-                isOnTime: row.isOnTime
+                circleName: circleNameMap[first.circleId] ?? "",
+                circleIds: dedupedCircleIds,
+                circleNames: dedupedCircleNames,
+                photoUrl: first.photoUrl,
+                caption: first.caption,
+                postedAt: first.postedAt,
+                isOnTime: first.isOnTime
             ))
         }
 
