@@ -19,9 +19,11 @@ struct MomentPreviewView: View {
     let image: UIImage
     let onPost: (String?) async throws -> Void
     let onRetake: () -> Void
+    let circleCount: Int
     @State private var caption: String = ""
     @State private var isPosting = false
     @State private var errorMessage: String?
+    @State private var partialErrorMessage: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -66,7 +68,23 @@ struct MomentPreviewView: View {
                     .tint(Color.msGold)
                     .padding(.horizontal, 16)
 
-                Spacer().frame(height: 16)
+                Spacer().frame(height: 8)
+
+                // Circle disclaimer
+                if circleCount > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.msTextMuted)
+                        Text("This will be shared to all your circles (\(circleCount))")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msTextMuted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                }
+
+                Spacer().frame(height: 8)
 
                 // Post button
                 Button {
@@ -98,6 +116,14 @@ struct MomentPreviewView: View {
                         .font(.subheadline)
                         .foregroundStyle(Color.red)
                         .padding(.top, 8)
+                        .padding(.horizontal, 16)
+                }
+
+                if let partial = partialErrorMessage {
+                    Text(partial)
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted)
+                        .padding(.top, 4)
                         .padding(.horizontal, 16)
                 }
 

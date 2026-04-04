@@ -105,7 +105,8 @@ struct CommunityView: View {
                                 await Task.yield()
                                 showGlobalCamera = true
                             }
-                        }
+                        },
+                        circleCount: viewModel.circles.count
                     )
                     .environment(auth)
                 }

@@ -185,7 +185,8 @@ struct CircleDetailView: View {
                         await Task.yield()
                         showCamera = true
                     }
-                }
+                },
+                circleCount: 1
             )
             .interactiveDismissDisabled(true)
         }
