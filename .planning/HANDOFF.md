@@ -1,67 +1,71 @@
-# Handoff — 2026-04-03 (Session End: Context Limit)
+# Handoff — 2026-04-04 (Session End: Context Limit)
 
 ## What Was Done This Session
 
-### Phase 11.4 — Circle Moment (BeReal Mechanic)
+### Phase 11.4 — Completed (all 4 plans executed + committed)
 
-Discussed, planned, and began executing Phase 11.4.
-
-**discuss-phase 11.4:** Updated CONTEXT.md with all decisions:
-- Notification: warm Islamic tone ("Time to capture this moment. Your circle is waiting. ✨")
-- Prayer selection: `daily_moments` table drives edge function (not `circles.prayer_time`)
-- Multi-circle: one upload, loop inserts, "Share to all circles (N)" disclaimer
-- Feed card: full-width BeReal-style, 🕰 late badge only (no ⭐), own moment pinned to top
-- Settings gear on ProfileView added to this phase scope
-- Deferred logged: memories in profile, notification bell/activity center, HabitCheckinRow tweet-style
-
-**plan-phase 11.4:** 4 plans, 2 waves, passed checker.
-
-**execute-phase 11.4 Wave 1 (interactive) — IN PROGRESS:**
-
-| Plan | Status | Commit |
-|------|--------|--------|
+| Plan | Status | Notes |
+|------|--------|-------|
 | 11.4-01 RLS + edge function | ✓ Complete | f4e0ff5 |
 | 11.4-02 Multi-circle MomentService + preview | ✓ Complete | 9f16e27 |
-| 11.4-03 Feed card + late badge + profile gear | ⬜ Not started | — |
-| 11.4-04 Wire callers + pin own moment | ⬜ Not started | — |
+| 11.4-03 Feed card full-width + profile gear | ✓ Complete | 95033af |
+| 11.4-04 Wire callers + pin own moment | ✓ Complete | 95033af |
+
+### Polish / Bug Fixes (this session, same commit 95033af)
+
+- **Late badge removed** from `MomentFeedCard` entirely — timestamp in header tells the story
+- **Profile page cleaned up** — only shows avatar + stats card; settings section removed from inline scroll view
+- **Settings gear (ProfileView)** — fixed: rows were not clickable because nested `.sheet` inside `settingsSection` was inside another sheet. Fix: `settingsSheetContent` is now its own `NavigationStack`; `.sheet(isPresented: $showEditProfile)` moved to NavigationStack level
+- **`DailyMomentService.forceOpenWindow()`** — `#if DEBUG` method added for prayer window testing without waiting for real prayer time. Debug button added to ProfileView dev tools section
+- **Habit feed deduplication** — documented in `STATE.md` issue F (deferred to Phase 12)
 
 ---
 
-## What's Built (this session)
+## Current State
 
-**11.4-01:**
-- `circle_moments` RLS: INSERT (`auth.uid() = user_id` + circle member), SELECT (via `auth_user_circle_ids()`)
-- `storage.objects` policies for `circle-moments` bucket (INSERT + SELECT for authenticated users)
-- Edge function rewritten: reads `daily_moments` for today's prayer, deduplicates per user, Islamic copy
+### What Works
+- Full multi-circle moment posting (one photo → inserted into all circles)
+- Feed card full-width 3:4 photo, no badges
+- Profile gear → Settings sheet with clickable rows
+- Own moment pinned to top of circle feed
+- `#if DEBUG` force-open window button in Profile dev tools
 
-**11.4-02:**
-- `MomentService.uploadPhoto` → `shared/{userId}_{date}.jpg` path (no circleId in path)
-- `MomentService.postMomentToAllCircles(image:circleIds:userId:caption:windowStart:)` added
-- `MomentPostResult` struct: `succeeded`, `failedCircleIds`, `isFullSuccess`, `isPartialSuccess`, `totalCount`
-- `MomentError.noCircles` + `allInsertsFailedCircles` added
-- `MomentPreviewView`: `circleCount: Int` param + "This will be shared to all your circles (N)" disclaimer
-- `CommunityView`: passes `circleCount: viewModel.circles.count`
-- `CircleDetailView`: passes `circleCount: 1` (stub — Plan 04 fixes this)
-- Build: ✓ BUILD SUCCEEDED (iPhone 17 Pro simulator)
+### Known Issues / Next Work Items
+
+**1. Photos not appearing in feed after post (diagnose first)**
+- Likely cause: `FeedViewModel.loadInitial` has `guard !isLoadingInitial` — if called while a load is in flight (immediately after post), it silently no-ops and the new rows don't show
+- Confirm by: pull-to-refresh after posting — if photos appear on pull-to-refresh, that's the bug
+- Fix: in `CommunityView.onPost` and `CircleDetailView.onPost`, add a small yield or reset `isLoadingInitial = false` before calling refresh, OR call `feedViewModel.refresh` instead of `loadInitial`
+
+**2. Multiple post cards (one per circle) → should show ONE card**
+- `FeedService.fetchFeedPage` fetches all `circle_moments` rows — one per circle → N cards for same photo
+- Fix: deduplicate in `FeedService` — group rows by `(userId, date)`, keep first row but collect all `circleIds`/`circleNames` into a list on `MomentFeedItem`
+- Display logic:
+  - Own post: expandable "Sent to X circles ▾" showing all circle names
+  - Other user's post: show only the circle name you share with them (already have `circleId` on the row)
+- `MomentFeedItem` needs: `circleIds: [UUID]`, `circleNames: [String]` (replacing single `circleId`/`circleName`)
+
+**3. Feed filter tabs (Posts | Check-ins)**
+- Add pill tabs at top of the global feed in `CommunityView` (same style as Feed|Circles selector)
+- Tab 0: "Posts" — shows only `.moment` FeedItems
+- Tab 1: "Check-ins" — shows only `.habitCheckin` + `.streakMilestone` FeedItems
+- Filter in `FeedView` or pass a filter param down from `CommunityView`
+
+**4. 30-min countdown on posting**
+- `CircleDetailView` already has `windowSecondsRemaining` countdown on the moment banner
+- Extend: show the same countdown on `MomentCameraView` and/or `MomentPreviewView` so user sees time pressure while composing
+- Pass `windowSecondsRemaining` (or compute from `DailyMomentService.windowStart`) into those views
 
 ---
 
-## Exact Next Steps
+## Exact Next Steps for Next Agent
 
-**1. Write missing 11.4-02 SUMMARY** (skipped due to context limit):
-Create `.planning/phases/11.4-circle-moment/11.4-02-SUMMARY.md` summarising the changes above.
-
-**2. Execute Plan 11.4-03** — read `.planning/phases/11.4-circle-moment/11.4-03-PLAN.md`:
-- `MomentFeedCard.swift`: full-width, no horizontal padding, 3:4 ratio, 🕰 late badge top-right
-- `MomentCardView.swift`: remove ⭐ on-time star badge
-- `ProfileView.swift`: add settings gear icon top-right → opens settings sheet
-
-**3. Execute Plan 11.4-04** (Wave 2, after 11.4-03):
-- `CommunityView` + `CircleDetailView`: switch to `postMomentToAllCircles`, pass real circle count
-- `CircleDetailView`: `circleCount: 1` stub → real count from `viewModel.circles.count` or equivalent
-- `FeedService` / `FeedViewModel`: own-moment always pinned to top in circle feed
-
-**4. Run `/gsd:verify-work 11.4`** after all 4 plans complete.
+1. **Read this file first**, then read `.planning/STATE.md`
+2. **Fix #1 (photos not appearing)** — pull-to-refresh to confirm diagnosis, then fix the refresh no-op in `CommunityView` + `CircleDetailView` post closures
+3. **Fix #2 (one post card + expandable circles)** — deduplicate in `FeedService`, update `MomentFeedItem`, update `MomentFeedCard`
+4. **Fix #3 (feed filter tabs)** — pill tabs in `CommunityView` global feed
+5. **Fix #4 (countdown on camera/preview)** — pass countdown into `MomentCameraView` / `MomentPreviewView`
+6. After all fixes build clean — commit as `feat(11.5): feed dedup + filter tabs + countdown`
 
 ---
 
@@ -69,5 +73,6 @@ Create `.planning/phases/11.4-circle-moment/11.4-02-SUMMARY.md` summarising the 
 
 - SourceKit "No such module 'Supabase'" warnings are **false positives** — build succeeds fine
 - Simulator for builds: `id=AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro)
-- Old single-circle `postMoment` is kept in MomentService for backward compat until Plan 04 removes callers
-- `daily_moments` date column is `date` (not `moment_date`) — edge function uses `.eq("date", todayUTC)` ✓
+- `send-moment-window-notifications` edge function is **not deployed** to Supabase — only `seed-daily-moment` is deployed
+- `#if DEBUG` `forceOpenWindow()` is in `DailyMomentService` + button in `ProfileView` dev tools — remove after real prayer window testing is verified
+- `daily_moments` table uses column `moment_date` (not `date`) — confirmed in `DailyMomentService.fetchTodayPrayer()`
