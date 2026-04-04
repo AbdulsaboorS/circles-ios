@@ -1,14 +1,17 @@
 import Foundation
 import Observation
+import SwiftUI
+import Supabase
 
 @Observable
 @MainActor
 final class HomeViewModel {
     var habits: [Habit] = []
-    var todayLogs: [HabitLog] = []    // logs for today (date = todayString)
+    var todayLogs: [HabitLog] = []
     var streak: Streak? = nil
     var isLoading: Bool = false
     var errorMessage: String? = nil
+    var circlePresence: [MemberPresence] = []
 
     private let todayString: String = {
         let f = DateFormatter()
@@ -16,42 +19,121 @@ final class HomeViewModel {
         return f.string(from: Date())
     }()
 
+    // MARK: - MemberPresence
+
+    struct MemberPresence: Identifiable, Sendable {
+        let id: UUID
+        let name: String
+        let initials: String
+        let avatarColor: Color
+        let checkedInToday: Bool
+    }
+
     // MARK: - Derived state
 
     func isCompleted(habitId: UUID) -> Bool {
         todayLogs.first { $0.habitId == habitId }?.completed ?? false
     }
 
+    var circleCheckedInCount: Int { circlePresence.filter(\.checkedInToday).count }
+
     // MARK: - Load
 
     func loadAll(userId: UUID) async {
         isLoading = true
         errorMessage = nil
+        // Presence loads concurrently (non-throwing, silently fails)
+        Task { circlePresence = await fetchCirclePresence(userId: userId) }
         do {
             async let habitsFetch = HabitService.shared.fetchActiveHabits(userId: userId)
-            async let logsFetch = HabitService.shared.fetchTodayLogs(userId: userId, date: todayString)
+            async let logsFetch   = HabitService.shared.fetchTodayLogs(userId: userId, date: todayString)
             async let streakFetch = HabitService.shared.fetchStreak(userId: userId)
-            habits = try await habitsFetch
+            habits    = try await habitsFetch
             todayLogs = try await logsFetch
-            streak = try await streakFetch
+            streak    = try await streakFetch
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
+    // MARK: - Circle Presence
+
+    private func fetchCirclePresence(userId: UUID) async -> [MemberPresence] {
+        do {
+            let circles = try await CircleService.shared.fetchMyCircles(userId: userId)
+            guard let circle = circles.first else { return [] }
+
+            let members = try await CircleService.shared.fetchMembers(circleId: circle.id)
+            let others  = members.filter { $0.userId != userId }
+            guard !others.isEmpty else { return [] }
+
+            let memberIdStrings = others.map { $0.userId.uuidString }
+
+            // Batch fetch preferred names
+            struct ProfileRow: Decodable {
+                let id: UUID
+                let preferred_name: String?
+            }
+            let profiles: [ProfileRow] = (try? await SupabaseService.shared.client
+                .from("profiles")
+                .select("id,preferred_name")
+                .in("id", values: memberIdStrings)
+                .execute()
+                .value) ?? []
+            let nameMap = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0.preferred_name) })
+
+            // Today's activity_feed entries for these members
+            let todayISO = todayString + "T00:00:00"
+            struct FeedRow: Decodable {
+                let userId: UUID
+                enum CodingKeys: String, CodingKey { case userId = "user_id" }
+            }
+            let feedRows: [FeedRow] = (try? await SupabaseService.shared.client
+                .from("activity_feed")
+                .select("user_id")
+                .in("user_id", values: memberIdStrings)
+                .gte("created_at", value: todayISO)
+                .execute()
+                .value) ?? []
+            let checkedInIds = Set(feedRows.map { $0.userId })
+
+            let palette: [Color] = [
+                Color(hex: "4A7C59"), Color(hex: "5E9E72"),
+                Color(hex: "3D6B4F"), Color(hex: "6B8F71"), Color(hex: "2D5A3D")
+            ]
+            return others.enumerated().map { idx, member in
+                let name = nameMap[member.userId] ?? nil
+                return MemberPresence(
+                    id: member.userId,
+                    name: name ?? "Member",
+                    initials: makeInitials(from: name),
+                    avatarColor: palette[idx % palette.count],
+                    checkedInToday: checkedInIds.contains(member.userId)
+                )
+            }
+        } catch {
+            return []
+        }
+    }
+
+    private func makeInitials(from name: String?) -> String {
+        guard let name, !name.isEmpty else { return "M" }
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
+        }
+        return String(name.prefix(2)).uppercased()
+    }
+
     // MARK: - Optimistic toggle
 
-    /// Optimistically flips completed state in todayLogs, then writes to Supabase.
-    /// On Supabase failure: reverts optimistic change and sets errorMessage.
     func toggleHabit(_ habit: Habit, userId: UUID) async {
         let newCompleted = !isCompleted(habitId: habit.id)
 
-        // Optimistic update
         if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
             todayLogs[idx].completed = newCompleted
         } else {
-            // Create a placeholder log entry (id will be replaced on next full refresh)
             let placeholder = HabitLog(
                 id: UUID(),
                 habitId: habit.id,
@@ -72,8 +154,6 @@ final class HomeViewModel {
                 completed: newCompleted
             )
             streak = try await HabitService.shared.fetchStreak(userId: userId)
-
-            // Broadcast to circle feed if this is an accountable habit being completed
             if newCompleted, habit.isAccountable, let circleId = habit.circleId {
                 try? await HabitService.shared.broadcastHabitCompletion(
                     habitId: habit.id,
