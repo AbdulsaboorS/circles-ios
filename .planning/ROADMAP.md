@@ -1,6 +1,6 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-04-02
+**Updated:** 2026-04-04
 **Direction:** Private Islamic BeReal. 14-phase execution plan.
 
 ---
@@ -187,7 +187,13 @@ Plans:
 - Late posting: always allowed, encouraged, badge only
 - No retake tracking, no hard window block
 
-**Plans:** TBD — run `/gsd:discuss-phase 11.4` first to finalize scope, then `/gsd:plan-phase 11.4`
+**Plans:** 4 plans
+
+Plans:
+- [ ] 11.4-01-PLAN.md — RLS SQL migration (circle_moments INSERT + storage bucket) + edge function rewrite (daily_moments as prayer source)
+- [ ] 11.4-02-PLAN.md — MomentService multi-circle postMomentToAllCircles + MomentPreviewView "share to all circles (N)" disclaimer
+- [ ] 11.4-03-PLAN.md — MomentFeedCard full-width redesign + late badge only + MomentCardView remove star + ProfileView gear icon
+- [ ] 11.4-04-PLAN.md — CommunityView + CircleDetailView wired to multi-circle post + FeedViewModel own-moment pinning
 
 ---
 
