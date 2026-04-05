@@ -1,5 +1,6 @@
 import SwiftUI
 import Supabase
+import UniformTypeIdentifiers
 
 // MARK: - Midnight Sanctuary Color Tokens (HomeView scoped)
 
@@ -87,6 +88,15 @@ struct HomeView: View {
     @State private var showRoadmapBanner  = false
     @State private var scrollOffset: CGFloat = 0
 
+    // Drag-to-reorder — ordered habit arrays (sourced from viewModel + UserDefaults)
+    @State private var sharedHabits: [Habit]   = []
+    @State private var personalHabits: [Habit] = []
+    @State private var draggingId: UUID?       = nil
+
+    // Nudge
+    @State private var nudgedIds: Set<UUID>    = []
+    @State private var showMembersSheet        = false
+
     // Multi-layer heart animations (each on independent timing)
     @State private var bloomOpacity: Double  = 0.10
     @State private var bloomScale: CGFloat   = 1.0
@@ -141,23 +151,6 @@ struct HomeView: View {
     private var islamicQuote: String {
         let streak = viewModel.streak?.currentStreak ?? 0
         return islamicQuotes[streak % islamicQuotes.count]
-    }
-
-    // Prayer-time keywords for hero card hierarchy
-    private var prayerWindowKeywords: [String] {
-        let h = Calendar.current.component(.hour, from: Date())
-        switch h {
-        case 3 ..< 7:   return ["fajr", "tahajjud", "prayer", "salah"]
-        case 11 ..< 14: return ["dhuhr", "prayer", "salah", "quran"]
-        case 15 ..< 18: return ["asr", "quran", "dhikr"]
-        case 18 ..< 20: return ["maghrib", "prayer", "salah"]
-        default:         return ["isha", "dhikr", "quran", "night", "salah"]
-        }
-    }
-
-    private func heroHabit(from habits: [Habit]) -> Habit? {
-        let kw = prayerWindowKeywords
-        return habits.first { h in kw.contains { h.name.lowercased().contains($0) } }
     }
 
     // MARK: - Body
@@ -255,6 +248,7 @@ struct HomeView: View {
                 guard let uid = auth.session?.user.id else { return }
                 await viewModel.loadAll(userId: uid)
                 await loadPreferredName(userId: uid)
+                updateOrderedHabits(from: viewModel.habits)
                 showRoadmapBanner = RoadmapGenerationFlag.isActive(userId: uid)
             }
             .task {
@@ -262,7 +256,11 @@ struct HomeView: View {
                 await viewModel.loadAll(userId: uid)
                 await loadPreferredName(userId: uid)
                 await loadNudgeState(userId: uid)
+                updateOrderedHabits(from: viewModel.habits)
                 showRoadmapBanner = RoadmapGenerationFlag.isActive(userId: uid)
+            }
+            .onChange(of: viewModel.habits) { _, newHabits in
+                updateOrderedHabits(from: newHabits)
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") { viewModel.errorMessage = nil }
@@ -277,6 +275,11 @@ struct HomeView: View {
                     navigationPath.append(newHabit)
                 }
                 .environment(auth)
+            }
+            .sheet(isPresented: $showMembersSheet) {
+                let presenceData = viewModel.circlePresence.isEmpty
+                    ? Self.fallbackPresence : viewModel.circlePresence
+                MembersSheet(presence: presenceData, nudgedIds: $nudgedIds)
             }
         }
     }
@@ -376,13 +379,11 @@ struct HomeView: View {
             if viewModel.isLoading {
                 HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                     .padding(.vertical, 32)
-            } else if viewModel.habits.isEmpty {
+            } else if sharedHabits.isEmpty && personalHabits.isEmpty {
                 emptyState
             } else {
-                let accountable = viewModel.habits.filter { $0.isAccountable && $0.circleId != nil }
-                let personal    = viewModel.habits.filter { !$0.isAccountable || $0.circleId == nil }
-                if !accountable.isEmpty { sharedSection(habits: accountable) }
-                if !personal.isEmpty   { personalSection(habits: personal) }
+                if !sharedHabits.isEmpty   { sharedSection(habits: sharedHabits) }
+                if !personalHabits.isEmpty { personalSection(habits: personalHabits) }
             }
         }
     }
@@ -420,11 +421,13 @@ struct HomeView: View {
 
             CirclePresenceRow(
                 presence: presenceData,
-                checkedInCount: checkedIn
+                checkedInCount: checkedIn,
+                nudgedIds: $nudgedIds,
+                onOpenSheet: { showMembersSheet = true }
             )
 
-            // Prayer-time hero card (if a matching habit exists)
-            if let hero = heroHabit(from: habits) {
+            // Hero = first habit in user's drag order
+            if let hero = habits.first {
                 HeroHabitCard(
                     habit: hero,
                     isCompleted: viewModel.isCompleted(habitId: hero.id),
@@ -434,10 +437,8 @@ struct HomeView: View {
                         Task { await viewModel.toggleHabit(hero, userId: uid) }
                     }
                 )
-                let remaining = habits.filter { $0.id != hero.id }
+                let remaining = Array(habits.dropFirst())
                 if !remaining.isEmpty { habitGrid(remaining) }
-            } else {
-                habitGrid(habits)
             }
         }
     }
@@ -458,6 +459,19 @@ struct HomeView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .opacity(draggingId == habit.id ? 0.5 : 1.0)
+                .scaleEffect(draggingId == habit.id ? 0.96 : 1.0)
+                .animation(.easeInOut(duration: 0.18), value: draggingId)
+                .onDrag {
+                    draggingId = habit.id
+                    return NSItemProvider(object: habit.id.uuidString as NSString)
+                }
+                .onDrop(of: [.text], delegate: HabitDropDelegate(
+                    habit: habit,
+                    habits: $sharedHabits,
+                    draggingId: $draggingId,
+                    onReorder: saveSharedOrder
+                ))
             }
         }
     }
@@ -496,9 +510,51 @@ struct HomeView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .opacity(draggingId == habit.id ? 0.5 : 1.0)
+                    .scaleEffect(draggingId == habit.id ? 0.97 : 1.0)
+                    .animation(.easeInOut(duration: 0.18), value: draggingId)
+                    .onDrag {
+                        draggingId = habit.id
+                        return NSItemProvider(object: habit.id.uuidString as NSString)
+                    }
+                    .onDrop(of: [.text], delegate: HabitDropDelegate(
+                        habit: habit,
+                        habits: $personalHabits,
+                        draggingId: $draggingId,
+                        onReorder: savePersonalOrder
+                    ))
                 }
             }
         }
+    }
+
+    // MARK: - Habit Ordering
+
+    private func updateOrderedHabits(from habits: [Habit]) {
+        let shared   = habits.filter { $0.isAccountable && $0.circleId != nil }
+        let personal = habits.filter { !$0.isAccountable || $0.circleId == nil }
+        sharedHabits   = applyStoredOrder(shared,   key: "circles_shared_order")
+        personalHabits = applyStoredOrder(personal, key: "circles_personal_order")
+    }
+
+    private func applyStoredOrder(_ habits: [Habit], key: String) -> [Habit] {
+        let saved = (UserDefaults.standard.array(forKey: key) as? [String])?
+            .compactMap { UUID(uuidString: $0) } ?? []
+        guard !saved.isEmpty else { return habits }
+        let mapped   = Dictionary(uniqueKeysWithValues: habits.map { ($0.id, $0) })
+        let ordered  = saved.compactMap { mapped[$0] }
+        let unsaved  = habits.filter { !saved.contains($0.id) }
+        return ordered + unsaved
+    }
+
+    private func saveSharedOrder() {
+        UserDefaults.standard.set(sharedHabits.map { $0.id.uuidString },
+                                  forKey: "circles_shared_order")
+    }
+
+    private func savePersonalOrder() {
+        UserDefaults.standard.set(personalHabits.map { $0.id.uuidString },
+                                  forKey: "circles_personal_order")
     }
 
     // MARK: - FAB
@@ -638,18 +694,26 @@ struct HomeView: View {
 private struct CirclePresenceRow: View {
     let presence: [HomeViewModel.MemberPresence]
     let checkedInCount: Int
+    @Binding var nudgedIds: Set<UUID>
+    let onOpenSheet: () -> Void
 
-    @State private var selectedMember: HomeViewModel.MemberPresence? = nil
-    @State private var nudgedIds: Set<UUID> = []
+    // Threshold: 4+ members → open sheet instead of inline tap
+    private var usesSheet: Bool { presence.count >= 4 }
+    private var displayedMembers: [HomeViewModel.MemberPresence] {
+        usesSheet ? Array(presence.prefix(3)) : Array(presence.prefix(5))
+    }
 
     var body: some View {
         VStack(spacing: 14) {
-            // Avatar row — each avatar is a tappable social button
             HStack(spacing: 0) {
-                ForEach(presence.prefix(5)) { member in
+                ForEach(displayedMembers) { member in
                     Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        selectedMember = member
+                        guard !usesSheet else { return }
+                        guard !nudgedIds.contains(member.id) else { return }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            nudgedIds.insert(member.id)
+                        }
                     } label: {
                         VStack(spacing: 5) {
                             ZStack {
@@ -657,7 +721,6 @@ private struct CirclePresenceRow: View {
                                 Text(member.initials)
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundStyle(.white)
-                                // Nudged indicator
                                 if nudgedIds.contains(member.id) {
                                     SwiftUI.Circle()
                                         .fill(Color.msGold)
@@ -674,19 +737,14 @@ private struct CirclePresenceRow: View {
                             .overlay(
                                 SwiftUI.Circle()
                                     .strokeBorder(
-                                        member.checkedInToday
-                                            ? Color.msGold
-                                            : Color.msTextMuted.opacity(0.28),
+                                        member.checkedInToday ? Color.msGold : Color.msTextMuted.opacity(0.28),
                                         style: StrokeStyle(
                                             lineWidth: member.checkedInToday ? 2 : 1,
                                             dash: member.checkedInToday ? [] : [3, 2]
                                         )
                                     )
                             )
-                            .shadow(
-                                color: member.checkedInToday ? Color.msGold.opacity(0.40) : .clear,
-                                radius: 6
-                            )
+                            .shadow(color: member.checkedInToday ? Color.msGold.opacity(0.40) : .clear, radius: 6)
 
                             Text(member.name.split(separator: " ").first.map(String.init) ?? member.name)
                                 .font(.system(size: 10))
@@ -696,16 +754,50 @@ private struct CirclePresenceRow: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                // "+N more" pill for large circles
+                if usesSheet {
+                    let extra = presence.count - 3
+                    Button(action: onOpenSheet) {
+                        VStack(spacing: 5) {
+                            ZStack {
+                                SwiftUI.Circle().fill(Color.msCardShared)
+                                Text("+\(extra)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(Color.msGold)
+                            }
+                            .frame(width: 36, height: 36)
+                            .overlay(SwiftUI.Circle().strokeBorder(Color.msGold.opacity(0.35),
+                                                                   style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                            Text("more")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.msTextMuted)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
-            // Status summary — replace global nudge with contextual hint
             HStack {
                 Text("\(checkedInCount) of \(presence.count) brothers checked in")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.msTextMuted)
                 Spacer()
-                if checkedInCount < presence.count {
-                    Text("Tap to connect")
+                if usesSheet {
+                    Button(action: onOpenSheet) {
+                        Text("Nudge")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.msGold.opacity(0.75))
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(
+                                Capsule().fill(Color.msGold.opacity(0.10))
+                                    .overlay(Capsule().stroke(Color.msGold.opacity(0.40), lineWidth: 1))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                } else if checkedInCount < presence.count {
+                    Text("Tap a name to nudge")
                         .font(.system(size: 11))
                         .foregroundStyle(Color.msGold.opacity(0.50))
                 }
@@ -717,26 +809,6 @@ private struct CirclePresenceRow: View {
                 .fill(Color.msCardShared.opacity(0.55))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.msBorder, lineWidth: 1))
         )
-        .confirmationDialog(
-            "Connect with \(selectedMember?.name ?? "")",
-            isPresented: Binding(get: { selectedMember != nil }, set: { if !$0 { selectedMember = nil } }),
-            titleVisibility: .visible
-        ) {
-            if let member = selectedMember {
-                Button("Send Salam") {
-                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                    nudgedIds.insert(member.id)
-                    selectedMember = nil
-                }
-                Button(nudgedIds.contains(member.id) ? "Already Nudged" : "Nudge \(member.name)") {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    nudgedIds.insert(member.id)
-                    selectedMember = nil
-                }
-                .disabled(nudgedIds.contains(member.id))
-                Button("Cancel", role: .cancel) { selectedMember = nil }
-            }
-        }
     }
 }
 
@@ -996,6 +1068,129 @@ private struct PersonalHabitCard: View {
                     .stroke(isCompleted ? Color.msGold.opacity(0.22) : Color.msGold.opacity(0.06), lineWidth: 0.5))
         )
         .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
+    }
+}
+
+// MARK: - Drag-to-reorder Drop Delegate
+
+private struct HabitDropDelegate: DropDelegate {
+    let habit: Habit
+    @Binding var habits: [Habit]
+    @Binding var draggingId: UUID?
+    let onReorder: () -> Void
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingId = nil
+        onReorder()
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let draggingId,
+              draggingId != habit.id,
+              let fromIndex = habits.firstIndex(where: { $0.id == draggingId }),
+              let toIndex   = habits.firstIndex(where: { $0.id == habit.id })
+        else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            habits.move(fromOffsets: IndexSet(integer: fromIndex),
+                        toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+}
+
+// MARK: - Members Sheet (4+ circle members)
+
+private struct MembersSheet: View {
+    let presence: [HomeViewModel.MemberPresence]
+    @Binding var nudgedIds: Set<UUID>
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackgroundDeep.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(presence) { member in
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    SwiftUI.Circle().fill(member.avatarColor)
+                                    Text(member.initials)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                                .frame(width: 44, height: 44)
+                                .overlay(
+                                    SwiftUI.Circle().strokeBorder(
+                                        member.checkedInToday ? Color.msGold : Color.msTextMuted.opacity(0.3),
+                                        lineWidth: member.checkedInToday ? 2 : 1
+                                    )
+                                )
+                                .shadow(color: member.checkedInToday ? Color.msGold.opacity(0.35) : .clear, radius: 6)
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(member.name)
+                                        .font(.system(size: 15, weight: .semibold, design: .serif))
+                                        .foregroundStyle(Color.msTextPrimary)
+                                    Text(member.checkedInToday ? "Checked in today ✓" : "Not yet checked in")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(member.checkedInToday
+                                            ? Color.msGold.opacity(0.80) : Color.msTextMuted)
+                                }
+
+                                Spacer()
+
+                                Button {
+                                    guard !nudgedIds.contains(member.id) else { return }
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        nudgedIds.insert(member.id)
+                                    }
+                                } label: {
+                                    Text(nudgedIds.contains(member.id) ? "Sent ✓" : "Nudge")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(nudgedIds.contains(member.id)
+                                            ? Color.msGold : Color.msGold.opacity(0.80))
+                                        .padding(.horizontal, 14).padding(.vertical, 7)
+                                        .background(
+                                            Capsule()
+                                                .fill(Color.msGold.opacity(nudgedIds.contains(member.id) ? 0.20 : 0.10))
+                                                .overlay(Capsule().stroke(Color.msGold.opacity(0.40), lineWidth: 1))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(nudgedIds.contains(member.id))
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
+
+                            if member.id != presence.last?.id {
+                                Rectangle()
+                                    .fill(Color.msGold.opacity(0.08))
+                                    .frame(height: 0.5)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .navigationTitle("Brothers")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.msBackgroundDeep, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(Color.msGold)
+                }
+            }
+        }
     }
 }
 
