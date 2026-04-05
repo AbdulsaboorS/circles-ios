@@ -1,15 +1,15 @@
 ---
-version: 2.4
-last_updated: "2026-04-03"
-current_phase: "Phase 11.3 — Onboarding In Depth"
-status: "Waves 1+2 Complete — 11.3-06 remaining"
+version: 2.5
+last_updated: "2026-04-04"
+current_phase: "Phase 11.5 — Feed Polish"
+status: "11.5 complete. Blocked on moment posting RLS error."
 ---
 
 # Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Phase 11.3 — Onboarding In Depth** — Waves 1 and 2 complete: `11.3-01`, `11.3-02`, `11.3-03`, `11.3-04`, `11.3-05` all done and building. **Next session: execute `11.3-06`** (ContentView auth-last routing + HomeView post-auth nudge).
+**Phase 11.5 — Feed Polish** — All 5 fixes shipped (commits `baa985b`, `3d5814c`). Blocked on moment posting failing with RLS error. See Open Issue G below.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -82,6 +82,16 @@ status: "Waves 1+2 Complete — 11.3-06 remaining"
 - `FeedViewModel` + `ReactionBar`: batch reactor profiles, overlapping face pile (max 5 + “+N”)
 - `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
+
+### Phase 11.5 — Feed Polish ✓ (code complete; posting blocked — see Issue G)
+
+- **Feed deduplication**: `FeedService.fetchFeedPage` groups `circle_moments` rows by `(userId, YYYY-MM-DD)` — one card per photo, not one per circle
+- **Expandable circle list on own posts**: `MomentFeedItem` now carries `circleIds:[UUID]` + `circleNames:[String]`; own posts show "Sent to X circles ▾" expandable; others see only the shared circle name
+- **Posts | Check-ins filter tabs**: `FeedView` has `showFilterTabs: Bool` param + `feedFilterPicker` pill tabs (same style as Feed|Circles selector); `CommunityView` passes `showFilterTabs: true`
+- **30-min countdown on camera/preview**: `MomentCameraView` + `MomentPreviewView` both use a 1s Timer computing `secondsRemaining` from `DailyMomentService.shared.windowStart + 30min`; gold badge top-left on camera, clock row on preview
+- **Today-only feed**: `FeedService` scopes both `circle_moments` and `activity_feed` to `T00:00:00Z – T23:59:59Z` UTC per day; history is a future phase
+- **Post-refresh race fixed**: Moved `feedViewModel.refresh` from inside `onPost` closure to `sheet(item:onDismiss:)` handler via `pendingFeedRefresh` flag — eliminates race with sheet teardown animation
+- `FeedIdentityHeader.circleName` is now `String?` (nil hides the circle badge, used for own-post cards)
 
 ### Phase 11.1 — Midnight Sanctuary UI Pass ✓ (All groups complete)
 
@@ -238,7 +248,8 @@ status: "Waves 1+2 Complete — 11.3-06 remaining"
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
 | 11.1 — Full UI Vision Pass | ✓ Complete | Full Midnight Sanctuary redesign — all screens |
 | 11.2 — E2E QA + Bug Fixes | ✓ Complete | QA fixes landed: reflection log, roadmap loading feedback, moment camera fixes, feed/PFP polish, invite preview polish |
-| 11.3 — Onboarding In Depth | 🔄 In Progress | Waves 1+2 done: all step views + both coordinators rewritten (auth-last). Next: 11.3-06 ContentView routing |
+| 11.3 — Onboarding In Depth | 🔄 In Progress | Waves 1+2 done: all step views + both coordinators rewritten (auth-last). 11.3-06 ContentView routing deferred |
+| 11.5 — Feed Polish | ✓ Complete | Dedup, filter tabs, countdown, today-only, post-refresh race fix |
 | 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
 | 13 — Landing Page Web | ⬜ Planned | Marketing landing page (HTML/Tailwind, design system applied) |
 
@@ -279,6 +290,13 @@ status: "Waves 1+2 Complete — 11.3-06 remaining"
 
 - Camera-state bugs were fixed in Phase 11.2, but real posting should be verified during an actual prayer window instead of a forced debug-style path.
 - If posting succeeds in the real window, evaluate whether the composited image still needs visual polish.
+
+### G. Moment posting — "new row violates row level security policy" (ACTIVE BLOCKER)
+
+- **Symptom:** `postMomentToAllCircles` throws RLS error on INSERT into `circle_moments` (or possibly `storage.objects`).
+- **What was ruled out (2026-04-04 session):** `circle_moments` has 3 correct PERMISSIVE INSERT policies; `auth_user_circle_ids()` is SECURITY DEFINER and returns correct data; no bad constraints; trigger `refresh_group_streak_from_moment` is SECURITY DEFINER; storage INSERT/SELECT policies for `circle-moments` bucket exist.
+- **Most likely cause:** Stale JWT — auth session expires during a long camera session, making `auth.uid()` return NULL so all policies fail. The Supabase SDK auto-refreshes but may have a race window.
+- **Recommended next step:** In `MomentService.uploadPhoto`, add `try? await SupabaseService.shared.client.auth.refreshSession()` before the storage upload call. If that fixes it, we know it's a JWT expiry issue and can harden properly. If it doesn't, next step is logging the raw HTTP status code from the failing call to identify which table/policy is actually blocking.
 
 ---
 
