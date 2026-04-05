@@ -250,8 +250,13 @@ status: "11.5 complete. Blocked on moment posting RLS error."
 | 11.2 — E2E QA + Bug Fixes | ✓ Complete | QA fixes landed: reflection log, roadmap loading feedback, moment camera fixes, feed/PFP polish, invite preview polish |
 | 11.3 — Onboarding In Depth | 🔄 In Progress | Waves 1+2 done: all step views + both coordinators rewritten (auth-last). 11.3-06 ContentView routing deferred |
 | 11.5 — Feed Polish | ✓ Complete | Dedup, filter tabs, countdown, today-only, post-refresh race fix |
-| 12 — Polish + App Store | ⬜ Planned | Muslim-native copy audit, App Store submission |
-| 13 — Landing Page Web | ⬜ Planned | Marketing landing page (HTML/Tailwind, design system applied) |
+| 12 — Codebase Cleanup | ⬜ Planned | Delete dead files, consolidate MS tokens, simplify DesignSystem |
+| 13 — Full UI/UX Pass | ⬜ Planned | Every screen redesigned + confirmed working (Dashboard, Habits, Moments, Check-ins, Circles, Onboarding, Profile) |
+| 14 — Naming + Branding | ⬜ Planned | Lock feature names, finalize logo, update app icon |
+| 15 — Notifications | ⬜ Planned | All push flows working, tone/copy pass, Edge Functions deployed |
+| 16 — Onboarding Videos | ⬜ Planned | Wire real video assets, animation polish (blocked on content) |
+| 17 — Web Landing Page | ⬜ Planned | HTML/Tailwind marketing page with App Store CTA |
+| 18 — App Store Submission | ⬜ Planned | Metadata, screenshots, privacy manifest, TestFlight, submit |
 
 ---
 
