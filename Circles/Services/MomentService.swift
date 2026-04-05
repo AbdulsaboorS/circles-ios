@@ -37,6 +37,8 @@ final class MomentService {
             throw MomentError.imageConversionFailed
         }
         let filename = "shared/\(userId.uuidString.lowercased())_\(Self.todayDateString()).jpg"
+        await refreshAuthSessionIfPossible(reason: "moment upload")
+        print("[MomentService] upload starting path=\(filename) bytes=\(jpegData.count)")
         try await client.storage
             .from("circle-moments")
             .upload(
@@ -47,6 +49,7 @@ final class MomentService {
         let publicURL = try client.storage
             .from("circle-moments")
             .getPublicURL(path: filename)
+        print("[MomentService] upload succeeded path=\(filename) url=\(publicURL.absoluteString)")
         return publicURL.absoluteString
     }
 
@@ -73,13 +76,20 @@ final class MomentService {
             row["caption"] = .string(caption)
         }
 
-        return try await client
-            .from("circle_moments")
-            .insert(row)
-            .select()
-            .single()
-            .execute()
-            .value
+        do {
+            let moment: CircleMoment = try await client
+                .from("circle_moments")
+                .insert(row)
+                .select()
+                .single()
+                .execute()
+                .value
+            print("[MomentService] single-circle insert succeeded circleId=\(circleId) momentId=\(moment.id) photoUrl=\(moment.photoUrl)")
+            return moment
+        } catch {
+            print("[MomentService] single-circle insert failed circleId=\(circleId) photoUrl=\(photoUrl) error=\(error)")
+            throw error
+        }
     }
 
     // MARK: - Post Moment to All Circles
@@ -97,6 +107,7 @@ final class MomentService {
             throw MomentError.noCircles
         }
 
+        print("[MomentService] multi-circle post start circles=\(circleIds.count) userId=\(userId)")
         let photoUrl = try await uploadPhoto(image: image, userId: userId)
         let isOnTime = Self.computeIsOnTime(windowStart: windowStart)
 
@@ -122,9 +133,10 @@ final class MomentService {
                     .single()
                     .execute()
                     .value
+                print("[MomentService] insert succeeded circleId=\(circleId) momentId=\(moment.id)")
                 succeeded.append(moment)
             } catch {
-                print("[MomentService] insert failed for circle \(circleId): \(error)")
+                print("[MomentService] insert failed circleId=\(circleId) photoUrl=\(photoUrl) error=\(error)")
                 failedCircleIds.append(circleId)
             }
         }
@@ -134,6 +146,18 @@ final class MomentService {
         }
 
         return MomentPostResult(succeeded: succeeded, failedCircleIds: failedCircleIds)
+    }
+
+    // MARK: - Auth
+
+    private func refreshAuthSessionIfPossible(reason: String) async {
+        do {
+            let session = try await client.auth.refreshSession()
+            print("[MomentService] auth refresh succeeded reason=\(reason) userId=\(session.user.id)")
+        } catch {
+            let currentUserId = client.auth.currentUser?.id.uuidString ?? "nil"
+            print("[MomentService] auth refresh failed reason=\(reason) currentUserId=\(currentUserId) error=\(error)")
+        }
     }
 
     // MARK: - Helpers
