@@ -1,7 +1,7 @@
 # Circles v2.3 — Roadmap
 
 **Updated:** 2026-04-04
-**Direction:** Private Islamic BeReal. 14-phase execution plan.
+**Direction:** Private Islamic BeReal. 18-phase execution plan.
 
 ---
 
@@ -197,24 +197,87 @@ Plans:
 
 ---
 
-## Phase 12 — Muslim-Native UX Polish + App Store ⬜ Planned
-**Scope:** Final pass before submission.
-- Full copy audit across every screen
-- Mercy-First language verification
-- Notification tone review
-- App Store metadata, screenshots, privacy manifest
-- TestFlight beta, human verification, submission
+## Phase 12 — Codebase Cleanup ⬜ Planned
+**Scope:** Delete dead code, consolidate design tokens, remove legacy onboarding files. No new features — just cut the fat.
+- Delete confirmed dead files: `HalaqaMember.swift`, `OnboardingCoordinator.swift` (v1 only), `RamadanAmountView.swift`, `ProfileSetupView.swift`, `MomentCardView.swift`, `JoinFromLinkView.swift`, `AppIconView.swift`
+- Delete dead step views (confirmed no live references): `AmiirStep4SoulGateView`, `MemberStep1HabitsView`, `MemberStep2LocationView`; also `AIStepDownView`, `HabitSelectionView` (old v1 cluster)
+- Note: `AmiirStep1IdentityView`, `AmiirStep2HabitsView`, `AmiirStep3LocationView` are still live — used by `AmiirOnboardingFlowView`; NOT deleted this phase
+- Audit and remove remaining dead references (`AppBackground`, `Components.swift` AppCard/PrimaryButton, `RoadmapGenerationFlag.swift`)
+- Consolidate duplicated `private extension Color` MS tokens across all files into a single shared `DesignTokens` extension
+- Simplify `ThemeManager` — remove NOAA auto-switch, enforce dark mode directly
+- Verify build compiles clean after each deletion
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Safe file deletions: 4 isolated dead files + OnboardingCoordinator cluster (8 files total)
+- [ ] 12-02-PLAN.md — Components.swift pruning, AppBackground.swift deletion, RoadmapGenerationFlag inline into HabitPlanService
+- [ ] 12-03-PLAN.md — DesignTokens shared MS token consolidation + ThemeManager simplification (dark-mode only)
 
 ---
 
-## Phase 13 — Landing Page Web ⬜ Planned
-**Scope:** Marketing landing page for web (HTML/Tailwind).
-- Design system: Community/Forum pattern + Micro-interactions style
-- Colors: Purple #7C3AED (primary), Light Purple #A78BFA, Green #22C55E (CTA)
-- Typography: Lora (headings, calm) + Raleway (body, clean)
-- Sections: Hero + Popular Topics + Active Members + Join CTA
+## Phase 13 — Full UI/UX Pass ⬜ Planned
+**Scope:** Every screen redesigned and confirmed working. The biggest phase.
+- **Dashboard (Home):** final state — 1-2 known fixes, drag-to-reorder confirmed working
+- **Habit Detail:** icon fix (`Image(systemName:)` not `Text`), contrast fix, roadmap layout polish
+- **Moments feed view:** `MomentFeedCard` full redesign — full-width image, late badge only, no star, clean layout
+- **Check-in view:** `HabitCheckinRow` polish — copy, layout, reactions
+- **Circles Overview (`MyCirclesView`):** card layout, group streak, CTAs
+- **Circle Detail (`CircleDetailView`):** member board, feed section, Amir settings access
+- **Community view:** tab switching, gate UX, filter tabs
+- **Onboarding flows:** visual polish on all Amir + Joiner steps (placeholder for video assets — wire empty containers)
+- **Profile:** stats layout, avatar picker, settings
+- **Auth screen:** visual polish
+- Full copy audit — Mercy-First language, Islamic tone, no generic alerts
+- Consistent spacing, typography, and color token usage across all screens
+- Confirm every screen renders correctly on iPhone 15 + 16 Pro simulators
+
+---
+
+## Phase 14 — Naming + Branding ⬜ Planned
+**Scope:** Lock all product names and visual identity before submission.
+- Finalize feature names: confirm "Circles", "Moments" and any other named concepts
+- Logo finalized — update app icon asset in Xcode
+- App display name, bundle name confirmed
+- Splash / launch screen updated if needed
+
+---
+
+## Phase 15 — Notifications ⬜ Planned
+**Scope:** Every push notification flow working end-to-end, correct tone.
+- Verify and deploy all Edge Functions: moment-window, member-posted, streak-milestone, peer-nudge, comment
+- Test each notification type on a real device (not just Simulator)
+- Copy/tone audit on all notification bodies — warm Islamic voice, not generic alerts
+- `send-moment-window-notifications` Edge Function deployment (currently skipped in UAT 11.4)
+- Handle notification permission modal UX
+
+---
+
+## Phase 16 — Onboarding Videos + Animation Polish ⬜ Planned
+**Scope:** Wire real video/animation assets into onboarding. Blocked on content creation.
+- Replace placeholder video containers in `AmiirLandingSanctuaryView` + `JoinerLandingView` with real assets
+- Animation timing polish on transitions between onboarding steps
+- Confirm onboarding flow feels complete end-to-end on device
+
+---
+
+## Phase 17 — Web Landing Page ⬜ Planned
+**Scope:** Marketing landing page (HTML/Tailwind) where people can download the app.
+- App Store download CTA as primary action
+- Sections: hero, what it is, how it works, download CTA
 - Responsive: 375px–1440px
-- Pre-delivery: no emojis, cursor-pointer, contrast 4.5:1, haptic feedback indication
+- Midnight Sanctuary color palette (consistent with app)
+- No framework dependency — plain HTML/Tailwind/vanilla JS
+
+---
+
+## Phase 18 — App Store Submission ⬜ Planned
+**Scope:** Final submission checklist.
+- App Store metadata: title, subtitle, description, keywords
+- Screenshots for all required device sizes
+- Privacy manifest (PrivacyInfo.xcprivacy)
+- TestFlight internal beta + human QA pass
+- Submit for review
 
 ---
 
