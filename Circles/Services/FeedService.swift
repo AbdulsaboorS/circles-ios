@@ -72,20 +72,28 @@ final class FeedService {
         guard !circleIds.isEmpty else { return [] }
         let idStrings = circleIds.map { $0.uuidString }
 
-        // 1. Fetch activity_feed rows for these circles
+        // Today's UTC date window — only show today's content
+        let todayStart = Self.todayUTCStart()
+        let todayEnd   = Self.todayUTCEnd()
+
+        // 1. Fetch activity_feed rows for these circles (today only)
         let activityRows: [ActivityFeedRow] = try await client
             .from("activity_feed")
             .select()
             .in("circle_id", values: idStrings)
+            .gte("created_at", value: todayStart)
+            .lt("created_at", value: todayEnd)
             .order("created_at", ascending: false)
             .execute()
             .value
 
-        // 2. Fetch circle_moments rows for these circles
+        // 2. Fetch circle_moments rows for these circles (today only)
         let momentRows: [CircleMomentRow] = try await client
             .from("circle_moments")
             .select()
             .in("circle_id", values: idStrings)
+            .gte("posted_at", value: todayStart)
+            .lt("posted_at", value: todayEnd)
             .order("posted_at", ascending: false)
             .execute()
             .value
@@ -240,6 +248,22 @@ final class FeedService {
                 .insert(newRow)
                 .execute()
         }
+    }
+
+    // MARK: - Date helpers
+
+    private static func todayUTCStart() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return "\(f.string(from: Date()))T00:00:00Z"
+    }
+
+    private static func todayUTCEnd() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return "\(f.string(from: Date()))T23:59:59Z"
     }
 
     // MARK: - Private helpers

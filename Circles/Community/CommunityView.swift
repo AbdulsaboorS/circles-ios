@@ -20,6 +20,7 @@ struct CommunityView: View {
     @State private var selectedPage = 0
     @State private var showGlobalCamera = false
     @State private var draftMoment: MomentDraft?
+    @State private var pendingFeedRefresh = false  // set true by onPost, consumed by onDismiss
     private var momentService = DailyMomentService.shared
 
     var body: some View {
@@ -82,7 +83,17 @@ struct CommunityView: View {
                     }
                 }
             }
-            .sheet(item: $draftMoment) { draft in
+            .sheet(item: $draftMoment, onDismiss: {
+                guard pendingFeedRefresh else { return }
+                pendingFeedRefresh = false
+                Task {
+                    guard let userId = auth.session?.user.id else { return }
+                    await feedViewModel.refresh(
+                        circleIds: viewModel.circles.map { $0.id },
+                        currentUserId: userId
+                    )
+                }
+            }) { draft in
                 MomentPreviewView(
                     image: draft.image,
                     onPost: { caption in
@@ -96,7 +107,7 @@ struct CommunityView: View {
                             windowStart: viewModel.circles.first?.momentWindowStart
                         )
                         DailyMomentService.shared.markPostedToday()
-                        await feedViewModel.refresh(circleIds: circleIds, currentUserId: userId)
+                        pendingFeedRefresh = true
                         await viewModel.loadCircles(userId: userId)
                         if result.isPartialSuccess {
                             let failCount = result.failedCircleIds.count
