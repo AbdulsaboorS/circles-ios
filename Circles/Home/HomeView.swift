@@ -85,7 +85,6 @@ struct HomeView: View {
     @State private var showNudgeShare     = false
     @State private var nudgeInviteURL     = URL(string: "https://joinlegacy.app")!
     @State private var showRoadmapBanner  = false
-    @State private var nudgeSent          = false
     @State private var scrollOffset: CGFloat = 0
 
     // Multi-layer heart animations (each on independent timing)
@@ -421,15 +420,7 @@ struct HomeView: View {
 
             CirclePresenceRow(
                 presence: presenceData,
-                checkedInCount: checkedIn,
-                nudgeSent: nudgeSent,
-                onNudge: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    withAnimation(.easeInOut(duration: 0.2)) { nudgeSent = true }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
-                        withAnimation { nudgeSent = false }
-                    }
-                }
+                checkedInCount: checkedIn
             )
 
             // Prayer-time hero card (if a matching habit exists)
@@ -475,14 +466,11 @@ struct HomeView: View {
 
     private func personalSection(habits: [Habit]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.msGold.opacity(0.45))
-                Text("Personal Intentions")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(Color.msTextMuted)
-            }
+            // No label — pure visual language signals hidden sanctuary
+            Rectangle()
+                .fill(Color.msGold.opacity(0.08))
+                .frame(height: 0.5)
+                .padding(.bottom, 2)
 
             // Single-column list — intimate, not cramped grid
             VStack(spacing: 8) {
@@ -641,68 +629,77 @@ struct HomeView: View {
 private struct CirclePresenceRow: View {
     let presence: [HomeViewModel.MemberPresence]
     let checkedInCount: Int
-    let nudgeSent: Bool
-    let onNudge: () -> Void
+
+    @State private var selectedMember: HomeViewModel.MemberPresence? = nil
+    @State private var nudgedIds: Set<UUID> = []
 
     var body: some View {
         VStack(spacing: 14) {
-            // Avatar row with check-in status rings
+            // Avatar row — each avatar is a tappable social button
             HStack(spacing: 0) {
                 ForEach(presence.prefix(5)) { member in
-                    VStack(spacing: 5) {
-                        ZStack {
-                            SwiftUI.Circle().fill(member.avatarColor)
-                            Text(member.initials)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            SwiftUI.Circle()
-                                .strokeBorder(
-                                    member.checkedInToday
-                                        ? Color.msGold
-                                        : Color.msTextMuted.opacity(0.28),
-                                    style: StrokeStyle(
-                                        lineWidth: member.checkedInToday ? 2 : 1,
-                                        dash: member.checkedInToday ? [] : [3, 2]
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        selectedMember = member
+                    } label: {
+                        VStack(spacing: 5) {
+                            ZStack {
+                                SwiftUI.Circle().fill(member.avatarColor)
+                                Text(member.initials)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.white)
+                                // Nudged indicator
+                                if nudgedIds.contains(member.id) {
+                                    SwiftUI.Circle()
+                                        .fill(Color.msGold)
+                                        .frame(width: 10, height: 10)
+                                        .overlay(
+                                            Text("✓")
+                                                .font(.system(size: 6, weight: .bold))
+                                                .foregroundStyle(Color.msBackgroundDeep)
+                                        )
+                                        .offset(x: 12, y: -12)
+                                }
+                            }
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                SwiftUI.Circle()
+                                    .strokeBorder(
+                                        member.checkedInToday
+                                            ? Color.msGold
+                                            : Color.msTextMuted.opacity(0.28),
+                                        style: StrokeStyle(
+                                            lineWidth: member.checkedInToday ? 2 : 1,
+                                            dash: member.checkedInToday ? [] : [3, 2]
+                                        )
                                     )
-                                )
-                        )
-                        .shadow(
-                            color: member.checkedInToday ? Color.msGold.opacity(0.40) : .clear,
-                            radius: 6
-                        )
+                            )
+                            .shadow(
+                                color: member.checkedInToday ? Color.msGold.opacity(0.40) : .clear,
+                                radius: 6
+                            )
 
-                        // First name only
-                        Text(member.name.split(separator: " ").first.map(String.init) ?? member.name)
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.msTextMuted)
+                            Text(member.name.split(separator: " ").first.map(String.init) ?? member.name)
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.msTextMuted)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.plain)
                 }
             }
 
-            // Status summary + Nudge
+            // Status summary — replace global nudge with contextual hint
             HStack {
                 Text("\(checkedInCount) of \(presence.count) brothers checked in")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.msTextMuted)
                 Spacer()
-                Button(action: onNudge) {
-                    Text(nudgeSent ? "Sent ✓" : "Nudge")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(nudgeSent ? Color.msGold : Color.msGold.opacity(0.75))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(Color.msGold.opacity(nudgeSent ? 0.20 : 0.10))
-                                .overlay(Capsule().stroke(Color.msGold.opacity(0.40), lineWidth: 1))
-                        )
+                if checkedInCount < presence.count {
+                    Text("Tap to connect")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.msGold.opacity(0.50))
                 }
-                .buttonStyle(.plain)
-                .animation(.easeInOut(duration: 0.2), value: nudgeSent)
             }
         }
         .padding(16)
@@ -711,6 +708,26 @@ private struct CirclePresenceRow: View {
                 .fill(Color.msCardShared.opacity(0.55))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.msBorder, lineWidth: 1))
         )
+        .confirmationDialog(
+            "Connect with \(selectedMember?.name ?? "")",
+            isPresented: Binding(get: { selectedMember != nil }, set: { if !$0 { selectedMember = nil } }),
+            titleVisibility: .visible
+        ) {
+            if let member = selectedMember {
+                Button("Send Salam") {
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    nudgedIds.insert(member.id)
+                    selectedMember = nil
+                }
+                Button(nudgedIds.contains(member.id) ? "Already Nudged" : "Nudge \(member.name)") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    nudgedIds.insert(member.id)
+                    selectedMember = nil
+                }
+                .disabled(nudgedIds.contains(member.id))
+                Button("Cancel", role: .cancel) { selectedMember = nil }
+            }
+        }
     }
 }
 
@@ -721,31 +738,43 @@ private struct HeroHabitCard: View {
     let isCompleted: Bool
     let onToggle: () -> Void
 
-    @State private var nowPulse = false
+    @State private var borderGlow: Double = 0.45
 
     private var symbol: String { habitSymbol(for: habit.name) }
 
     var body: some View {
         HStack(spacing: 16) {
-            // Left: icon + name + "Now" indicator
+            // Left: layered icon + name + elegant "Now" beacon
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: symbol)
-                        .font(.system(size: 26))
-                        .foregroundStyle(Color.msGold)
+                HStack(spacing: 10) {
+                    // Bespoke layered icon: backing glow + symbol + inner shadow
+                    ZStack {
+                        SwiftUI.Circle()
+                            .fill(Color.msGold.opacity(0.12))
+                            .frame(width: 52, height: 52)
+                        Image(systemName: symbol)
+                            .font(.system(size: 24))
+                            .foregroundStyle(Color.msGold)
+                            .shadow(color: Color.msGold.opacity(0.55), radius: 8)
+                    }
 
                     Spacer()
 
-                    // "Now" pulsing dot
+                    // Crescent "Now" — elegant, not a blinking dot
                     HStack(spacing: 5) {
-                        SwiftUI.Circle()
-                            .fill(Color.msGold)
-                            .frame(width: 6, height: 6)
-                            .scaleEffect(nowPulse ? 1.4 : 1.0)
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Color.msGold)
                         Text("Now")
                             .font(.system(size: 11, weight: .semibold, design: .serif))
                             .foregroundStyle(Color.msGold)
                     }
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.msGold.opacity(0.10))
+                            .overlay(Capsule().stroke(Color.msGold.opacity(borderGlow * 0.6), lineWidth: 0.5))
+                    )
                 }
 
                 Text(habit.name)
@@ -777,8 +806,10 @@ private struct HeroHabitCard: View {
         .frame(maxWidth: .infinity, minHeight: 110)
         .background(
             ZStack {
-                RoundedRectangle(cornerRadius: 28).fill(Color.msCardShared)
-                // Gold radial glow from top-leading (the "Noor" source)
+                // Glass base — lets living background show through
+                RoundedRectangle(cornerRadius: 28).fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 28).fill(Color(hex: "243828").opacity(0.72))
+                // Noor source — gold radial from top-leading
                 RadialGradient(
                     colors: [Color.msGold.opacity(0.13), Color.clear],
                     center: .topLeading,
@@ -786,14 +817,16 @@ private struct HeroHabitCard: View {
                     endRadius: 180
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 28))
+                // Breathing border — the whole card is the beacon
                 RoundedRectangle(cornerRadius: 28)
-                    .stroke(Color.msGold.opacity(0.45), lineWidth: 1.5)
+                    .stroke(Color.msGold.opacity(borderGlow), lineWidth: 1.5)
             }
         )
+        .shadow(color: Color.msGold.opacity(borderGlow * 0.3), radius: 20, x: 0, y: 8)
         .shadow(color: Color.black.opacity(0.45), radius: 20, x: 0, y: 10)
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                nowPulse = true
+            withAnimation(.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) {
+                borderGlow = 0.88
             }
         }
     }
@@ -817,9 +850,16 @@ private struct SharedHabitCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: symbol)
-                    .font(.system(size: 18))
-                    .foregroundStyle(isCompleted ? Color.msGold : Color.msGold.opacity(0.75))
+                // Layered icon: backing glow + symbol + inner shadow
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(Color.msGold.opacity(0.10))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: symbol)
+                        .font(.system(size: 16))
+                        .foregroundStyle(isCompleted ? Color.msGold : Color.msGold.opacity(0.75))
+                        .shadow(color: Color.msGold.opacity(isCompleted ? 0.55 : 0.30), radius: 5)
+                }
                 Spacer()
                 Image(systemName: isCompleted ? "checkmark.circle.fill" : "ellipsis")
                     .font(.system(size: isCompleted ? 13 : 11))
@@ -857,8 +897,10 @@ private struct SharedHabitCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
+                // Semi-glass: material base lets the living bg bleed through subtly
+                RoundedRectangle(cornerRadius: 24).fill(.ultraThinMaterial)
                 RoundedRectangle(cornerRadius: 24)
-                    .fill(isCompleted ? Color.msCardDone : Color.msCardShared)
+                    .fill((isCompleted ? Color.msCardDone : Color.msCardShared).opacity(0.78))
                 if isCompleted {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(LinearGradient(
@@ -869,8 +911,9 @@ private struct SharedHabitCard: View {
                             ]),
                             startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
+                // Tighter 0.5pt gold-glow border
                 RoundedRectangle(cornerRadius: 24)
-                    .stroke(isCompleted ? Color.msGold.opacity(0.50) : Color.msGold.opacity(0.28), lineWidth: 1)
+                    .stroke(isCompleted ? Color.msGold.opacity(0.55) : Color.msGold.opacity(0.22), lineWidth: 0.5)
             }
         )
         .shadow(color: Color.black.opacity(0.38), radius: 14, x: 0, y: 7)
@@ -893,10 +936,16 @@ private struct PersonalHabitCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 20))
-                .foregroundStyle(isCompleted ? Color.msGold.opacity(0.75) : Color.msTextMuted.opacity(0.55))
-                .frame(width: 28)
+            // Layered icon — lower energy, signals secret deeds
+            ZStack {
+                SwiftUI.Circle()
+                    .fill(isCompleted ? Color.msGold.opacity(0.08) : Color.msTextMuted.opacity(0.06))
+                    .frame(width: 34, height: 34)
+                Image(systemName: symbol)
+                    .font(.system(size: 17))
+                    .foregroundStyle(isCompleted ? Color.msGold.opacity(0.70) : Color.msTextMuted.opacity(0.45))
+            }
+            .frame(width: 34)
 
             Text(habit.name)
                 .font(.system(size: 14, weight: .semibold, design: .serif))
@@ -933,9 +982,9 @@ private struct PersonalHabitCard: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(isCompleted ? Color.msCardWarmDone : Color.msCardWarm)
                 .overlay(RoundedRectangle(cornerRadius: 20)
-                    .stroke(isCompleted ? Color.msGold.opacity(0.38) : Color.msGold.opacity(0.10), lineWidth: 1))
+                    .stroke(isCompleted ? Color.msGold.opacity(0.22) : Color.msGold.opacity(0.06), lineWidth: 0.5))
         )
-        .shadow(color: Color.black.opacity(0.20), radius: 6, x: 0, y: 3)
+        .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
     }
 }
 
