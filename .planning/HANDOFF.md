@@ -2,77 +2,124 @@
 
 ## What Was Done This Session
 
-### Phase 11.4 — Completed (all 4 plans executed + committed)
+### Phase 11.5 — Feed fixes (commits baa985b, 3d5814c)
 
-| Plan | Status | Notes |
-|------|--------|-------|
-| 11.4-01 RLS + edge function | ✓ Complete | f4e0ff5 |
-| 11.4-02 Multi-circle MomentService + preview | ✓ Complete | 9f16e27 |
-| 11.4-03 Feed card full-width + profile gear | ✓ Complete | 95033af |
-| 11.4-04 Wire callers + pin own moment | ✓ Complete | 95033af |
-
-### Polish / Bug Fixes (this session, same commit 95033af)
-
-- **Late badge removed** from `MomentFeedCard` entirely — timestamp in header tells the story
-- **Profile page cleaned up** — only shows avatar + stats card; settings section removed from inline scroll view
-- **Settings gear (ProfileView)** — fixed: rows were not clickable because nested `.sheet` inside `settingsSection` was inside another sheet. Fix: `settingsSheetContent` is now its own `NavigationStack`; `.sheet(isPresented: $showEditProfile)` moved to NavigationStack level
-- **`DailyMomentService.forceOpenWindow()`** — `#if DEBUG` method added for prayer window testing without waiting for real prayer time. Debug button added to ProfileView dev tools section
-- **Habit feed deduplication** — documented in `STATE.md` issue F (deferred to Phase 12)
+| Fix | Status | Notes |
+|-----|--------|-------|
+| Feed dedup (one card per photo) | ✓ Complete | FeedService groups by (userId, YYYY-MM-DD) |
+| Feed filter tabs (Posts \| Check-ins) | ✓ Complete | FeedView.showFilterTabs pill picker |
+| 30-min countdown on camera/preview | ✓ Complete | Timer + DailyMomentService.windowStart |
+| Photos blank after post (refresh race) | ✓ Complete | Moved refresh to sheet onDismiss |
+| Today-only feed (moments + check-ins) | ✓ Complete | FeedService scopes both tables to UTC day |
 
 ---
 
 ## Current State
 
 ### What Works
-- Full multi-circle moment posting (one photo → inserted into all circles)
-- Feed card full-width 3:4 photo, no badges
-- Profile gear → Settings sheet with clickable rows
-- Own moment pinned to top of circle feed
-- `#if DEBUG` force-open window button in Profile dev tools
+- Feed deduplication: one card per photo per user per day ✓
+- Own-post shows "Sent to X circles ▾" expandable list ✓
+- Others' posts show only shared circle name ✓
+- Posts | Check-ins filter tabs in global feed ✓
+- 30-min countdown badge on MomentCameraView + MomentPreviewView ✓
+- Today-only feed (no history clutter) ✓
+- onDismiss refresh pattern (no more race with sheet teardown) ✓
 
-### Known Issues / Next Work Items
+### Broken / Regressed
+**RLS error on posting: "new row violates row level security policy"**
 
-**1. Photos not appearing in feed after post (diagnose first)**
-- Likely cause: `FeedViewModel.loadInitial` has `guard !isLoadingInitial` — if called while a load is in flight (immediately after post), it silently no-ops and the new rows don't show
-- Confirm by: pull-to-refresh after posting — if photos appear on pull-to-refresh, that's the bug
-- Fix: in `CommunityView.onPost` and `CircleDetailView.onPost`, add a small yield or reset `isLoadingInitial = false` before calling refresh, OR call `feedViewModel.refresh` instead of `loadInitial`
+---
 
-**2. Multiple post cards (one per circle) → should show ONE card**
-- `FeedService.fetchFeedPage` fetches all `circle_moments` rows — one per circle → N cards for same photo
-- Fix: deduplicate in `FeedService` — group rows by `(userId, date)`, keep first row but collect all `circleIds`/`circleNames` into a list on `MomentFeedItem`
-- Display logic:
-  - Own post: expandable "Sent to X circles ▾" showing all circle names
-  - Other user's post: show only the circle name you share with them (already have `circleId` on the row)
-- `MomentFeedItem` needs: `circleIds: [UUID]`, `circleNames: [String]` (replacing single `circleId`/`circleName`)
+## RLS Bug — Root Cause Diagnosis
 
-**3. Feed filter tabs (Posts | Check-ins)**
-- Add pill tabs at top of the global feed in `CommunityView` (same style as Feed|Circles selector)
-- Tab 0: "Posts" — shows only `.moment` FeedItems
-- Tab 1: "Check-ins" — shows only `.habitCheckin` + `.streakMilestone` FeedItems
-- Filter in `FeedView` or pass a filter param down from `CommunityView`
+**The code did NOT cause this.** My changes in 11.5 only touch SELECT queries and UI — zero changes to MomentService or any INSERT logic. The `postMomentToAllCircles` call is byte-for-byte identical to before.
 
-**4. 30-min countdown on posting**
-- `CircleDetailView` already has `windowSecondsRemaining` countdown on the moment banner
-- Extend: show the same countdown on `MomentCameraView` and/or `MomentPreviewView` so user sees time pressure while composing
-- Pass `windowSecondsRemaining` (or compute from `DailyMomentService.windowStart`) into those views
+**Root cause: Supabase DB-side policies were dropped/reset.**
+
+In commit `f4e0ff5` (Phase 11.4-01), the RLS policies were applied via **Supabase MCP** (not SQL migration files — there is no `.sql` file for them). Those policies live entirely in Supabase. If the Supabase project was reset, a branch was merged/reverted, or the policies were accidentally dropped, they would be gone.
+
+The required policies (from `11.4-01-SUMMARY.md`) are:
+
+```sql
+-- 1. Allow authenticated users to insert their own circle_moments row
+-- (if they are a member of that circle)
+CREATE POLICY "users_insert_own_moments"
+ON circle_moments
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  auth.uid() = user_id
+  AND circle_id IN (SELECT unnest(auth_user_circle_ids()))
+);
+
+-- 2. Allow circle members to select circle_moments
+CREATE POLICY "circle_members_select_moments"
+ON circle_moments
+FOR SELECT
+TO authenticated
+USING (
+  circle_id IN (SELECT unnest(auth_user_circle_ids()))
+);
+
+-- 3. Storage: allow authenticated users to upload to circle-moments bucket
+CREATE POLICY "authenticated_upload_circle_moments"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'circle-moments');
+
+-- 4. Storage: allow authenticated users to read from circle-moments bucket
+CREATE POLICY "authenticated_select_circle_moments"
+ON storage.objects
+FOR SELECT
+TO authenticated
+USING (bucket_id = 'circle-moments');
+```
 
 ---
 
 ## Exact Next Steps for Next Agent
 
-1. **Read this file first**, then read `.planning/STATE.md`
-2. **Fix #1 (photos not appearing)** — pull-to-refresh to confirm diagnosis, then fix the refresh no-op in `CommunityView` + `CircleDetailView` post closures
-3. **Fix #2 (one post card + expandable circles)** — deduplicate in `FeedService`, update `MomentFeedItem`, update `MomentFeedCard`
-4. **Fix #3 (feed filter tabs)** — pill tabs in `CommunityView` global feed
-5. **Fix #4 (countdown on camera/preview)** — pass countdown into `MomentCameraView` / `MomentPreviewView`
-6. After all fixes build clean — commit as `feat(11.5): feed dedup + filter tabs + countdown`
+1. **Read this file**, then read `.planning/STATE.md`
+
+2. **Fix the RLS regression** — this is a Supabase Dashboard / MCP task, NOT a code task:
+   - Open Supabase Dashboard → Authentication → Policies
+   - Check `circle_moments` table — look for the 4 policies listed above
+   - If they're missing, re-apply them via Supabase MCP (`mcp__supabase__execute_sql`) or Dashboard SQL Editor
+   - Also check `storage.objects` policies for the `circle-moments` bucket
+   - **Important:** Before adding, check if policies already exist with those names to avoid duplicates:
+     ```sql
+     SELECT policyname, tablename, cmd, qual, with_check
+     FROM pg_policies
+     WHERE tablename IN ('circle_moments')
+     ORDER BY tablename, policyname;
+     ```
+   - And for storage:
+     ```sql
+     SELECT policyname, cmd, qual, with_check
+     FROM pg_policies
+     WHERE tablename = 'objects' AND schemaname = 'storage';
+     ```
+
+3. **Verify posting works** — test full moment post flow after re-applying policies
+
+4. **If policies ARE present** (and RLS still fails), the issue may be that `auth_user_circle_ids()` is returning empty for the user posting. Check:
+   ```sql
+   -- Run as the authenticated user or check the function definition:
+   SELECT * FROM auth_user_circle_ids();
+   -- Also check circle_members for the user:
+   SELECT * FROM circle_members WHERE user_id = '<your-user-id>';
+   ```
+   The INSERT policy requires membership in the target circle. If `circle_members` row is missing, the INSERT will be blocked.
+
+5. **After posting is verified** — the 11.5 feed fixes are complete. Next phase is 11.6 or Phase 12 per ROADMAP.md.
 
 ---
 
 ## Notes / Blockers
 
-- SourceKit "No such module 'Supabase'" warnings are **false positives** — build succeeds fine
-- Simulator for builds: `id=AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro)
-- `send-moment-window-notifications` edge function is **not deployed** to Supabase — only `seed-daily-moment` is deployed
-- `#if DEBUG` `forceOpenWindow()` is in `DailyMomentService` + button in `ProfileView` dev tools — remove after real prayer window testing is verified
-- `daily_moments` table uses column `moment_date` (not `date`) — confirmed in `DailyMomentService.fetchTodayPrayer()`
+- SourceKit "No such module 'Supabase'" warnings are false positives — build succeeds
+- Simulator: `id=AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro)
+- `pendingFeedRefresh` flag in `CommunityView` — set to `true` in `onPost`, consumed in `onDismiss` to trigger `feedViewModel.refresh`. Clean state machine, no races.
+- `FeedService.fetchFeedPage` today-only scope uses `T00:00:00Z` / `T23:59:59Z` UTC — consistent with `MomentService.fetchTodayMoments` pattern already in the codebase
+- `CircleDetailView` also calls `MomentService.shared.postMoment` (single-circle, legacy path) — if that path is used, the same RLS fix applies
