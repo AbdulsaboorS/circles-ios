@@ -466,11 +466,20 @@ struct HomeView: View {
 
     private func personalSection(habits: [Habit]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            // No label — pure visual language signals hidden sanctuary
-            Rectangle()
-                .fill(Color.msGold.opacity(0.08))
-                .frame(height: 0.5)
-                .padding(.bottom, 2)
+            // Quiet label — whisper, not a title
+            HStack {
+                Rectangle()
+                    .fill(Color.msGold.opacity(0.08))
+                    .frame(height: 0.5)
+                Text("Personal Intentions")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(Color.msTextMuted.opacity(0.50))
+                    .fixedSize()
+                Rectangle()
+                    .fill(Color.msGold.opacity(0.08))
+                    .frame(height: 0.5)
+            }
+            .padding(.bottom, 2)
 
             // Single-column list — intimate, not cramped grid
             VStack(spacing: 8) {
@@ -841,10 +850,6 @@ private struct SharedHabitCard: View {
 
     @State private var shimmerPhase: CGFloat = -0.5
 
-    private var chipInitials: [String] {
-        let pools = [["OI","AA"],["KA","OI"],["AA","KA"],["OI","KA"]]
-        return pools[abs(habit.name.hashValue) % pools.count]
-    }
     private var symbol: String { habitSymbol(for: habit.name) }
 
     var body: some View {
@@ -874,14 +879,7 @@ private struct SharedHabitCard: View {
 
             Spacer(minLength: 4)
 
-            HStack(spacing: 4) {
-                ForEach(chipInitials, id: \.self) { initials in
-                    Text(initials)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Color.msTextPrimary)
-                        .padding(.horizontal, 7).padding(.vertical, 4)
-                        .background(Capsule().fill(Color.white.opacity(0.11)))
-                }
+            HStack {
                 Spacer(minLength: 0)
                 Button(action: onToggle) {
                     Text(isCompleted ? "Done ✓" : "Check In")
