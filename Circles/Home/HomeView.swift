@@ -522,8 +522,8 @@ struct HomeView: View {
                     .shadow(color: Color.msGold.opacity(fabGlow ? 0.60 : 0.30),
                             radius: fabGlow ? 22 : 10, x: 0, y: 4)
 
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .semibold))
+                Image(systemName: "moon.stars.fill")
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(Color.msBackgroundDeep)
             }
         }
@@ -872,7 +872,7 @@ private struct SharedHabitCard: View {
             }
 
             Text(habit.name)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold, design: .serif))
                 .foregroundStyle(Color.msTextPrimary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -899,13 +899,26 @@ private struct SharedHabitCard: View {
                 RoundedRectangle(cornerRadius: 24).fill(.ultraThinMaterial)
                 RoundedRectangle(cornerRadius: 24)
                     .fill((isCompleted ? Color.msCardDone : Color.msCardShared).opacity(0.78))
+                // Persistent done warmth — candle-lit inner glow that stays
+                if isCompleted {
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.msGold.opacity(0.12), Color.clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 80
+                            )
+                        )
+                }
+                // One-shot shimmer on completion moment
                 if isCompleted {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(LinearGradient(
                             gradient: Gradient(stops: [
-                                .init(color: .clear,                   location: shimmerPhase - 0.25),
-                                .init(color: .white.opacity(0.09),     location: shimmerPhase),
-                                .init(color: .clear,                   location: shimmerPhase + 0.25)
+                                .init(color: .clear,               location: shimmerPhase - 0.25),
+                                .init(color: .white.opacity(0.09), location: shimmerPhase),
+                                .init(color: .clear,               location: shimmerPhase + 0.25)
                             ]),
                             startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
