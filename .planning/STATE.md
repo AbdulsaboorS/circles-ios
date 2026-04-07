@@ -1,15 +1,15 @@
 ---
 version: 2.5
-last_updated: "2026-04-04"
-current_phase: "Phase 11.5 — Feed Polish"
-status: "11.5 complete. Blocked on moment posting RLS error."
+last_updated: "2026-04-06"
+current_phase: "Phase 12 — Codebase Cleanup"
+status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, and duplicate-day handling are all working."
 ---
 
 # Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Phase 11.5 — Feed Polish** — All 5 fixes shipped (commits `baa985b`, `3d5814c`). Blocked on moment posting failing with RLS error. See Open Issue G below.
+**Phase 12 — Codebase Cleanup** — Phase 11 is fully complete. The Moment pipeline is restored end-to-end: storage upload works, feed images render in circle and global feeds, captions show, duplicate-day posts return the correct message, and the camera flow now uses a sequential Double Take capture path.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -83,7 +83,7 @@ status: "11.5 complete. Blocked on moment posting RLS error."
 - `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
 
-### Phase 11.5 — Feed Polish ✓ (code complete; posting blocked — see Issue G)
+### Phase 11.5 — Feed Polish ✓
 
 - **Feed deduplication**: `FeedService.fetchFeedPage` groups `circle_moments` rows by `(userId, YYYY-MM-DD)` — one card per photo, not one per circle
 - **Expandable circle list on own posts**: `MomentFeedItem` now carries `circleIds:[UUID]` + `circleNames:[String]`; own posts show "Sent to X circles ▾" expandable; others see only the shared circle name
@@ -92,6 +92,16 @@ status: "11.5 complete. Blocked on moment posting RLS error."
 - **Today-only feed**: `FeedService` scopes both `circle_moments` and `activity_feed` to `T00:00:00Z – T23:59:59Z` UTC per day; history is a future phase
 - **Post-refresh race fixed**: Moved `feedViewModel.refresh` from inside `onPost` closure to `sheet(item:onDismiss:)` handler via `pendingFeedRefresh` flag — eliminates race with sheet teardown animation
 - `FeedIdentityHeader.circleName` is now `String?` (nil hides the circle badge, used for own-post cards)
+- **Moment pipeline restored**:
+  - Supabase Storage policies now allow authenticated `INSERT/SELECT/UPDATE/DELETE` on `circle-moments`
+  - `MomentService` stores storage paths and resolves signed render URLs at read time instead of persisting broken bucket URLs
+  - duplicate-day posts surface `already posted today` instead of a generic failure
+  - `MomentFeedCard` now renders captions reliably
+  - `CommunityView` refreshes the global feed correctly after posting
+- **Sequential Double Take camera shipped**:
+  - simultaneous multi-cam capture was replaced with a sequential single-session flow in `CameraManager`
+  - the live camera decides the first shot; users flip cameras with the standard flip control
+  - the second shot auto-fires after the input switch, and the final image is composed into a BeReal-style portrait canvas with bottom-left PiP
 
 ### Phase 11.1 — Midnight Sanctuary UI Pass ✓ (All groups complete)
 
@@ -248,8 +258,8 @@ status: "11.5 complete. Blocked on moment posting RLS error."
 | 11 — AI Roadmap v2 | ✓ Complete | Gemini 3 Flash preview 28-day plan, HabitDetail UI, RPC refinement cap, onboarding hooks |
 | 11.1 — Full UI Vision Pass | ✓ Complete | Full Midnight Sanctuary redesign — all screens |
 | 11.2 — E2E QA + Bug Fixes | ✓ Complete | QA fixes landed: reflection log, roadmap loading feedback, moment camera fixes, feed/PFP polish, invite preview polish |
-| 11.3 — Onboarding In Depth | 🔄 In Progress | Waves 1+2 done: all step views + both coordinators rewritten (auth-last). 11.3-06 ContentView routing deferred |
-| 11.5 — Feed Polish | ✓ Complete | Dedup, filter tabs, countdown, today-only, post-refresh race fix |
+| 11.3 — Onboarding In Depth | ✓ Complete | Onboarding rebuild landed earlier in phase 11; no remaining blocker for phase progression |
+| 11.5 — Feed Polish | ✓ Complete | Dedup, filter tabs, countdown, today-only, post-refresh race fix, Moment pipeline restoration, sequential Double Take capture |
 | 12 — Codebase Cleanup | ⬜ Planned | Delete dead files, consolidate MS tokens, simplify DesignSystem |
 | 13 — Full UI/UX Pass | ⬜ Planned | Every screen redesigned + confirmed working (Dashboard, Habits, Moments, Check-ins, Circles, Onboarding, Profile) |
 | 14 — Naming + Branding | ⬜ Planned | Lock feature names, finalize logo, update app icon |

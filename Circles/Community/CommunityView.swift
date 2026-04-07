@@ -72,6 +72,13 @@ struct CommunityView: View {
                 await loadGlobalFeed()
                 await DailyMomentService.shared.load(userId: userId)
             }
+            .onAppear {
+                Task {
+                    guard let userId = auth.session?.user.id else { return }
+                    await viewModel.loadCircles(userId: userId)
+                    await loadGlobalFeed()
+                }
+            }
             .fullScreenCover(isPresented: $showGlobalCamera) {
                 if let circleId = viewModel.circles.first?.id {
                     MomentCameraView(circleId: circleId) { image in

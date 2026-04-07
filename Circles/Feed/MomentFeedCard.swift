@@ -58,17 +58,8 @@ struct MomentFeedCard: View {
                 Spacer().frame(height: 6)
             }
 
-            // Photo with caption + lock overlays
-            ZStack(alignment: .bottom) {
-                AsyncImage(url: URL(string: item.photoUrl)) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color(hex: "243828")
-                }
-                .frame(maxWidth: .infinity)
-                .aspectRatio(3.0 / 4.0, contentMode: .fill)
-                .clipped()
-                .blur(radius: isLocked ? 20 : 0)
+            ZStack(alignment: .center) {
+                momentImage
 
                 if isLocked {
                     VStack(spacing: 8) {
@@ -83,24 +74,31 @@ struct MomentFeedCard: View {
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
+            }
 
-                if !isLocked {
-                    VStack(alignment: .leading, spacing: 3) {
-                        if let caption = item.caption, !caption.isEmpty {
-                            Text(caption)
-                                .font(.appCaption)
-                                .foregroundStyle(.white.opacity(0.85))
-                                .lineLimit(2)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(
-                        LinearGradient(
-                            colors: [.clear, .black.opacity(0.7)],
-                            startPoint: .top, endPoint: .bottom
+            if !isLocked {
+                HStack(spacing: 8) {
+                    Text(item.isOnTime ? "On Time" : "Late")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(item.isOnTime ? Color(hex: "1A2E1E") : Color(hex: "F0EAD6"))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            item.isOnTime ? Color(hex: "D4A240") : Color(hex: "8FAF94").opacity(0.22),
+                            in: Capsule()
                         )
-                    )
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+
+                if let caption = item.caption, !caption.isEmpty {
+                    Text(caption)
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color(hex: "F0EAD6"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 10)
                 }
             }
 
@@ -134,6 +132,38 @@ struct MomentFeedCard: View {
     private var displayName: String {
         let preferred = profile?.preferredName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return preferred.isEmpty ? item.userName : preferred
+    }
+
+    private var momentImage: some View {
+        AsyncImage(url: URL(string: item.photoUrl)) { phase in
+            switch phase {
+            case .empty:
+                Color(hex: "243828")
+                    .overlay(ProgressView().tint(Color(hex: "D4A240")))
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: isLocked ? 20 : 0)
+            case .failure:
+                Color(hex: "243828")
+                    .overlay(
+                        VStack(spacing: 8) {
+                            Image(systemName: "photo.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(Color(hex: "8FAF94"))
+                            Text("Couldn't load this Moment")
+                                .font(.appCaption)
+                                .foregroundStyle(Color(hex: "8FAF94"))
+                        }
+                    )
+            @unknown default:
+                Color(hex: "243828")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(3.0 / 4.0, contentMode: .fill)
+        .clipped()
     }
 
     private var timestampLabel: String {

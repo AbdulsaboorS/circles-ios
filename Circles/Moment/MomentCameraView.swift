@@ -21,7 +21,7 @@ struct MomentCameraView: View {
     @State private var windowSecondsRemaining: Int = 0
     
     private var isCaptureReady: Bool {
-        cameraManager.permissionGranted && cameraManager.isSessionReady
+        cameraManager.permissionGranted && cameraManager.isSessionReady && !cameraManager.isCapturingSequence
     }
 
     var body: some View {
@@ -38,7 +38,7 @@ struct MomentCameraView: View {
                 .allowsHitTesting(false)
                 .animation(.easeOut(duration: 0.3), value: flashOpacity)
 
-            if cameraManager.permissionGranted && !cameraManager.isSessionReady {
+            if cameraManager.permissionGranted && cameraManager.previewLayer == nil {
                 loadingOverlay
             }
         }
@@ -65,93 +65,108 @@ struct MomentCameraView: View {
 
     private var cameraViewfinderView: some View {
         ZStack(alignment: .top) {
-            // Rear camera fills entire screen
             Color.black.ignoresSafeArea()
 
-            if let rearLayer = cameraManager.rearPreviewLayer {
-                CameraPreviewRepresentable(previewLayer: rearLayer)
+            if let previewLayer = cameraManager.previewLayer {
+                CameraPreviewRepresentable(previewLayer: previewLayer)
                     .ignoresSafeArea()
             }
 
-            // Front camera inset (bottom-left, only in multi-cam mode)
-            if cameraManager.isMultiCamSupported,
-               let frontLayer = cameraManager.frontPreviewLayer {
-                GeometryReader { geo in
-                    let insetWidth = geo.size.width * 0.25
-                    let insetHeight = insetWidth * (4.0 / 3.0)
-                    CameraPreviewRepresentable(previewLayer: frontLayer)
-                        .frame(width: insetWidth, height: insetHeight)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.msGold, lineWidth: 2)
-                        )
-                        .frame(
-                            maxWidth: .infinity,
-                            maxHeight: .infinity,
-                            alignment: .bottomLeading
-                        )
-                        .padding(.leading, 16)
-                        .padding(.bottom, 16 + geo.safeAreaInsets.bottom + 120)
-                }
-                .ignoresSafeArea()
+            if let firstCapture = cameraManager.firstCapturedPreview {
+                firstCaptureOverlay(image: firstCapture)
             }
 
-            // Top bar: countdown (left) + cancel (right)
-            HStack {
-                if windowSecondsRemaining > 0 {
-                    let mins = windowSecondsRemaining / 60
-                    let secs = windowSecondsRemaining % 60
-                    Label(String(format: "%02d:%02d", mins, secs), systemImage: "clock")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.msGold)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
-                }
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Cancel camera")
-            }
-            .padding(.top, 16)
-            .padding(.horizontal, 16)
-
-            // Bottom controls
             VStack {
+                topControls
                 Spacer()
-
-                HStack(spacing: 0) {
-                    Spacer()
-
-                    // Shutter button
-                    shutterButton
-
-                    // Flip camera (single-cam fallback only)
-                    if !cameraManager.isMultiCamSupported {
-                        Spacer().frame(width: 32)
-                        Button {
-                            // Flip camera not yet wired (Plan 03 scope)
-                        } label: {
-                            Image(systemName: "arrow.triangle.2.circlepath.camera")
-                                .font(.system(size: 24))
-                                .foregroundStyle(.white)
-                                .frame(width: 44, height: 44)
-                        }
-                    } else {
-                        Spacer()
-                    }
-                }
-                .padding(.horizontal, 48)
-                .padding(.bottom, 48)
+                bottomControls
             }
         }
+    }
+
+    private var topControls: some View {
+        HStack(alignment: .center) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.black.opacity(0.22), in: SwiftUI.Circle())
+            }
+            .accessibilityLabel("Cancel camera")
+
+            Spacer()
+
+            countdownPill
+            
+            Spacer()
+                .frame(width: 44)
+        }
+        .padding(.top, 42)
+        .padding(.horizontal, 16)
+    }
+
+    private var bottomControls: some View {
+        HStack {
+            Spacer()
+            shutterButton
+            Spacer().frame(width: 28)
+            flipCameraButton
+            Spacer()
+        }
+        .padding(.horizontal, 48)
+        .padding(.bottom, 48)
+    }
+
+    private var countdownPill: some View {
+        Group {
+            let mins = max(0, windowSecondsRemaining) / 60
+            let secs = max(0, windowSecondsRemaining) % 60
+            VStack(spacing: 2) {
+                Text("Moment Window")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.msTextPrimary.opacity(0.75))
+                Text(String(format: "%02d:%02d", mins, secs))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(windowSecondsRemaining > 300 ? Color.msGold : Color.red.opacity(0.92))
+            }
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        }
+    }
+
+    private func firstCaptureOverlay(image: UIImage) -> some View {
+        VStack {
+            Spacer()
+
+            HStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 112, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.92), lineWidth: 3)
+                    )
+                    .overlay(alignment: .bottomTrailing) {
+                        ProgressView()
+                            .tint(Color.msGold)
+                            .padding(12)
+                            .background(Color.black.opacity(0.42), in: SwiftUI.Circle())
+                            .padding(8)
+                    }
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 158)
+        }
+        .transition(.opacity)
     }
 
     // MARK: - Shutter Button
@@ -165,7 +180,7 @@ struct MomentCameraView: View {
                     .fill(.white)
                     .frame(width: 80, height: 80)
                 SwiftUI.Circle()
-                    .fill(Color.msBackground)
+                    .fill(cameraManager.isCapturingSequence ? Color.msGold.opacity(0.4) : Color.msBackground)
                     .frame(width: 68, height: 68)
             }
         }
@@ -181,6 +196,21 @@ struct MomentCameraView: View {
         .accessibilityLabel("Take Moment photo")
     }
 
+    private var flipCameraButton: some View {
+        Button {
+            cameraManager.flipActiveCamera()
+        } label: {
+            Image(systemName: "arrow.triangle.2.circlepath.camera")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(Color.black.opacity(0.26), in: SwiftUI.Circle())
+        }
+        .disabled(cameraManager.isCapturingSequence || !cameraManager.isSessionReady)
+        .opacity((cameraManager.isCapturingSequence || !cameraManager.isSessionReady) ? 0.45 : 1)
+        .accessibilityLabel("Flip camera")
+    }
+
     private func updateWindowCountdown() {
         guard let start = DailyMomentService.shared.windowStart else {
             windowSecondsRemaining = 0; return
@@ -191,8 +221,7 @@ struct MomentCameraView: View {
 
     private func triggerCapture() {
         guard isCaptureReady else { return }
-        cameraManager.resetCapture()
-        cameraManager.capturePhoto()
+        cameraManager.startDoubleTake(firstSource: cameraManager.activeSource)
         // Flash animation
         flashOpacity = 1
         withAnimation(.easeOut(duration: 0.3)) {
@@ -220,7 +249,7 @@ struct MomentCameraView: View {
             Color.msBackground.ignoresSafeArea()
 
             VStack(spacing: 16) {
-                Image(systemName: "camera.slash.fill")
+                Image(systemName: "camera.fill")
                     .font(.system(size: 48))
                     .foregroundStyle(Color.msTextMuted)
 

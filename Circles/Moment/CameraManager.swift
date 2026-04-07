@@ -6,49 +6,62 @@ import Observation
 @MainActor
 final class CameraManager: NSObject {
 
+    enum CaptureSource: String, CaseIterable, Identifiable {
+        case rear
+        case front
+
+        var id: String { rawValue }
+
+        var position: AVCaptureDevice.Position {
+            switch self {
+            case .rear: return .back
+            case .front: return .front
+            }
+        }
+
+        var opposite: CaptureSource {
+            switch self {
+            case .rear: return .front
+            case .front: return .rear
+            }
+        }
+    }
+
     // MARK: - Observable State
 
-    var isMultiCamSupported: Bool = false
-    var permissionGranted: Bool = false
-    var isSessionReady: Bool = false
+    var permissionGranted = false
+    var isSessionReady = false
     var capturedImage: UIImage?
-    var rearPreviewLayer: AVCaptureVideoPreviewLayer?
-    var frontPreviewLayer: AVCaptureVideoPreviewLayer?
+    var previewLayer: AVCaptureVideoPreviewLayer?
+    var activeSource: CaptureSource = .rear
+    var firstCapturedPreview: UIImage?
+    var isCapturingSequence = false
 
     // MARK: - Private Session Properties
 
-    private var multiCamSession: AVCaptureMultiCamSession?
-    private var singleSession: AVCaptureSession?
-    private var rearPhotoOutput: AVCapturePhotoOutput?
-    private var frontPhotoOutput: AVCapturePhotoOutput?
-    private var singlePhotoOutput: AVCapturePhotoOutput?
-    private var isSessionSetUp: Bool = false
+    private var session: AVCaptureSession?
+    private var photoOutput: AVCapturePhotoOutput?
+    private var currentInput: AVCaptureDeviceInput?
+    private var isSessionSetUp = false
 
-    private var rearImage: UIImage?
-    private var frontImage: UIImage?
-    private var pendingCaptureCount: Int = 0
-    private var captureGeneration: Int = 0
-    private var activeCaptureGeneration: Int = 0
+    private var primaryImage: UIImage?
+    private var secondaryImage: UIImage?
+    private var captureGeneration = 0
+    private var activeSequence: CaptureSequence?
     private var captureRequests: [Int64: CaptureRequest] = [:]
 
     // Dedicated serial queue — all AVFoundation work runs here, never main thread
     nonisolated private let sessionQueue = DispatchQueue(label: "com.circles.camera.session", qos: .userInitiated)
-
-    // MARK: - Session Accessors
-
-    var activeSession: AVCaptureSession? {
-        multiCamSession ?? singleSession
-    }
 
     private struct CaptureRequest {
         let generation: Int
         let source: CaptureSource
     }
 
-    private enum CaptureSource {
-        case rear
-        case front
-        case single
+    private struct CaptureSequence {
+        let generation: Int
+        let primary: CaptureSource
+        let secondary: CaptureSource
     }
 
     // MARK: - Permission
@@ -74,96 +87,54 @@ final class CameraManager: NSObject {
     func setupSession() {
         guard !isSessionSetUp else { return }
         isSessionSetUp = true
-        let multiCamOK = AVCaptureMultiCamSession.isMultiCamSupported
-        isMultiCamSupported = multiCamOK
-        if multiCamOK {
-            configureMultiCamSession()
-        } else {
-            configureSingleCamSession()
-        }
+        configureSession(defaultSource: .rear)
     }
 
-    private func configureMultiCamSession() {
-        let session = AVCaptureMultiCamSession()
-        sessionQueue.async { [weak self] in
-            guard let self else { return }
-            session.beginConfiguration()
-
-            var rearOut: AVCapturePhotoOutput?
-            var frontOut: AVCapturePhotoOutput?
-            var rearLayer: AVCaptureVideoPreviewLayer?
-            var frontLayer: AVCaptureVideoPreviewLayer?
-
-            if let rearDevice = AVCaptureDevice.DiscoverySession(
-                deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back
-            ).devices.first,
-               let rearInput = try? AVCaptureDeviceInput(device: rearDevice),
-               session.canAddInput(rearInput) {
-                session.addInput(rearInput)
-                let out = AVCapturePhotoOutput()
-                if session.canAddOutput(out) { session.addOutput(out); rearOut = out }
-                let layer = AVCaptureVideoPreviewLayer(session: session)
-                layer.videoGravity = .resizeAspectFill
-                rearLayer = layer
-            }
-
-            if let frontDevice = AVCaptureDevice.DiscoverySession(
-                deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .front
-            ).devices.first,
-               let frontInput = try? AVCaptureDeviceInput(device: frontDevice),
-               session.canAddInput(frontInput) {
-                session.addInput(frontInput)
-                let out = AVCapturePhotoOutput()
-                if session.canAddOutput(out) { session.addOutput(out); frontOut = out }
-                let layer = AVCaptureVideoPreviewLayer(session: session)
-                layer.videoGravity = .resizeAspectFill
-                frontLayer = layer
-            }
-
-            session.commitConfiguration()
-            session.startRunning()
-
-            Task { @MainActor in
-                self.multiCamSession = session
-                self.rearPhotoOutput = rearOut
-                self.frontPhotoOutput = frontOut
-                self.rearPreviewLayer = rearLayer
-                self.frontPreviewLayer = frontLayer
-                self.isSessionReady = true
-            }
-        }
-    }
-
-    private func configureSingleCamSession() {
+    private func configureSession(defaultSource: CaptureSource) {
         let session = AVCaptureSession()
+        let targetPosition = defaultSource.position
         sessionQueue.async { [weak self] in
             guard let self else { return }
             session.beginConfiguration()
             session.sessionPreset = .photo
 
-            var photoOut: AVCapturePhotoOutput?
-            var rearLayer: AVCaptureVideoPreviewLayer?
-
-            if let rearDevice = AVCaptureDevice.DiscoverySession(
-                deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back
-            ).devices.first,
-               let rearInput = try? AVCaptureDeviceInput(device: rearDevice),
-               session.canAddInput(rearInput) {
-                session.addInput(rearInput)
-                let out = AVCapturePhotoOutput()
-                if session.canAddOutput(out) { session.addOutput(out); photoOut = out }
-                let layer = AVCaptureVideoPreviewLayer(session: session)
-                layer.videoGravity = .resizeAspectFill
-                rearLayer = layer
+            guard
+                let device = Self.device(for: targetPosition),
+                let input = try? AVCaptureDeviceInput(device: device),
+                session.canAddInput(input)
+            else {
+                session.commitConfiguration()
+                Task { @MainActor in
+                    self.isSessionReady = false
+                }
+                return
             }
+
+            session.addInput(input)
+
+            let output = AVCapturePhotoOutput()
+            guard session.canAddOutput(output) else {
+                session.commitConfiguration()
+                Task { @MainActor in
+                    self.isSessionReady = false
+                }
+                return
+            }
+
+            session.addOutput(output)
+
+            let layer = AVCaptureVideoPreviewLayer(session: session)
+            layer.videoGravity = .resizeAspectFill
 
             session.commitConfiguration()
             session.startRunning()
 
             Task { @MainActor in
-                self.singleSession = session
-                self.singlePhotoOutput = photoOut
-                self.rearPreviewLayer = rearLayer
+                self.session = session
+                self.currentInput = input
+                self.photoOutput = output
+                self.previewLayer = layer
+                self.activeSource = defaultSource
                 self.isSessionReady = true
             }
         }
@@ -173,90 +144,219 @@ final class CameraManager: NSObject {
 
     func resetCapture() {
         capturedImage = nil
-        rearImage = nil
-        frontImage = nil
-        pendingCaptureCount = 0
+        firstCapturedPreview = nil
+        primaryImage = nil
+        secondaryImage = nil
         captureRequests = [:]
+        activeSequence = nil
+        isCapturingSequence = false
     }
 
-    func capturePhoto() {
+    func startDoubleTake(firstSource: CaptureSource) {
+        guard permissionGranted, isSessionReady, !isCapturingSequence else { return }
+
         capturedImage = nil
-        captureGeneration += 1
-        activeCaptureGeneration = captureGeneration
+        firstCapturedPreview = nil
+        primaryImage = nil
+        secondaryImage = nil
         captureRequests = [:]
-        if isMultiCamSupported, let rearOut = rearPhotoOutput, let frontOut = frontPhotoOutput {
-            rearImage = nil
-            frontImage = nil
-            pendingCaptureCount = 2
-            let rearSettings = AVCapturePhotoSettings()
-            let frontSettings = AVCapturePhotoSettings()
-            captureRequests[Int64(rearSettings.uniqueID)] = CaptureRequest(
-                generation: activeCaptureGeneration,
-                source: .rear
-            )
-            captureRequests[Int64(frontSettings.uniqueID)] = CaptureRequest(
-                generation: activeCaptureGeneration,
-                source: .front
-            )
-            sessionQueue.async {
-                rearOut.capturePhoto(with: rearSettings, delegate: self)
-                frontOut.capturePhoto(with: frontSettings, delegate: self)
-            }
-        } else if let singleOut = singlePhotoOutput {
-            pendingCaptureCount = 1
-            let settings = AVCapturePhotoSettings()
-            captureRequests[Int64(settings.uniqueID)] = CaptureRequest(
-                generation: activeCaptureGeneration,
-                source: .single
-            )
-            sessionQueue.async {
-                singleOut.capturePhoto(with: settings, delegate: self)
+        captureGeneration += 1
+
+        let sequence = CaptureSequence(
+            generation: captureGeneration,
+            primary: firstSource,
+            secondary: firstSource.opposite
+        )
+        activeSequence = sequence
+        isCapturingSequence = true
+
+        prepareAndCapture(source: firstSource, generation: sequence.generation, delay: 0)
+    }
+
+    func flipActiveCamera() {
+        guard permissionGranted, isSessionReady, !isCapturingSequence else { return }
+        isSessionReady = false
+        switchInput(to: activeSource.opposite) { [weak self] success in
+            guard let self else { return }
+            if !success {
+                Task { @MainActor in
+                    self.isSessionReady = true
+                }
             }
         }
     }
 
-    // MARK: - Compositing
+    private func prepareAndCapture(source: CaptureSource, generation: Int, delay: TimeInterval) {
+        if activeSource == source {
+            scheduleCapture(source: source, generation: generation, delay: delay)
+            return
+        }
 
-    func compositeImages(rear: UIImage, front: UIImage) -> UIImage {
-        let rearSize = rear.size
-        let frontWidth = rearSize.width * 0.25
-        let frontHeight = frontWidth * (4.0 / 3.0)
-        let inset: CGFloat = 16
-        let cornerRadius: CGFloat = 12
-        let borderWidth: CGFloat = 2
+        isSessionReady = false
+        switchInput(to: source) { [weak self] success in
+            guard let self else { return }
+            Task { @MainActor in
+                if success {
+                    self.scheduleCapture(source: source, generation: generation, delay: delay)
+                } else {
+                    self.failSequence(message: "Couldn't switch cameras. Try again.")
+                }
+            }
+        }
+    }
 
-        let frontRect = CGRect(
-            x: inset,
-            y: rearSize.height - frontHeight - inset,
-            width: frontWidth,
-            height: frontHeight
+    private func scheduleCapture(source: CaptureSource, generation: Int, delay: TimeInterval) {
+        guard let photoOutput else {
+            failSequence(message: "Camera isn’t ready yet. Try again.")
+            return
+        }
+
+        let settings = AVCapturePhotoSettings()
+        captureRequests[Int64(settings.uniqueID)] = CaptureRequest(generation: generation, source: source)
+
+        sessionQueue.asyncAfter(deadline: .now() + delay) {
+            photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+    }
+
+    private func switchInput(to source: CaptureSource, completion: @Sendable @escaping (Bool) -> Void) {
+        guard let session else {
+            completion(false)
+            return
+        }
+
+        let targetPosition = source.position
+        let previousInput = currentInput
+
+        sessionQueue.async { [weak self] in
+            guard let self else {
+                completion(false)
+                return
+            }
+
+            guard
+                let device = Self.device(for: targetPosition),
+                let newInput = try? AVCaptureDeviceInput(device: device)
+            else {
+                completion(false)
+                return
+            }
+
+            session.beginConfiguration()
+            if let previousInput {
+                session.removeInput(previousInput)
+            }
+
+            guard session.canAddInput(newInput) else {
+                if let previousInput, session.canAddInput(previousInput) {
+                    session.addInput(previousInput)
+                }
+                session.commitConfiguration()
+                completion(false)
+                return
+            }
+
+            session.addInput(newInput)
+            session.commitConfiguration()
+
+            Task { @MainActor in
+                self.currentInput = newInput
+                self.activeSource = source
+                self.isSessionReady = true
+            }
+            completion(true)
+        }
+    }
+
+    private func failSequence(message: String) {
+        activeSequence = nil
+        captureRequests = [:]
+        primaryImage = nil
+        secondaryImage = nil
+        firstCapturedPreview = nil
+        isCapturingSequence = false
+        isSessionReady = true
+        print("[CameraManager] \(message)")
+    }
+
+    // MARK: - Composition
+
+    private func composedImage(primary: UIImage, secondary: UIImage) -> UIImage {
+        let mainImage = normalizedImage(primary)
+        let insetImage = normalizedImage(secondary)
+
+        let canvasSize = CGSize(width: 1080, height: 1440)
+        let insetWidth = canvasSize.width * 0.28
+        let insetHeight = insetWidth * (4.0 / 3.0)
+        let insetRect = CGRect(
+            x: 36,
+            y: canvasSize.height - insetHeight - 36,
+            width: insetWidth,
+            height: insetHeight
         )
 
-        let renderer = UIGraphicsImageRenderer(size: rearSize)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
+
         return renderer.image { ctx in
-            let cgCtx = ctx.cgContext
-            rear.draw(in: CGRect(origin: .zero, size: rearSize))
-            let frontPath = UIBezierPath(roundedRect: frontRect, cornerRadius: cornerRadius)
-            cgCtx.saveGState()
-            frontPath.addClip()
-            front.draw(in: frontRect)
-            cgCtx.restoreGState()
-            let borderRect = frontRect.insetBy(dx: borderWidth / 2, dy: borderWidth / 2)
-            let borderPath = UIBezierPath(roundedRect: borderRect, cornerRadius: cornerRadius)
-            UIColor.white.setStroke()
-            borderPath.lineWidth = borderWidth
-            borderPath.stroke()
+            drawAspectFill(mainImage, in: CGRect(origin: .zero, size: canvasSize), context: ctx.cgContext)
+
+            let insetPath = UIBezierPath(roundedRect: insetRect, cornerRadius: 28)
+            ctx.cgContext.saveGState()
+            insetPath.addClip()
+            drawAspectFill(insetImage, in: insetRect, context: ctx.cgContext)
+            ctx.cgContext.restoreGState()
+
+            UIColor.white.withAlphaComponent(0.96).setStroke()
+            insetPath.lineWidth = 6
+            insetPath.stroke()
         }
+    }
+
+    private func drawAspectFill(_ image: UIImage, in rect: CGRect, context: CGContext) {
+        let imageSize = image.size
+        guard imageSize.width > 0, imageSize.height > 0 else { return }
+
+        let scale = max(rect.width / imageSize.width, rect.height / imageSize.height)
+        let drawSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        let drawOrigin = CGPoint(
+            x: rect.midX - (drawSize.width / 2),
+            y: rect.midY - (drawSize.height / 2)
+        )
+
+        context.saveGState()
+        context.clip(to: rect)
+        image.draw(in: CGRect(origin: drawOrigin, size: drawSize))
+        context.restoreGState()
+    }
+
+    private func normalizedImage(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = image.scale
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+
+        return renderer.image { rendererContext in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+    }
+
+    private nonisolated static func device(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInWideAngleCamera],
+            mediaType: .video,
+            position: position
+        ).devices.first
     }
 
     // MARK: - Stop Session
 
     func stopSession() {
-        let multi = multiCamSession
-        let single = singleSession
+        let session = session
         sessionQueue.async {
-            multi?.stopRunning()
-            single?.stopRunning()
+            session?.stopRunning()
         }
     }
 }
@@ -273,8 +373,12 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         guard error == nil,
               let data = photo.fileDataRepresentation(),
               let image = UIImage(data: data) else {
+            Task { @MainActor in
+                self.failSequence(message: "Couldn’t capture your Double Take. Try again.")
+            }
             return
         }
+
         let requestId = Int64(photo.resolvedSettings.uniqueID)
 
         Task { @MainActor in
@@ -285,28 +389,34 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     @MainActor
     private func handleCapturedImage(_ image: UIImage, requestId: Int64) async {
         guard let request = captureRequests.removeValue(forKey: requestId),
-              request.generation == activeCaptureGeneration else {
+              let activeSequence,
+              request.generation == activeSequence.generation else {
             return
         }
 
-        if isMultiCamSupported {
-            switch request.source {
-            case .rear:
-                rearImage = image
-            case .front:
-                frontImage = image
-            case .single:
-                break
-            }
+        let normalized = normalizedImage(image)
 
-            pendingCaptureCount -= 1
-
-            if pendingCaptureCount == 0, let rear = rearImage, let front = frontImage {
-                capturedImage = compositeImages(rear: rear, front: front)
-            }
-        } else {
-            // Single-cam: use rear image directly
-            capturedImage = image
+        if request.source == activeSequence.primary {
+            primaryImage = normalized
+            firstCapturedPreview = normalized
+            prepareAndCapture(source: activeSequence.secondary, generation: activeSequence.generation, delay: 0.5)
+            return
         }
+
+        secondaryImage = normalized
+
+        guard let primaryImage, let secondaryImage else {
+            failSequence(message: "Couldn’t finish your Double Take. Try again.")
+            return
+        }
+
+        capturedImage = composedImage(primary: primaryImage, secondary: secondaryImage)
+        self.primaryImage = nil
+        self.secondaryImage = nil
+        firstCapturedPreview = nil
+        captureRequests = [:]
+        self.activeSequence = nil
+        isCapturingSequence = false
+        isSessionReady = true
     }
 }

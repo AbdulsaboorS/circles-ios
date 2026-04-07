@@ -16,7 +16,7 @@ final class MomentService {
     /// Fetch all Moments for a circle posted today (UTC date).
     func fetchTodayMoments(circleId: UUID) async throws -> [CircleMoment] {
         let today = Self.todayDateString()
-        return try await client
+        let moments: [CircleMoment] = try await client
             .from("circle_moments")
             .select()
             .eq("circle_id", value: circleId.uuidString)
@@ -25,13 +25,14 @@ final class MomentService {
             .order("posted_at")
             .execute()
             .value
+        return try await resolveMomentPhotoURLs(in: moments)
     }
 
     // MARK: - Upload Photo
 
     /// Upload a composited UIImage to Supabase Storage bucket "circle-moments".
-    /// Uses a shared/ path so the same URL can be inserted into multiple circle rows.
-    /// Returns the public URL string of the uploaded file.
+    /// Uses a shared/ path so the same object can be inserted into multiple circle rows.
+    /// Returns the storage path string of the uploaded file.
     func uploadPhoto(image: UIImage, userId: UUID) async throws -> String {
         guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
             throw MomentError.imageConversionFailed
@@ -46,11 +47,8 @@ final class MomentService {
                 data: jpegData,
                 options: FileOptions(contentType: "image/jpeg", upsert: true)
             )
-        let publicURL = try client.storage
-            .from("circle-moments")
-            .getPublicURL(path: filename)
-        print("[MomentService] upload succeeded path=\(filename) url=\(publicURL.absoluteString)")
-        return publicURL.absoluteString
+        print("[MomentService] upload succeeded path=\(filename)")
+        return filename
     }
 
     // MARK: - Post Moment (single circle — legacy, kept for backward compat until Plan 04)
@@ -113,6 +111,7 @@ final class MomentService {
 
         var succeeded: [CircleMoment] = []
         var failedCircleIds: [UUID] = []
+        var duplicateCircleIds: [UUID] = []
 
         for circleId in circleIds {
             do {
@@ -137,11 +136,17 @@ final class MomentService {
                 succeeded.append(moment)
             } catch {
                 print("[MomentService] insert failed circleId=\(circleId) photoUrl=\(photoUrl) error=\(error)")
+                if Self.isDuplicateMomentError(error) {
+                    duplicateCircleIds.append(circleId)
+                }
                 failedCircleIds.append(circleId)
             }
         }
 
         if succeeded.isEmpty {
+            if duplicateCircleIds.count == circleIds.count {
+                throw MomentError.alreadyPostedToday
+            }
             throw MomentError.allInsertsFailedCircles(failedCircleIds)
         }
 
@@ -161,6 +166,65 @@ final class MomentService {
     }
 
     // MARK: - Helpers
+
+    func resolveMomentPhotoURL(from storedValue: String) async throws -> String {
+        let path = Self.extractStoragePath(from: storedValue)
+        let signedURL = try await client.storage
+            .from("circle-moments")
+            .createSignedURL(path: path, expiresIn: 60 * 60)
+        return signedURL.absoluteString
+    }
+
+    func resolveMomentPhotoURLs(in moments: [CircleMoment]) async throws -> [CircleMoment] {
+        var resolved: [CircleMoment] = []
+        resolved.reserveCapacity(moments.count)
+
+        for moment in moments {
+            let renderableURL = try await resolveMomentPhotoURL(from: moment.photoUrl)
+            resolved.append(
+                CircleMoment(
+                    id: moment.id,
+                    circleId: moment.circleId,
+                    userId: moment.userId,
+                    photoUrl: renderableURL,
+                    caption: moment.caption,
+                    postedAt: moment.postedAt,
+                    isOnTime: moment.isOnTime
+                )
+            )
+        }
+
+        return resolved
+    }
+
+    static func extractStoragePath(from storedValue: String) -> String {
+        if !storedValue.contains("://") {
+            return storedValue.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+
+        guard let components = URLComponents(string: storedValue) else {
+            return storedValue
+        }
+
+        let markers = [
+            "/storage/v1/object/public/circle-moments/",
+            "/storage/v1/object/sign/circle-moments/",
+            "/storage/v1/object/authenticated/circle-moments/"
+        ]
+
+        for marker in markers {
+            if let range = components.path.range(of: marker) {
+                return String(components.path[range.upperBound...])
+            }
+        }
+
+        return storedValue
+    }
+
+    static func isDuplicateMomentError(_ error: Error) -> Bool {
+        let message = String(describing: error)
+        return message.contains("circle_moments_one_per_day") || message.contains("duplicate key value")
+    }
 
     /// Returns "YYYY-MM-DD" for today in UTC.
     static func todayDateString() -> String {
@@ -197,6 +261,7 @@ struct MomentPostResult {
 enum MomentError: LocalizedError {
     case imageConversionFailed
     case noCircles
+    case alreadyPostedToday
     case allInsertsFailedCircles([UUID])
 
     var errorDescription: String? {
@@ -205,6 +270,8 @@ enum MomentError: LocalizedError {
             return "Failed to convert image to JPEG data."
         case .noCircles:
             return "You are not in any circles yet."
+        case .alreadyPostedToday:
+            return "You already posted your Moment for today."
         case .allInsertsFailedCircles:
             return "Could not post your Moment. Please try again."
         }

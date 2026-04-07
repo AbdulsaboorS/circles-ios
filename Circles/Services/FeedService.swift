@@ -97,6 +97,7 @@ final class FeedService {
             .order("posted_at", ascending: false)
             .execute()
             .value
+        let resolvedPhotoURLs = try await resolveMomentPhotoURLs(for: momentRows)
 
         // 3. Collect unique user IDs from both result sets
         var userIdSet = Set<UUID>()
@@ -166,7 +167,7 @@ final class FeedService {
                 circleName: circleNameMap[first.circleId] ?? "",
                 circleIds: dedupedCircleIds,
                 circleNames: dedupedCircleNames,
-                photoUrl: first.photoUrl,
+                photoUrl: resolvedPhotoURLs[first.id] ?? first.photoUrl,
                 caption: first.caption,
                 postedAt: first.postedAt,
                 isOnTime: first.isOnTime
@@ -267,6 +268,17 @@ final class FeedService {
     }
 
     // MARK: - Private helpers
+
+    private func resolveMomentPhotoURLs(for rows: [CircleMomentRow]) async throws -> [UUID: String] {
+        var resolved: [UUID: String] = [:]
+        resolved.reserveCapacity(rows.count)
+
+        for row in rows {
+            resolved[row.id] = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
+        }
+
+        return resolved
+    }
 
     /// Fetch display names for a set of user IDs from the profiles table.
     /// Falls back to UUID prefix if profiles table is unavailable or returns no rows.
