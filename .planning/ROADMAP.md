@@ -207,12 +207,12 @@ Plans:
 - Simplify `ThemeManager` — remove NOAA auto-switch, enforce dark mode directly
 - Verify build compiles clean after each deletion
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — Safe file deletions: 4 isolated dead files + OnboardingCoordinator cluster (8 files total)
+- [x] 12-01-PLAN.md — Safe file deletions: 4 isolated dead files + OnboardingCoordinator cluster (8 files total)
 - [x] 12-02-PLAN.md — Components.swift pruning, AppBackground.swift deletion, RoadmapGenerationFlag inline into HabitPlanService
-- [ ] 12-03-PLAN.md — DesignTokens shared MS token consolidation + ThemeManager simplification (dark-mode only)
+- [x] 12-03-PLAN.md — DesignTokens shared MS token consolidation + ThemeManager simplification (dark-mode only)
 
 ---
 
