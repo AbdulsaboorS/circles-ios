@@ -249,7 +249,7 @@ struct HomeView: View {
                 await viewModel.loadAll(userId: uid)
                 await loadPreferredName(userId: uid)
                 updateOrderedHabits(from: viewModel.habits)
-                showRoadmapBanner = RoadmapGenerationFlag.isActive(userId: uid)
+                showRoadmapBanner = HabitPlanService.isRoadmapGenerating(userId: uid)
             }
             .task {
                 guard let uid = auth.session?.user.id else { return }
@@ -257,7 +257,7 @@ struct HomeView: View {
                 await loadPreferredName(userId: uid)
                 await loadNudgeState(userId: uid)
                 updateOrderedHabits(from: viewModel.habits)
-                showRoadmapBanner = RoadmapGenerationFlag.isActive(userId: uid)
+                showRoadmapBanner = HabitPlanService.isRoadmapGenerating(userId: uid)
             }
             .onChange(of: viewModel.habits) { _, newHabits in
                 updateOrderedHabits(from: newHabits)

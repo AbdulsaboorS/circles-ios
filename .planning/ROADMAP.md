@@ -210,8 +210,8 @@ Plans:
 **Plans:** 1/3 plans executed
 
 Plans:
-- [x] 12-01-PLAN.md — Safe file deletions: 4 isolated dead files + OnboardingCoordinator cluster (8 files total)
-- [ ] 12-02-PLAN.md — Components.swift pruning, AppBackground.swift deletion, RoadmapGenerationFlag inline into HabitPlanService
+- [ ] 12-01-PLAN.md — Safe file deletions: 4 isolated dead files + OnboardingCoordinator cluster (8 files total)
+- [x] 12-02-PLAN.md — Components.swift pruning, AppBackground.swift deletion, RoadmapGenerationFlag inline into HabitPlanService
 - [ ] 12-03-PLAN.md — DesignTokens shared MS token consolidation + ThemeManager simplification (dark-mode only)
 
 ---
