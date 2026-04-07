@@ -9,7 +9,9 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 
 ## Current Focus
 
-**Phase 12 — Codebase Cleanup** — Phase 11 is fully complete. The Moment pipeline is restored end-to-end: storage upload works, feed images render in circle and global feeds, captions show, duplicate-day posts return the correct message, and the camera flow now uses a sequential Double Take capture path.
+**Phase 12 — Codebase Cleanup** — Phase 12 Plan 01 complete. Deleted 12 dead Swift files (v1 OnboardingCoordinator cluster + 4 isolated dead files). Build is green. Two hidden dependencies fixed: HalaqaMember.swift renamed CircleMember.swift; ShareSheet extracted to Extensions/. Task 3 (simulator smoke test) pending manual verification.
+
+**12-01 decisions:** (1) HalaqaMember.swift renamed to CircleMember.swift — misnamed but contained live model. (2) ShareSheet extracted to Extensions/ShareSheet.swift — used by HomeView invite nudge. (3) LocationPickerView stripped of dead OnboardingCoordinator dependency, body replaced with EmptyView, static cities array retained.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -260,7 +262,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 | 11.2 — E2E QA + Bug Fixes | ✓ Complete | QA fixes landed: reflection log, roadmap loading feedback, moment camera fixes, feed/PFP polish, invite preview polish |
 | 11.3 — Onboarding In Depth | ✓ Complete | Onboarding rebuild landed earlier in phase 11; no remaining blocker for phase progression |
 | 11.5 — Feed Polish | ✓ Complete | Dedup, filter tabs, countdown, today-only, post-refresh race fix, Moment pipeline restoration, sequential Double Take capture |
-| 12 — Codebase Cleanup | ⬜ Planned | Delete dead files, consolidate MS tokens, simplify DesignSystem |
+| 12 — Codebase Cleanup | 🔄 In Progress | 12-01 done: 12 dead files deleted, build green; 12-02/12-03 pending |
 | 13 — Full UI/UX Pass | ⬜ Planned | Every screen redesigned + confirmed working (Dashboard, Habits, Moments, Check-ins, Circles, Onboarding, Profile) |
 | 14 — Naming + Branding | ⬜ Planned | Lock feature names, finalize logo, update app icon |
 | 15 — Notifications | ⬜ Planned | All push flows working, tone/copy pass, Edge Functions deployed |
