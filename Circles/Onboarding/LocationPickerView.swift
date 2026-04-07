@@ -1,11 +1,9 @@
 import SwiftUI
-import Supabase
 
+/// Legacy location picker — only the `cities` static array is still in use.
+/// AmiirStep3LocationView and JoinerIdentityView reference LocationPickerView.cities
+/// for their bundled city list. The view body itself is unused.
 struct LocationPickerView: View {
-    @Environment(OnboardingCoordinator.self) private var coordinator
-    @Environment(AuthManager.self) private var auth
-    @State private var searchText = ""
-
     // Bundled city list: (name, country, timezone, lat, lng)
     // Top cities by Muslim population — diaspora-focused, no API needed
     static let cities: [(name: String, country: String, tz: String, lat: Double, lng: Double)] = [
@@ -61,56 +59,7 @@ struct LocationPickerView: View {
         ("Seattle", "US", "America/Los_Angeles", 47.6062, -122.3321)
     ]
 
-    var filteredCities: [(name: String, country: String, tz: String, lat: Double, lng: Double)] {
-        if searchText.isEmpty { return Self.cities }
-        return Self.cities.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.country.localizedCaseInsensitiveContains(searchText)
-        }
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
-            Text("Where are you based?")
-                .font(.title.bold())
-                .padding(.top, 32)
-                .padding(.bottom, 8)
-            Text("Used to calculate your prayer times")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 16)
-
-            List(filteredCities, id: \.name) { city in
-                Button {
-                    coordinator.cityName = city.name
-                    coordinator.cityTimezone = city.tz
-                    coordinator.cityLatitude = city.lat
-                    coordinator.cityLongitude = city.lng
-                    guard let userId = auth.session?.user.id else { return }
-                    Task { await coordinator.saveLocationAndMarkComplete(userId: userId) }
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(city.name).font(.body)
-                            Text(city.country).font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if coordinator.cityName == city.name {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(Color(hex: "E8834B"))
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            .searchable(text: $searchText, prompt: "Search city...")
-        }
-        .navigationTitle("Your Location")
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("Error", isPresented: .constant(coordinator.errorMessage != nil)) {
-            Button("OK") { coordinator.errorMessage = nil }
-        } message: {
-            Text(coordinator.errorMessage ?? "")
-        }
+        EmptyView()
     }
 }
