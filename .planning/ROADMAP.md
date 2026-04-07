@@ -1,6 +1,6 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-04-04
+**Updated:** 2026-04-07
 **Direction:** Private Islamic BeReal. 18-phase execution plan.
 
 ---
@@ -197,7 +197,7 @@ Plans:
 
 ---
 
-## Phase 12 — Codebase Cleanup ⬜ Planned
+## Phase 12 — Codebase Cleanup ✓ Complete
 **Scope:** Delete dead code, consolidate design tokens, remove legacy onboarding files. No new features — just cut the fat.
 - Delete confirmed dead files: `HalaqaMember.swift`, `OnboardingCoordinator.swift` (v1 only), `RamadanAmountView.swift`, `ProfileSetupView.swift`, `MomentCardView.swift`, `JoinFromLinkView.swift`, `AppIconView.swift`
 - Delete dead step views (confirmed no live references): `AmiirStep4SoulGateView`, `MemberStep1HabitsView`, `MemberStep2LocationView`; also `AIStepDownView`, `HabitSelectionView` (old v1 cluster)
@@ -206,6 +206,16 @@ Plans:
 - Consolidate duplicated `private extension Color` MS tokens across all files into a single shared `DesignTokens` extension
 - Simplify `ThemeManager` — remove NOAA auto-switch, enforce dark mode directly
 - Verify build compiles clean after each deletion
+- Completed outcomes:
+  - 12 dead Swift files removed
+  - `HalaqaMember.swift` correctly renamed to `CircleMember.swift`
+  - `ShareSheet` extracted to `Circles/Extensions/ShareSheet.swift`
+  - `LocationPickerView` reduced to a cities-list holder with `EmptyView()` body
+  - `Components.swift` pruned to `SectionHeader` only
+  - `AppBackground.swift` deleted
+  - `RoadmapGenerationFlag.swift` inlined into `HabitPlanService`
+  - 29 per-file Midnight Sanctuary `Color` blocks consolidated into `DesignTokens.swift`
+  - `ThemeManager` simplified to dark-mode-only and `scheduleAutoSwitch()` removed from `CirclesApp.swift`
 
 **Plans:** 3/3 plans complete
 
@@ -216,7 +226,7 @@ Plans:
 
 ---
 
-## Phase 13 — Full UI/UX Pass ⬜ Planned
+## Phase 13 — Full UI/UX Pass 🔄 Active
 **Scope:** Every screen redesigned and confirmed working. The biggest phase.
 - **Dashboard (Home):** final state — 1-2 known fixes, drag-to-reorder confirmed working
 - **Habit Detail:** icon fix (`Image(systemName:)` not `Text`), contrast fix, roadmap layout polish
@@ -231,6 +241,10 @@ Plans:
 - Full copy audit — Mercy-First language, Islamic tone, no generic alerts
 - Consistent spacing, typography, and color token usage across all screens
 - Confirm every screen renders correctly on iPhone 15 + 16 Pro simulators
+- Execution mode:
+  - Interactive screen-by-screen iteration
+  - Claude reads files first, surfaces issues, then refines based on user + collaborating agent feedback
+  - No plan files and no execute phase for Phase 13
 
 ---
 

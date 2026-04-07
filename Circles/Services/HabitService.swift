@@ -132,7 +132,29 @@ final class HabitService {
     /// Insert a habit_checkin event into activity_feed for accountable habits.
     /// Only called when completed = true and habit.circleId is set.
     /// Fire-and-forget — feed is additive, no rollback on failure.
+    /// Guarded: skips insert if a row already exists for this user+habit+today (prevents duplicate feed cards).
     func broadcastHabitCompletion(habitId: UUID, habitName: String, circleId: UUID, userId: UUID) async throws {
+        let todayStart: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            return f.string(from: Date()) + "T00:00:00"
+        }()
+        struct IdRow: Decodable {
+            let id: String
+            enum CodingKeys: String, CodingKey { case id }
+        }
+        let existing: [IdRow] = (try? await client
+            .from("activity_feed")
+            .select("id")
+            .eq("user_id", value: userId.uuidString)
+            .eq("habit_name", value: habitName)
+            .eq("event_type", value: "habit_checkin")
+            .gte("created_at", value: todayStart)
+            .limit(1)
+            .execute()
+            .value) ?? []
+        guard existing.isEmpty else { return }
+
         let row: [String: AnyJSON] = [
             "circle_id":  .string(circleId.uuidString),
             "user_id":    .string(userId.uuidString),
@@ -142,6 +164,17 @@ final class HabitService {
         try await client
             .from("activity_feed")
             .insert(row)
+            .execute()
+    }
+
+    /// Soft-delete a habit by setting is_active = false.
+    /// Preserves habit_logs and habit_plans for history.
+    func archiveHabit(habitId: UUID) async throws {
+        struct Payload: Encodable { let is_active: Bool }
+        try await client
+            .from("habits")
+            .update(Payload(is_active: false))
+            .eq("id", value: habitId.uuidString)
             .execute()
     }
 

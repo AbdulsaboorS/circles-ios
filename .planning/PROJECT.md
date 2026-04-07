@@ -1,6 +1,6 @@
 # Circles — Product Vision & Requirements (v2.3)
 
-**Date:** 2026-03-26 (vision); **execution status:** 2026-03-31 — Phase 12 in progress (see `STATE.md` / `HANDOFF.md` for QA).
+**Date:** 2026-03-26 (vision); **execution status:** 2026-04-07 — Phase 12 complete, Phase 13 active (see `STATE.md` / `HANDOFF.md` for current iteration state).
 **Status:** Finalized for Execution (Private MVP)
 
 ---
@@ -86,7 +86,7 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 - PHPicker → Supabase Storage (avatars bucket) → `profiles.avatar_url`
 - Impact stats: Total Days, Best Streak, Circle Count
 - Habit badges grid with individual streak per habit
-- Settings: name, location, notification preferences, theme mode, sign out
+- Settings: name, location, notification preferences, sign out
 
 ### J. Muslim-Native Copy Guidelines
 - "Daily Intentions" not "Tasks"
@@ -138,4 +138,4 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 
 ---
 
-*Last updated: 2026-03-31 — v2.3; operational QA (Gemini -1011, habit detail UI) tracked in `STATE.md`*
+*Last updated: 2026-04-07 — v2.3; Phase 12 cleanup complete, Phase 13 interactive UI/UX pass active. Operational QA is tracked in `STATE.md`.*

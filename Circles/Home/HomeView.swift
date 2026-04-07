@@ -30,10 +30,9 @@ private struct IslamicStar: Shape {
     }
 }
 
-// MARK: - Grain Texture (tactile noise overlay)
+// MARK: - Grain Texture (global background noise)
 
 private struct GrainTexture: View {
-    // Pre-computed once — stable across redraws, no flickering
     private static let grainPoints: [(CGFloat, CGFloat)] = {
         var rng = SystemRandomNumberGenerator()
         return (0 ..< 900).map { _ in
@@ -56,6 +55,137 @@ private struct GrainTexture: View {
     }
 }
 
+// MARK: - Card Grain (per-card sacred parchment texture)
+
+private struct CardGrain: View {
+    private static let points: [(CGFloat, CGFloat)] = {
+        var rng = SystemRandomNumberGenerator()
+        return (0 ..< 300).map { _ in
+            (CGFloat.random(in: 0 ..< 1, using: &rng),
+             CGFloat.random(in: 0 ..< 1, using: &rng))
+        }
+    }()
+
+    var body: some View {
+        Canvas { ctx, size in
+            for (nx, ny) in Self.points {
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: nx * size.width, y: ny * size.height, width: 1, height: 1)),
+                    with: .color(.white.opacity(0.032))
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Wobble Modifier (edit mode shake)
+
+private struct WobbleModifier: ViewModifier {
+    let active: Bool
+    @State private var angle: Double = 0
+
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.degrees(angle))
+            .onChange(of: active) { _, newValue in
+                if newValue {
+                    angle = -2.5
+                    withAnimation(.easeInOut(duration: 0.13).repeatForever(autoreverses: true)) {
+                        angle = 2.5
+                    }
+                } else {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        angle = 0
+                    }
+                }
+            }
+    }
+}
+
+private extension View {
+    func wobble(active: Bool) -> some View {
+        modifier(WobbleModifier(active: active))
+    }
+}
+
+// MARK: - Delete Confirmation Modal
+
+private struct DeleteConfirmationModal: View {
+    let habitName: String
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.65)
+                .ignoresSafeArea()
+                .onTapGesture { onCancel() }
+
+            VStack(spacing: 0) {
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(Color.msGold.opacity(0.10))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(Color.msGold.opacity(0.75))
+                }
+                .padding(.top, 28)
+                .padding(.bottom, 16)
+
+                Text("Remove Intention?")
+                    .font(.system(size: 19, weight: .semibold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+                    .padding(.bottom, 10)
+
+                Text("Are you sure you want to remove\n\"\(habitName)\"\nfrom your sacred intentions?")
+                    .font(.system(size: 14, design: .serif).italic())
+                    .foregroundStyle(Color.msTextMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 28)
+
+                Rectangle()
+                    .fill(Color.msGold.opacity(0.15))
+                    .frame(height: 0.5)
+
+                HStack(spacing: 0) {
+                    Button(action: onCancel) {
+                        Text("Keep It")
+                            .font(.system(size: 16, weight: .medium, design: .serif))
+                            .foregroundStyle(Color.msTextMuted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+
+                    Rectangle()
+                        .fill(Color.msGold.opacity(0.15))
+                        .frame(width: 0.5)
+
+                    Button(action: onConfirm) {
+                        Text("Remove")
+                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color(hex: "E05555"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.msCardShared)
+                    .overlay(RoundedRectangle(cornerRadius: 28)
+                        .stroke(Color.msGold.opacity(0.30), lineWidth: 1))
+            )
+            .shadow(color: Color.black.opacity(0.55), radius: 40, x: 0, y: 20)
+            .padding(.horizontal, 36)
+        }
+    }
+}
+
 // MARK: - HomeView
 
 struct HomeView: View {
@@ -72,7 +202,11 @@ struct HomeView: View {
     @State private var showRoadmapBanner  = false
     @State private var scrollOffset: CGFloat = 0
 
-    // Drag-to-reorder — ordered habit arrays (sourced from viewModel + UserDefaults)
+    // Edit mode + delete
+    @State private var isEditMode: Bool    = false
+    @State private var habitToDelete: Habit? = nil
+
+    // Drag-to-reorder
     @State private var sharedHabits: [Habit]   = []
     @State private var personalHabits: [Habit] = []
     @State private var draggingId: UUID?       = nil
@@ -81,7 +215,7 @@ struct HomeView: View {
     @State private var nudgedIds: Set<UUID>    = []
     @State private var showMembersSheet        = false
 
-    // Multi-layer heart animations (each on independent timing)
+    // Heart / bloom animations
     @State private var bloomOpacity: Double  = 0.10
     @State private var bloomScale: CGFloat   = 1.0
     @State private var heartScale: CGFloat   = 1.0
@@ -90,19 +224,19 @@ struct HomeView: View {
     // FAB pulse
     @State private var fabGlow = false
 
-    // Placeholder presence shown while real data loads
+    // Generic loading placeholders (no real names)
     private static let fallbackPresence: [HomeViewModel.MemberPresence] = [
         HomeViewModel.MemberPresence(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
-            name: "Omar", initials: "OI",
+            name: "Member", initials: "M1",
             avatarColor: Color(hex: "4A7C59"), checkedInToday: false),
         HomeViewModel.MemberPresence(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
-            name: "Amir", initials: "AA",
+            name: "Member", initials: "M2",
             avatarColor: Color(hex: "5E9E72"), checkedInToday: false),
         HomeViewModel.MemberPresence(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
-            name: "Khalid", initials: "KA",
+            name: "Member", initials: "M3",
             avatarColor: Color(hex: "3D6B4F"), checkedInToday: false),
     ]
 
@@ -146,7 +280,6 @@ struct HomeView: View {
                 // ── Living Background ─────────────────────────────────────
                 ZStack {
                     Color.msBackgroundDeep.ignoresSafeArea()
-                    // Radial warmth centered where the heart sits (~28% from top)
                     RadialGradient(
                         colors: [Color(hex: "253A28"), Color(hex: "1B261B"), Color.msBackgroundDeep.opacity(0)],
                         center: UnitPoint(x: 0.5, y: 0.28),
@@ -169,7 +302,6 @@ struct HomeView: View {
                         heartSection
                             .padding(.horizontal, 20)
                             .padding(.bottom, 32)
-                            // Parallax: heart moves at 35% scroll speed
                             .offset(y: reduceMotion ? 0 : max(0, -scrollOffset) * 0.35)
 
                         if showRoadmapBanner {
@@ -210,20 +342,16 @@ struct HomeView: View {
             .navigationDestination(for: Habit.self) { HabitDetailView(habit: $0) }
             .onAppear {
                 guard !reduceMotion else { return }
-                // Outer bloom — 4s, independent timing
                 withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
                     bloomOpacity = 0.20
                     bloomScale   = 1.12
                 }
-                // Medallion — 3.5s, 0.4s offset for organic feel
                 withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true).delay(0.4)) {
                     heartScale = 1.06
                 }
-                // Star — imperceptibly slow full rotation (2 min cycle)
                 withAnimation(.linear(duration: 120).repeatForever(autoreverses: false)) {
                     starAngle = 360
                 }
-                // FAB glow
                 withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
                     fabGlow = true
                 }
@@ -266,6 +394,30 @@ struct HomeView: View {
                 MembersSheet(presence: presenceData, nudgedIds: $nudgedIds)
             }
         }
+        // Delete confirmation modal — overlays the entire NavigationStack
+        .overlay {
+            if let habit = habitToDelete {
+                DeleteConfirmationModal(
+                    habitName: habit.name,
+                    onConfirm: {
+                        let h = habit
+                        withAnimation(.spring(response: 0.3)) {
+                            habitToDelete = nil
+                            isEditMode = false
+                        }
+                        Task {
+                            await viewModel.deleteHabit(h)
+                            updateOrderedHabits(from: viewModel.habits)
+                        }
+                    },
+                    onCancel: {
+                        withAnimation(.spring(response: 0.3)) { habitToDelete = nil }
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+        }
+        .animation(.spring(response: 0.3), value: habitToDelete?.id)
     }
 
     // MARK: - Header
@@ -295,53 +447,58 @@ struct HomeView: View {
     // MARK: - Heart (Spiritual Centerpiece)
 
     private var heartSection: some View {
-        VStack(spacing: 14) {
+        let isAllDone = viewModel.allHabitsCompleted
+
+        return VStack(spacing: 14) {
             ZStack {
-                // Layer A — outer ambient bloom (own timing: 4s)
+                // Layer A — outer ambient bloom (dims until all done)
                 SwiftUI.Circle()
-                    .fill(Color.msGold.opacity(bloomOpacity))
+                    .fill(Color.msGold.opacity(bloomOpacity * (isAllDone ? 1.0 : 0.28)))
                     .frame(width: 200, height: 200)
                     .blur(radius: 36)
                     .scaleEffect(bloomScale)
 
-                // Layer B — Islamic star ring (slow rotation: 120s)
+                // Layer B — Islamic star ring (slow rotation)
                 IslamicStar()
-                    .stroke(Color.msGold.opacity(0.20), lineWidth: 1)
+                    .stroke(Color.msGold.opacity(isAllDone ? 0.20 : 0.08), lineWidth: 1)
                     .frame(width: 154, height: 154)
                     .rotationEffect(.degrees(starAngle))
 
                 // Layer C — soft mid ring
                 SwiftUI.Circle()
-                    .fill(Color.msGold.opacity(0.07))
+                    .fill(Color.msGold.opacity(isAllDone ? 0.07 : 0.03))
                     .frame(width: 132, height: 132)
 
                 // Layer D — inner halo glow
                 SwiftUI.Circle()
-                    .fill(Color(hex: "EEC050").opacity(0.18))
+                    .fill(Color(hex: "EEC050").opacity(isAllDone ? 0.18 : 0.06))
                     .frame(width: 112, height: 112)
                     .blur(radius: 12)
 
-                // Layer E — gold medallion (own timing: 3.5s, 0.4s delay)
+                // Layer E — gold medallion (ignites when all done)
                 ZStack {
                     SwiftUI.Circle()
                         .fill(
                             RadialGradient(
-                                colors: [Color(hex: "F5D080"), Color(hex: "D4A240"), Color(hex: "A8781A")],
+                                colors: isAllDone
+                                    ? [Color(hex: "F5D080"), Color(hex: "D4A240"), Color(hex: "A8781A")]
+                                    : [Color(hex: "8A7A5A"), Color(hex: "6A5E3A"), Color(hex: "4A4228")],
                                 center: UnitPoint(x: 0.35, y: 0.30),
                                 startRadius: 0,
                                 endRadius: 52
                             )
                         )
                         .frame(width: 96, height: 96)
-                        .shadow(color: Color.msGold.opacity(0.60), radius: 26, x: 0, y: 8)
-                        .shadow(color: Color.msGold.opacity(0.25), radius: 8,  x: 0, y: 2)
+                        .shadow(color: Color.msGold.opacity(isAllDone ? 0.60 : 0.12), radius: 26, x: 0, y: 8)
+                        .shadow(color: Color.msGold.opacity(isAllDone ? 0.25 : 0.05), radius: 8,  x: 0, y: 2)
 
                     Image(systemName: "heart.fill")
                         .font(.system(size: 40, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.95))
-                        .shadow(color: .white.opacity(0.30), radius: 6)
+                        .foregroundStyle(isAllDone ? .white.opacity(0.95) : .white.opacity(0.28))
+                        .shadow(color: .white.opacity(isAllDone ? 0.30 : 0.05), radius: 6)
                 }
                 .scaleEffect(heartScale)
+                .animation(.easeInOut(duration: 0.6), value: isAllDone)
             }
 
             Text("\(viewModel.streak?.currentStreak ?? 0) Day Streak")
@@ -360,6 +517,31 @@ struct HomeView: View {
 
     private var habitsSection: some View {
         VStack(alignment: .leading, spacing: 28) {
+            // Edit mode control bar
+            if isEditMode {
+                HStack {
+                    Text("Drag to reorder • tap × to remove")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.msTextMuted.opacity(0.65))
+                    Spacer()
+                    Button {
+                        withAnimation(.spring(response: 0.3)) { isEditMode = false }
+                    } label: {
+                        Text("Done")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.msGold)
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .background(
+                                Capsule().fill(Color.msGold.opacity(0.12))
+                                    .overlay(Capsule().stroke(Color.msGold.opacity(0.35), lineWidth: 1))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             if viewModel.isLoading {
                 HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                     .padding(.vertical, 32)
@@ -370,6 +552,7 @@ struct HomeView: View {
                 if !personalHabits.isEmpty { personalSection(habits: personalHabits) }
             }
         }
+        .animation(.spring(response: 0.35), value: isEditMode)
     }
 
     private var emptyState: some View {
@@ -380,7 +563,7 @@ struct HomeView: View {
             Text("No intentions yet.")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Color.msTextPrimary)
-            Text("Complete onboarding to begin your journey.")
+            Text("Tap + to add your first intention.")
                 .font(.system(size: 13))
                 .foregroundStyle(Color.msTextMuted)
                 .multilineTextAlignment(.center)
@@ -397,7 +580,6 @@ struct HomeView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color.msTextPrimary)
 
-            // Circle presence — real data or fallback placeholder
             let presenceData = viewModel.circlePresence.isEmpty
                 ? Self.fallbackPresence
                 : viewModel.circlePresence
@@ -410,17 +592,38 @@ struct HomeView: View {
                 onOpenSheet: { showMembersSheet = true }
             )
 
-            // Hero = first habit in user's drag order
             if let hero = habits.first {
-                HeroHabitCard(
-                    habit: hero,
-                    isCompleted: viewModel.isCompleted(habitId: hero.id),
-                    onToggle: {
-                        guard let uid = auth.session?.user.id else { return }
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        Task { await viewModel.toggleHabit(hero, userId: uid) }
+                // Hero: NavigationLink in normal mode, plain card in edit mode
+                Group {
+                    if isEditMode {
+                        HeroHabitCard(
+                            habit: hero,
+                            isCompleted: viewModel.isCompleted(habitId: hero.id),
+                            onToggle: {}
+                        )
+                        .wobble(active: true)
+                    } else {
+                        NavigationLink(value: hero) {
+                            HeroHabitCard(
+                                habit: hero,
+                                isCompleted: viewModel.isCompleted(habitId: hero.id),
+                                onToggle: {
+                                    guard let uid = auth.session?.user.id else { return }
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    Task { await viewModel.toggleHabit(hero, userId: uid) }
+                                }
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                withAnimation(.spring(response: 0.3)) { isEditMode = true }
+                            }
+                        )
                     }
-                )
+                }
+
                 let remaining = Array(habits.dropFirst())
                 if !remaining.isEmpty { habitGrid(remaining) }
             }
@@ -431,22 +634,30 @@ struct HomeView: View {
     private func habitGrid(_ habits: [Habit]) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(habits) { habit in
-                NavigationLink(value: habit) {
-                    SharedHabitCard(
-                        habit: habit,
-                        isCompleted: viewModel.isCompleted(habitId: habit.id),
-                        onToggle: {
-                            guard let uid = auth.session?.user.id else { return }
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            Task { await viewModel.toggleHabit(habit, userId: uid) }
-                        }
-                    )
+                SharedHabitCard(
+                    habit: habit,
+                    isCompleted: viewModel.isCompleted(habitId: habit.id),
+                    onToggle: {
+                        guard !isEditMode else { return }
+                        guard let uid = auth.session?.user.id else { return }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        Task { await viewModel.toggleHabit(habit, userId: uid) }
+                    }
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !isEditMode else { return }
+                    navigationPath.append(habit)
                 }
-                .buttonStyle(.plain)
+                .wobble(active: isEditMode)
                 .opacity(draggingId == habit.id ? 0.5 : 1.0)
                 .scaleEffect(draggingId == habit.id ? 0.96 : 1.0)
                 .animation(.easeInOut(duration: 0.18), value: draggingId)
                 .onDrag {
+                    if !isEditMode {
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                        withAnimation(.spring(response: 0.3)) { isEditMode = true }
+                    }
                     draggingId = habit.id
                     return NSItemProvider(object: habit.id.uuidString as NSString)
                 }
@@ -454,17 +665,17 @@ struct HomeView: View {
                     habit: habit,
                     habits: $sharedHabits,
                     draggingId: $draggingId,
+                    isEditMode: isEditMode,
                     onReorder: saveSharedOrder
                 ))
             }
         }
     }
 
-    // MARK: - Personal Section (sanctuary layout)
+    // MARK: - Personal Section
 
     private func personalSection(habits: [Habit]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Quiet label — whisper, not a title
             HStack {
                 Rectangle()
                     .fill(Color.msGold.opacity(0.08))
@@ -479,25 +690,34 @@ struct HomeView: View {
             }
             .padding(.bottom, 2)
 
-            // Single-column list — intimate, not cramped grid
             VStack(spacing: 8) {
                 ForEach(habits) { habit in
-                    NavigationLink(value: habit) {
-                        PersonalHabitCard(
-                            habit: habit,
-                            isCompleted: viewModel.isCompleted(habitId: habit.id),
-                            onToggle: {
-                                guard let uid = auth.session?.user.id else { return }
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                Task { await viewModel.toggleHabit(habit, userId: uid) }
-                            }
-                        )
+                    PersonalHabitCard(
+                        habit: habit,
+                        isCompleted: viewModel.isCompleted(habitId: habit.id),
+                        isEditMode: isEditMode,
+                        onToggle: {
+                            guard !isEditMode else { return }
+                            guard let uid = auth.session?.user.id else { return }
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            Task { await viewModel.toggleHabit(habit, userId: uid) }
+                        },
+                        onDelete: { habitToDelete = habit }
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard !isEditMode else { return }
+                        navigationPath.append(habit)
                     }
-                    .buttonStyle(.plain)
+                    .wobble(active: isEditMode)
                     .opacity(draggingId == habit.id ? 0.5 : 1.0)
                     .scaleEffect(draggingId == habit.id ? 0.97 : 1.0)
                     .animation(.easeInOut(duration: 0.18), value: draggingId)
                     .onDrag {
+                        if !isEditMode {
+                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                            withAnimation(.spring(response: 0.3)) { isEditMode = true }
+                        }
                         draggingId = habit.id
                         return NSItemProvider(object: habit.id.uuidString as NSString)
                     }
@@ -505,6 +725,7 @@ struct HomeView: View {
                         habit: habit,
                         habits: $personalHabits,
                         draggingId: $draggingId,
+                        isEditMode: isEditMode,
                         onReorder: savePersonalOrder
                     ))
                 }
@@ -525,9 +746,9 @@ struct HomeView: View {
         let saved = (UserDefaults.standard.array(forKey: key) as? [String])?
             .compactMap { UUID(uuidString: $0) } ?? []
         guard !saved.isEmpty else { return habits }
-        let mapped   = Dictionary(uniqueKeysWithValues: habits.map { ($0.id, $0) })
-        let ordered  = saved.compactMap { mapped[$0] }
-        let unsaved  = habits.filter { !saved.contains($0.id) }
+        let mapped  = Dictionary(uniqueKeysWithValues: habits.map { ($0.id, $0) })
+        let ordered = saved.compactMap { mapped[$0] }
+        let unsaved = habits.filter { !saved.contains($0.id) }
         return ordered + unsaved
     }
 
@@ -609,7 +830,7 @@ struct HomeView: View {
                 Text("Activate your group streak")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.msTextPrimary)
-                Text("Invite 2 brothers/sisters to begin.")
+                Text("Invite your circle to activate the group streak.")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.msTextMuted)
             }
@@ -681,7 +902,6 @@ private struct CirclePresenceRow: View {
     @Binding var nudgedIds: Set<UUID>
     let onOpenSheet: () -> Void
 
-    // Threshold: 4+ members → open sheet instead of inline tap
     private var usesSheet: Bool { presence.count >= 4 }
     private var displayedMembers: [HomeViewModel.MemberPresence] {
         usesSheet ? Array(presence.prefix(3)) : Array(presence.prefix(5))
@@ -739,7 +959,6 @@ private struct CirclePresenceRow: View {
                     .buttonStyle(.plain)
                 }
 
-                // "+N more" pill for large circles
                 if usesSheet {
                     let extra = presence.count - 3
                     Button(action: onOpenSheet) {
@@ -764,7 +983,7 @@ private struct CirclePresenceRow: View {
             }
 
             HStack {
-                Text("\(checkedInCount) of \(presence.count) brothers checked in")
+                Text("\(checkedInCount) of \(presence.count) members checked in")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.msTextMuted)
                 Spacer()
@@ -796,7 +1015,7 @@ private struct CirclePresenceRow: View {
     }
 }
 
-// MARK: - Hero Habit Card (prayer-time anchor)
+// MARK: - Hero Habit Card
 
 private struct HeroHabitCard: View {
     let habit: Habit
@@ -809,37 +1028,16 @@ private struct HeroHabitCard: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Left: layered icon + name + elegant "Now" beacon
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    // Bespoke layered icon: backing glow + symbol + inner shadow
-                    ZStack {
-                        SwiftUI.Circle()
-                            .fill(Color.msGold.opacity(0.12))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: symbol)
-                            .font(.system(size: 24))
-                            .foregroundStyle(Color.msGold)
-                            .shadow(color: Color.msGold.opacity(0.55), radius: 8)
-                    }
-
-                    Spacer()
-
-                    // Crescent "Now" — elegant, not a blinking dot
-                    HStack(spacing: 5) {
-                        Image(systemName: "moon.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(Color.msGold)
-                        Text("Now")
-                            .font(.system(size: 11, weight: .semibold, design: .serif))
-                            .foregroundStyle(Color.msGold)
-                    }
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.msGold.opacity(0.10))
-                            .overlay(Capsule().stroke(Color.msGold.opacity(borderGlow * 0.6), lineWidth: 0.5))
-                    )
+                // Icon row (Now badge removed)
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(Color.msGold.opacity(0.12))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: symbol)
+                        .font(.system(size: 24))
+                        .foregroundStyle(Color.msGold)
+                        .shadow(color: Color.msGold.opacity(0.55), radius: 8)
                 }
 
                 Text(habit.name)
@@ -848,7 +1046,9 @@ private struct HeroHabitCard: View {
                     .lineLimit(2)
             }
 
-            // Right: check-in CTA
+            Spacer()
+
+            // Check-in CTA (disabled appearance when already done — VM enforces once-per-day)
             Button(action: onToggle) {
                 VStack(spacing: 4) {
                     Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
@@ -866,12 +1066,12 @@ private struct HeroHabitCard: View {
                 )
             }
             .buttonStyle(.plain)
+            .disabled(isCompleted)
         }
         .padding(20)
         .frame(maxWidth: .infinity, minHeight: 110)
         .background(
             ZStack {
-                // Glass base — lets living background show through
                 RoundedRectangle(cornerRadius: 28).fill(.ultraThinMaterial)
                 RoundedRectangle(cornerRadius: 28).fill(Color(hex: "243828").opacity(0.72))
                 // Noor source — gold radial from top-leading
@@ -882,7 +1082,15 @@ private struct HeroHabitCard: View {
                     endRadius: 180
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 28))
-                // Breathing border — the whole card is the beacon
+                // Grain texture — sacred parchment feel
+                CardGrain().clipShape(RoundedRectangle(cornerRadius: 28))
+                // Inner shadow — carved depth
+                RoundedRectangle(cornerRadius: 28)
+                    .stroke(Color.black.opacity(0.40), lineWidth: 10)
+                    .blur(radius: 8)
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
+                    .allowsHitTesting(false)
+                // Breathing border
                 RoundedRectangle(cornerRadius: 28)
                     .stroke(Color.msGold.opacity(borderGlow), lineWidth: 1.5)
             }
@@ -911,7 +1119,6 @@ private struct SharedHabitCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                // Layered icon: backing glow + symbol + inner shadow
                 ZStack {
                     SwiftUI.Circle()
                         .fill(Color.msGold.opacity(0.10))
@@ -942,32 +1149,28 @@ private struct SharedHabitCard: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Color.msBackgroundDeep)
                         .padding(.horizontal, 9).padding(.vertical, 5)
-                        .background(Capsule().fill(Color.msGold))
+                        .background(Capsule().fill(Color.msGold.opacity(isCompleted ? 0.55 : 1.0)))
                 }
                 .buttonStyle(.plain)
+                .disabled(isCompleted)
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
-                // Semi-glass: material base lets the living bg bleed through subtly
                 RoundedRectangle(cornerRadius: 24).fill(.ultraThinMaterial)
                 RoundedRectangle(cornerRadius: 24)
                     .fill((isCompleted ? Color.msCardDone : Color.msCardShared).opacity(0.78))
-                // Persistent done warmth — candle-lit inner glow that stays
                 if isCompleted {
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.msGold.opacity(0.12), Color.clear],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 80
-                            )
-                        )
+                        .fill(RadialGradient(
+                            colors: [Color.msGold.opacity(0.12), Color.clear],
+                            center: .center,
+                            startRadius: 0, endRadius: 80
+                        ))
                 }
-                // One-shot shimmer on completion moment
+                // One-shot shimmer on completion
                 if isCompleted {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(LinearGradient(
@@ -978,7 +1181,15 @@ private struct SharedHabitCard: View {
                             ]),
                             startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
-                // Tighter 0.5pt gold-glow border
+                // Grain — sacred parchment
+                CardGrain().clipShape(RoundedRectangle(cornerRadius: 24))
+                // Inner shadow — carved depth
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.black.opacity(0.35), lineWidth: 8)
+                    .blur(radius: 6)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .allowsHitTesting(false)
+                // Border
                 RoundedRectangle(cornerRadius: 24)
                     .stroke(isCompleted ? Color.msGold.opacity(0.55) : Color.msGold.opacity(0.22), lineWidth: 0.5)
             }
@@ -992,66 +1203,100 @@ private struct SharedHabitCard: View {
     }
 }
 
-// MARK: - Personal Habit Card (horizontal sanctuary row)
+// MARK: - Personal Habit Card (sanctuary row)
 
 private struct PersonalHabitCard: View {
     let habit: Habit
     let isCompleted: Bool
+    let isEditMode: Bool
     let onToggle: () -> Void
+    let onDelete: () -> Void
 
     private var symbol: String { habitSymbol(for: habit.name) }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Layered icon — lower energy, signals secret deeds
-            ZStack {
-                SwiftUI.Circle()
-                    .fill(isCompleted ? Color.msGold.opacity(0.08) : Color.msTextMuted.opacity(0.06))
-                    .frame(width: 34, height: 34)
-                Image(systemName: symbol)
-                    .font(.system(size: 17))
-                    .foregroundStyle(isCompleted ? Color.msGold.opacity(0.70) : Color.msTextMuted.opacity(0.45))
-            }
-            .frame(width: 34)
-
-            Text(habit.name)
-                .font(.system(size: 14, weight: .semibold, design: .serif))
-                .foregroundStyle(Color.msTextPrimary.opacity(isCompleted ? 1.0 : 0.85))
-                .lineLimit(2)
-
-            Spacer()
-
-            Button(action: onToggle) {
-                HStack(spacing: 4) {
-                    if isCompleted {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    Text(isCompleted ? "Done" : "Check in")
-                        .font(.system(size: 11, weight: .medium))
+        ZStack(alignment: .topLeading) {
+            // Main row
+            HStack(spacing: 12) {
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(isCompleted ? Color.msGold.opacity(0.08) : Color.msTextMuted.opacity(0.06))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: symbol)
+                        .font(.system(size: 17))
+                        .foregroundStyle(isCompleted ? Color.msGold.opacity(0.70) : Color.msTextMuted.opacity(0.45))
                 }
-                .foregroundStyle(isCompleted ? Color.msGold : Color.msTextMuted)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(
-                    Capsule()
-                        .fill(isCompleted ? Color.msCardWarmDone : Color.clear)
-                        .overlay(Capsule().stroke(
-                            isCompleted ? Color.msGold.opacity(0.55) : Color.msTextMuted.opacity(0.25),
-                            lineWidth: 1))
-                )
+                .frame(width: 34)
+
+                Text(habit.name)
+                    .font(.system(size: 14, weight: .semibold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary.opacity(isCompleted ? 1.0 : 0.85))
+                    .lineLimit(2)
+
+                Spacer()
+
+                Button(action: onToggle) {
+                    HStack(spacing: 4) {
+                        if isCompleted {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        Text(isCompleted ? "Done" : "Check in")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(isCompleted ? Color.msGold : Color.msTextMuted)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(
+                        Capsule()
+                            .fill(isCompleted ? Color.msCardWarmDone : Color.clear)
+                            .overlay(Capsule().stroke(
+                                isCompleted ? Color.msGold.opacity(0.55) : Color.msTextMuted.opacity(0.25),
+                                lineWidth: 1))
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isCompleted)
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .frame(height: 58)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(isCompleted ? Color.msCardWarmDone : Color.msCardWarm)
+                        .overlay(RoundedRectangle(cornerRadius: 20)
+                            .stroke(isCompleted ? Color.msGold.opacity(0.22) : Color.msGold.opacity(0.06), lineWidth: 0.5))
+                    // Grain
+                    CardGrain().clipShape(RoundedRectangle(cornerRadius: 20))
+                    // Inner shadow
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.black.opacity(0.30), lineWidth: 6)
+                        .blur(radius: 5)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .allowsHitTesting(false)
+                }
+            )
+            .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
+
+            // Delete badge (edit mode only)
+            if isEditMode {
+                Button(action: onDelete) {
+                    ZStack {
+                        SwiftUI.Circle()
+                            .fill(Color(hex: "CC3333"))
+                            .frame(width: 22, height: 22)
+                            .shadow(color: Color.black.opacity(0.30), radius: 4, x: 0, y: 2)
+                        Image(systemName: "minus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .buttonStyle(.plain)
+                .offset(x: -6, y: -6)
+                .transition(.scale.combined(with: .opacity))
+            }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 58)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(isCompleted ? Color.msCardWarmDone : Color.msCardWarm)
-                .overlay(RoundedRectangle(cornerRadius: 20)
-                    .stroke(isCompleted ? Color.msGold.opacity(0.22) : Color.msGold.opacity(0.06), lineWidth: 0.5))
-        )
-        .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
+        .animation(.spring(response: 0.3), value: isEditMode)
     }
 }
 
@@ -1061,6 +1306,7 @@ private struct HabitDropDelegate: DropDelegate {
     let habit: Habit
     @Binding var habits: [Habit]
     @Binding var draggingId: UUID?
+    let isEditMode: Bool
     let onReorder: () -> Void
 
     func performDrop(info: DropInfo) -> Bool {
@@ -1070,6 +1316,7 @@ private struct HabitDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        guard isEditMode else { return }
         guard let draggingId,
               draggingId != habit.id,
               let fromIndex = habits.firstIndex(where: { $0.id == draggingId }),
@@ -1086,7 +1333,7 @@ private struct HabitDropDelegate: DropDelegate {
     }
 }
 
-// MARK: - Members Sheet (4+ circle members)
+// MARK: - Members Sheet
 
 private struct MembersSheet: View {
     let presence: [HomeViewModel.MemberPresence]
@@ -1164,7 +1411,7 @@ private struct MembersSheet: View {
                     .padding(.top, 8)
                 }
             }
-            .navigationTitle("Brothers")
+            .navigationTitle("Your Circle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.msBackgroundDeep, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)

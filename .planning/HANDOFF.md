@@ -2,71 +2,100 @@
 
 ## What Was Done This Session
 
-### Phase 12 — Codebase Cleanup ✓ COMPLETE
+### Phase 13 — Wave 1 (Home) — IMPLEMENTATION IN PROGRESS
 
-All 3 plans executed and merged to main:
-
-| Plan | What happened |
-|------|--------------|
-| 12-01 | Deleted 12 dead Swift files. Deviations fixed: `HalaqaMember.swift` → renamed to `CircleMember.swift` (still in use), `ShareSheet` extracted to `Circles/Extensions/ShareSheet.swift`, `LocationPickerView.swift` stubbed to EmptyView. Missing `import UIKit` on ShareSheet fixed before merge. |
-| 12-02 | `Components.swift` pruned 171→33 lines (AppCard/PrimaryButton/ChipButton dead, SectionHeader kept). `AppBackground.swift` deleted (no callers). `RoadmapGenerationFlag` 3 static methods inlined into `HabitPlanService` as private helpers, standalone file deleted. |
-| 12-03 | 29 per-file `private extension Color` blocks consolidated into single internal extension in `DesignTokens.swift` (11 MS tokens). `ThemeManager` rewritten to 17-line dark-mode enforcer. `scheduleAutoSwitch()` removed from `CirclesApp.swift`. `msCardPersonal` renamed to `msCardDeep` throughout. |
-
-Build: `** BUILD SUCCEEDED **` — zero errors. All commits pushed to `origin main`.
-
-### Phase 13 — Full UI/UX Pass — STARTED
-
-- `13-CONTEXT.md` updated with workstyle decision: **Claude leads (reads files, surfaces issues), user + AI agent give feedback, Claude refines. No `/gsd:plan-phase`, no `/gsd:execute-phase`.**
-- Wave 1 (Home) analysis completed — issues identified but NO CODE WRITTEN YET. Awaiting user feedback.
+User provided comprehensive feedback from an AI-agent UX audit. All changes except Item 4 (Bento compact tiles) were implemented and committed as one commit. Item 4 is queued as a **separate second commit** (git strategy: user can revert Item 4 without losing all other changes).
 
 ---
 
-## Current State
+## Changes Shipped This Session
 
-### What Works
-- Phase 12 fully clean — build green, all tokens consolidated, dead code gone
-- Phase 13 context is clear and ready — see `.planning/phases/13-full-ui-ux-pass/13-CONTEXT.md`
+### HabitService.swift
+- `broadcastHabitCompletion`: added dedup guard — queries `activity_feed` for existing `(user_id, habit_name, event_type, created_at >= today)` before inserting. Prevents duplicate feed cards on toggle-on/toggle-off/toggle-on within same day.
+- Added `archiveHabit(habitId:)` — soft-delete via `is_active = false`, preserves logs/plans.
 
-### Nothing Broken
-No regressions introduced. SourceKit warnings about "No such module 'Supabase'" in worktrees are false positives — build succeeds.
+### HomeViewModel.swift
+- `toggleHabit`: added once-per-day lock — `guard !isCompleted(habitId: habit.id) else { return }` at top. Users can no longer uncheck a habit after checking in.
+- Added `allHabitsCompleted: Bool` computed property — `!habits.isEmpty && habits.allSatisfy { isCompleted }`. Used by heart glow logic.
+- Added `deleteHabit(_ habit: Habit) async` — optimistic removal from local array + `archiveHabit` call.
+
+### HomeView.swift (complete rewrite — all changes below)
+1. **Hero card bug fixed** — HeroHabitCard is now inside a `NavigationLink(value: hero)` when NOT in edit mode. Opens HabitDetailView on tap (non-button area).
+2. **"Now" badge removed** — HeroHabitCard no longer shows the `🌙 Now` capsule badge.
+3. **Heart state** — heart medallion ignites gold only when `viewModel.allHabitsCompleted`. Dim/muted gradient when habits remain. Smooth `.easeInOut(0.6)` transition.
+4. **Edit mode system**:
+   - `@State private var isEditMode: Bool` added
+   - Long-press on HeroHabitCard (`simultaneousGesture`) → enter edit mode
+   - Drag on any shared/personal grid card (`onDrag`) → auto-enters edit mode + haptic
+   - All cards `wobble(active: isEditMode)` via `WobbleModifier` (oscillates ±2.5°)
+   - Edit mode bar appears at top of habits section: hint text + "Done" button
+   - "Done" button exits edit mode
+   - Drag-to-reorder gated: `HabitDropDelegate.dropEntered` checks `isEditMode` before moving
+   - Check-in buttons disabled in edit mode (guard in onToggle closures)
+5. **Delete personal intentions**:
+   - `PersonalHabitCard` now takes `isEditMode: Bool` + `onDelete: () -> Void`
+   - In edit mode, a red `×` badge appears top-left of each personal card
+   - Tapping `×` sets `habitToDelete = habit`
+   - `DeleteConfirmationModal` overlay appears — Midnight Green card, gold border, serif font
+   - Custom copy: "Are you sure you want to remove \"\(habitName)\" from your sacred intentions?"
+   - "Keep It" cancels, "Remove" calls `viewModel.deleteHabit` + exits edit mode
+6. **Card depth (inner shadows)** — all card backgrounds have a blurred dark stroke overlay simulating carved inner shadow. Applied to HeroHabitCard, SharedHabitCard, PersonalHabitCard.
+7. **Grain on cards** — `CardGrain` canvas view (300 pre-computed points, opacity 0.032) overlaid on all card backgrounds. Separate from global `GrainTexture` (900 points).
+8. **Gender copy** — `CirclePresenceRow`: "brothers checked in" → "members checked in". `MembersSheet`: `.navigationTitle("Brothers")` → `.navigationTitle("Your Circle")`.
+9. **Fallback presence names** — `Omar/Amir/Khalid` generic placeholders → `Member` with initials `M1/M2/M3`.
+10. **Empty state copy** — "Complete onboarding to begin your journey." → "Tap + to add your first intention."
+11. **Invite nudge copy** — "Invite 2 brothers/sisters to begin." → "Invite your circle to activate the group streak."
+12. **Once-per-day UI lock** — Check-in buttons get `.disabled(isCompleted)` in HeroHabitCard and SharedHabitCard. PersonalHabitCard check-in button also disabled when isCompleted. Visually: Done state still shows gold, but button doesn't respond.
+13. **Navigation from grid cards** — SharedHabitCard and PersonalHabitCard use `.onTapGesture { guard !isEditMode; navigationPath.append(habit) }` instead of NavigationLink wrapping (avoids gesture conflicts with drag and edit mode).
+
+**Build: `** BUILD SUCCEEDED **` — zero errors, 2 unused-withAnimation warnings (cosmetic, no impact).**
 
 ---
 
-## Exact Next Steps for Next Agent
+## What's NOT Done Yet (next step for this wave)
 
-### 1. Read these files first
-- `.planning/STATE.md`
-- `.planning/phases/13-full-ui-ux-pass/13-CONTEXT.md` — workstyle + wave order
-- `Circles/Home/HomeView.swift` — you need to re-read this (1199 lines)
+### Item 4 — Bento Compact Tiles (QUEUED — do as separate commit)
 
-### 2. Phase 13 workstyle (CRITICAL — read before doing anything)
-- **Claude leads**: read the screen's Swift files, form an opinion, present a prioritized issue list
-- **User + their AI agent give feedback**: synthesize both, act on all of it
-- **No plan files, no execute phase** — the chat loop IS the phase
-- **One screen at a time**: fully complete (user sign-off) before moving to next wave
+This was deliberately deferred to a second commit so the user can revert it independently.
 
-### 3. Resume Wave 1 — Home
+**What to implement:**
+- In `habitGrid` (the shared habits 2-column grid): completed habits render as a compact tile instead of a full card.
+- Compact tile: shows only the centered icon + gold checkmark. Height ~72pt. No name, no "Check In" button.
+- Full card: the current `SharedHabitCard` unchanged. Height ~130pt.
+- Sorting: pending habits first (top of grid), completed habits last (bottom as compact tiles). This gives the "UI clears up" reward as day progresses.
+- Completed habits in compact form still navigate to HabitDetailView on tap (per user decision).
+- Implementation: add a `CompactHabitTile` private struct. In `habitGrid`, use `if isCompleted { CompactHabitTile(...) } else { SharedHabitCard(...) }`.
+- LazyVGrid handles the height mismatch naturally (per-column flow, no row synchronization).
 
-The previous agent analysed `HomeView.swift` and found these issues (in priority order). **Present this list to the user and ask for their feedback before writing any code:**
+**The Hero card:** Hero (`habits.first`) is always shown as `HeroHabitCard` (full card) even when completed — it's the spiritual anchor, not subject to the compact treatment.
 
-**P1 — Must fix:**
-1. **Gender-blind copy** — `CirclePresenceRow` says `"X of Y brothers checked in"` (line 767); `MembersSheet` has `.navigationTitle("Brothers")` (line 1167). Fix: `"members checked in"` + `"Your Circle"` — no data change needed.
-2. **Male fallback names** — `HomeView.fallbackPresence` hardcodes `Omar`, `Amir`, `Khalid` (lines 95-107). Shows briefly while real data loads. Fix: use `"Member"` + generic initials.
+---
 
-**P2 — Important:**
-3. **Empty state copy** — `"Complete onboarding to begin your journey."` shown when user has no habits post-onboarding. Fix: `"Tap + to add your first intention."`
-4. **"Now" beacon always on** — `HeroHabitCard` always shows `🌙 Now` regardless of prayer window. No prayer-time check in HomeView. Either remove or only show during actual prayer window.
+## Wave Order (Phase 13 reminder)
 
-**P3 — Polish:**
-5. **Invite nudge copy** — `"Invite 2 brothers/sisters to begin."` → `"Invite your circle to activate the group streak."`
-
-### 4. Wave order after Home
-Per `13-CONTEXT.md`: Home → Habit Detail → Community/Feed → Feed cards → My Circles + Circle Detail → Profile → Auth
+| Wave | Screen | Status |
+|------|--------|--------|
+| 1 | Home (Dashboard) | 🔄 In progress — Item 4 (Bento) next, then user sign-off |
+| 2 | Habit Detail | ⬜ Not started |
+| 3 | Community / Feed | ⬜ Not started |
+| 4 | Feed cards | ⬜ Not started |
+| 5 | My Circles + Circle Detail | ⬜ Not started |
+| 6 | Profile | ⬜ Not started |
+| 7 | Auth screen | ⬜ Not started |
 
 ---
 
 ## Open Issues / Notes
 
-- RLS bug from previous handoff (2026-04-04) re: `circle_moments` INSERT — was a pre-existing issue, not touched this session. Still unresolved per original HANDOFF. Check if it's still blocking before Wave 4 (feed cards).
-- Phase 13 has no GSD plan files and will never have them — this is intentional.
-- Simulator UDID from last known good session: `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro) — may have changed.
+- Two `withAnimation` result-unused warnings in `HomeView.swift` (lines ~918, ~1382). Cosmetic — build succeeds. Fix if desired by assigning to `_ =` or using `withAnimation { }.value`.
+- RLS bug for `circle_moments` INSERT — pre-existing, unresolved, not touched this session.
+- Phase 13 has NO GSD plan files — this is intentional. Interactive iteration only.
+- Simulator UDID: `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1).
+
+---
+
+## Files Changed This Session
+
+- `Circles/Services/HabitService.swift`
+- `Circles/Home/HomeViewModel.swift`
+- `Circles/Home/HomeView.swift` (complete rewrite)

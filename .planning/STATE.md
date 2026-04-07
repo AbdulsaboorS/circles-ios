@@ -192,9 +192,8 @@ progress:
 ### Design System
 
 - `DesignTokens.swift`: color + font tokens, semantic aliases, AppColors resolver
-- `ThemeManager.shared`: ThemeMode (auto/light/dark), NOAA solar auto-switch
-- `AppBackground.swift`: dual animated blob background
-- `Components.swift`: AppCard, PrimaryButton, ChipButton, SectionHeader
+- `ThemeManager.shared`: dark-mode-only singleton (`colorScheme = .dark`)
+- `Components.swift`: `SectionHeader` only (legacy wrappers removed in Phase 12)
 - `AvatarView.swift`: reusable circular avatar component
 
 ### Habits
@@ -219,7 +218,7 @@ progress:
 
 - `CircleMoment` model
 - `MomentService`: fetchTodayMoments, uploadPhoto, postMoment, computeIsOnTime
-- `CameraManager`, `MomentCameraView`, `MomentPreviewView`, `MomentCardView`
+- `CameraManager`, `MomentCameraView`, `MomentPreviewView`
 - Reciprocity gate v2 via `DailyMomentService` (full-feed blur)
 
 ### Feed
@@ -355,4 +354,4 @@ None for **starting Phase 11.3 planning/implementation work**; **AI generate pat
 
 ---
 
-*v2.3 pivot: 2026-03-26. Phases 1–11 code complete. Phase 12 in progress (polish, App Store, open QA above).*
+*v2.3 pivot: 2026-03-26. Phases 1–12 complete. Phase 13 active. App Store polish and open QA remain tracked above.*

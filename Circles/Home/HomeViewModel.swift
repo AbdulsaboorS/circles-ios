@@ -37,6 +37,11 @@ final class HomeViewModel {
 
     var circleCheckedInCount: Int { circlePresence.filter(\.checkedInToday).count }
 
+    /// True only when every active habit has been completed today.
+    var allHabitsCompleted: Bool {
+        !habits.isEmpty && habits.allSatisfy { isCompleted(habitId: $0.id) }
+    }
+
     // MARK: - Load
 
     func loadAll(userId: UUID) async {
@@ -126,10 +131,23 @@ final class HomeViewModel {
         return String(name.prefix(2)).uppercased()
     }
 
+    // MARK: - Delete (archive)
+
+    func deleteHabit(_ habit: Habit) async {
+        habits.removeAll { $0.id == habit.id }
+        do {
+            try await HabitService.shared.archiveHabit(habitId: habit.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Optimistic toggle
 
     func toggleHabit(_ habit: Habit, userId: UUID) async {
-        let newCompleted = !isCompleted(habitId: habit.id)
+        // Once-per-day lock — completed habits cannot be unchecked
+        guard !isCompleted(habitId: habit.id) else { return }
+        let newCompleted = true
 
         if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
             todayLogs[idx].completed = newCompleted
