@@ -56,7 +56,6 @@ struct CirclesApp: App {
                 }
                 .onAppear {
                     AuthManager.sharedForAPNs = authManager
-                    themeManager.scheduleAutoSwitch()
                 }
         }
     }
