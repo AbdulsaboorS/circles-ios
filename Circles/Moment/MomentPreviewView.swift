@@ -1,16 +1,6 @@
 import SwiftUI
 import Combine
 
-// MARK: - Midnight Sanctuary tokens
-
-private extension Color {
-    static let msBackground  = Color(hex: "1A2E1E")
-    static let msCardShared  = Color(hex: "243828")
-    static let msGold        = Color(hex: "D4A240")
-    static let msTextPrimary = Color(hex: "F0EAD6")
-    static let msTextMuted   = Color(hex: "8FAF94")
-}
-
 struct MomentDraft: Identifiable {
     let id = UUID()
     let image: UIImage

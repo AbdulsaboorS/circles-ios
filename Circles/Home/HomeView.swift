@@ -2,22 +2,6 @@ import SwiftUI
 import Supabase
 import UniformTypeIdentifiers
 
-// MARK: - Midnight Sanctuary Color Tokens (HomeView scoped)
-
-private extension Color {
-    static let msBackgroundDeep = Color(hex: "131C14")   // layered base
-    static let msBackground     = Color(hex: "1A2E1E")   // legacy compat
-    static let msCardShared     = Color(hex: "243828")
-    static let msCardPersonal   = Color(hex: "1E3122")
-    static let msCardDone       = Color(hex: "2A4A30")   // shared done warmth
-    static let msCardWarm       = Color(hex: "201C14")   // personal sanctuary
-    static let msCardWarmDone   = Color(hex: "2E2410")   // personal done warmth
-    static let msGold           = Color(hex: "D4A240")
-    static let msTextPrimary    = Color(hex: "F0EAD6")
-    static let msTextMuted      = Color(hex: "8FAF94")
-    static let msBorder         = Color(hex: "D4A240").opacity(0.28)
-}
-
 // MARK: - Scroll Offset Preference Key
 
 private struct ScrollOffsetKey: PreferenceKey {
