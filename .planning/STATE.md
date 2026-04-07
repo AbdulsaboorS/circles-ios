@@ -1,17 +1,25 @@
 ---
-version: 2.5
-last_updated: "2026-04-06"
-current_phase: "Phase 12 — Codebase Cleanup"
-status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, and duplicate-day handling are all working."
+gsd_state_version: 1.0
+milestone: v2.3
+milestone_name: milestone
+status: unknown
+last_updated: "2026-04-07T00:57:50.614Z"
+progress:
+  total_phases: 7
+  completed_phases: 2
+  total_plans: 13
+  completed_plans: 10
 ---
 
 # Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Phase 12 — Codebase Cleanup** — 12-01 complete (12 dead files deleted); 12-02 complete (design system dead weight removed + RoadmapGenerationFlag inlined into HabitPlanService); 12-03 pending.
+**Phase 13 — Full UI/UX Pass** — Active. Wave 1 (Home) analysis complete, awaiting user + AI-agent feedback before writing code.
 
-**12-02 decisions:** (1) Inlined RoadmapGenerationFlag 3 static methods into HabitPlanService — eliminated a 25-line one-trick enum file. (2) Deleted AppBackground.swift (no live callers since Phase 11.1 MS pass). (3) Pruned Components.swift from 171 to 33 lines — AppCard, PrimaryButton, ChipButton were all dead; SectionHeader preserved verbatim for CircleDetailView.
+**Phase 12 complete (2026-04-07):** All 3 plans done — 12 dead files deleted, Components.swift pruned, AppBackground deleted, RoadmapGenerationFlag inlined, 29 per-file Color extension blocks consolidated into DesignTokens.swift, ThemeManager simplified to 17-line dark-mode enforcer.
+
+**Phase 13 workstyle:** Interactive iteration — Claude reads files and leads with analysis, user + collaborating AI agent give feedback, Claude refines, repeat until sign-off per screen. No plan files, no execute phase. See `13-CONTEXT.md`.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
@@ -20,28 +28,33 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 ## What's Built — v2.3 Phases
 
 ### Phase 1 — Schema + Model Foundations ✓
+
 - DB: `habits` (is_accountable, circle_id), `circles` (gender_setting, group_streak_days, core_habits), `profiles` (avatar_url)
 - New tables: `comments`, `habit_plans`, `daily_moments`
 - Swift models: `Circle`, `Habit`, `HabitLog` updated; `Comment`, `HabitPlan`, `DailyMoment`, `Profile` created
 
 ### Phase 2 — Navigation Restructure ✓
+
 - App entry → Circles tab (tag 1)
 - Tab label "Community" → "Circles"
 - Home tab = Daily Intentions only (no social feed)
 
 ### Phase 3 — Profile Photos ✓
+
 - `AvatarView` component (AsyncImage + initials fallback, configurable size)
 - `AvatarService`: upload to `avatars` Storage bucket, save URL to profiles, fetch profiles + impact stats
 - `ProfileView`: full redesign — PHPicker avatar picker, name, member-since, stats AppCard (Total Days / Best Streak / Circles), settings
 - `CircleDetailView` member strip: uses AvatarView, loads member profiles, role = "Amir"
 
 ### Phase 4 — Dual-Track Habits ✓
+
 - `HabitService.createAccountableHabit` (is_accountable=true, circle_id linked)
 - `HabitService.broadcastHabitCompletion` → inserts into `activity_feed`
 - `HomeViewModel.toggleHabit` broadcasts accountable completions (fire-and-forget)
 - `HomeView`: "Shared Intentions" + "Personal Intentions" sections with descriptive sub-labels
 
 ### Phase 5 — Circle Core Habits + Gender Locking ✓
+
 - `CircleService.createCircleForAmir` (genderSetting + coreHabits JSONB)
 - `CircleService.fetchCircleByCode` for preview + join
 - `CreateCircleView`: design system + Brothers/Sisters/Mixed picker
@@ -49,6 +62,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `MyCirclesView`: group streak flame displayed on cards
 
 ### Phase 6 — Amir Onboarding Overhaul ✓
+
 - `AmiirOnboardingCoordinator`: 4-step state machine, Soul Gate hard lock
 - Steps: Circle Identity → Core Habits (max 3, curated list) → Location → Soul Gate
 - Soul Gate: `ShareSheet` UIActivityViewController bridge; "Begin My Journey" disabled until share initiated
@@ -57,12 +71,14 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `ContentView`: routes new users to Amir flow; Amir lands on Home tab
 
 ### Phase 7 — Member/Joiner Flow + Rich Circle Preview ✓
+
 - `CirclePreviewView`: unauthenticated landing — circle name, core habits, group streak, inline Sign in with Apple/Google
 - `MemberOnboardingCoordinator`: join circle + create accountable habits + save location
 - Steps: Habit Alignment (must pick ≥ 1 core habit) → Location → joins circle on city select
 - `ContentView`: anon + invite code → preview; new user + invite code (post-auth) → member flow
 
 ### Phase 8 — Prayer of the Day + Reciprocity Gate v2 ✓
+
 - `DailyMomentService`: fetches today's prayer from `daily_moments`, calls Aladhan API for exact prayer time, checks if user posted today across all circles
 - Gate activates when window OPENS (not after it closes)
 - `ReciprocityGateView`: frosted blur overlay with "Unlock Your Circles" CTA
@@ -72,12 +88,14 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `FeedItem`: Equatable conformance + `circleId` / `postType` computed properties
 
 ### Phase 9 — Comment Drawer ✓
+
 - `CommentService`: fetchComments, addComment, deleteComment (RLS: circle members only)
 - `CommentDrawerView`: slide-up `.medium/.large` sheet — avatars, comment list, text input, send, delete own, empty state
 - `MomentFeedCard`, `HabitCheckinRow`, `StreakMilestoneCard`: comment bubble icon added
 - `FeedView`: manages `commentingOnItem` state, presents `CommentDrawerView` as sheet
 
 ### Phase 10 — Group Streak + Face Piles + Amir settings ✓
+
 - DB (Supabase): UTC group streak trigger + `group_streak_last_complete_utc_date` (applied in your project; no SQL files in repo)
 - `CircleService`: `fetchCircle`, `updateCircleSettings`, `removeMember`
 - After a Moment post: `CircleDetailView` refetches circle; `CommunityView` calls `loadCircles` so My Circles streak updates
@@ -110,6 +128,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 **Design system:** Deep forest green bg `#1A2E1E`, gold `#D4A240`, cream `#F0EAD6`, sage `#8FAF94`, cards `#243828`/`#1E3122`. Tokens scoped `private extension Color` per file (global DesignTokens.swift consolidation deferred until all screens done).
 
 **All commits (on `main`):**
+
 - `4dfdc18` — HomeView full redesign + HabitDetailView icon fix (`Text(habit.icon)` → `Image(systemName:)`)
 - `82f2656` — Auth + Amir Onboarding (4 steps) + Member Onboarding (2 steps)
 - `b487333` — Community/Feed group: CommunityView, MyCirclesView, FeedView, all feed cards, ReactionBar, ReciprocityGateView; email/password test login added to AuthView
@@ -120,6 +139,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 **Phase 11.1 complete.** Next: Phase 11.2 — E2E QA + Bug Fixes.
 
 ### Phase 11.2 — E2E QA + Bug Fixes ✓
+
 - `HabitDetailView`: Reflection Log landed and AI roadmap loading now shows animated progress treatment during generate/refine.
 - Moment flow:
   - first-shot white-screen bug fixed by moving preview presentation to a single draft item state
@@ -139,6 +159,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
   - old member onboarding blocker is superseded by Phase 11.3 rebuild
 
 **Per-screen implementation pattern:**
+
 1. Add `private extension Color` with MS tokens at top of file
 2. Replace `AppBackground()` → `Color(hex: "1A2E1E").ignoresSafeArea()`
 3. Replace `Color.accent` → `msGold`, `colors.textPrimary` → `msTextPrimary`, `colors.textSecondary` → `msTextMuted`
@@ -149,6 +170,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 **Supabase action still needed:** Authentication → Settings → disable "Confirm email" so test accounts created via email/password work instantly.
 
 ### Phase 11 — AI Roadmap v2 ✓ (code complete; see Open issues for QA)
+
 - DB: **Refine** — run `.planning/phases/11-ai-roadmap/migration.sql` (`refinement_cycle` + `apply_habit_plan_refinement`, 3 refinements per UTC ISO week)
 - DB: **`habit_plans` shape** — if PostgREST errors on missing `milestones`, run `.planning/phases/01-schema-foundations/habit_plans_align_app.sql` (idempotent; ends with `NOTIFY pgrst, 'reload schema'`). Hosted Supabase has **no** Settings → API “reload schema” button.
 - `GeminiService`: model `gemini-3-flash-preview`; dedicated `URLSession` **45s request / 60s resource** timeouts on AI calls
@@ -163,10 +185,12 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 ## What's Built — v1 Foundation (carried into v2.3)
 
 ### Auth
+
 - Sign in with Apple + Google OAuth via Supabase
 - `AuthManager` (@Observable @MainActor) with session persistence
 
 ### Design System
+
 - `DesignTokens.swift`: color + font tokens, semantic aliases, AppColors resolver
 - `ThemeManager.shared`: ThemeMode (auto/light/dark), NOAA solar auto-switch
 - `AppBackground.swift`: dual animated blob background
@@ -174,6 +198,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `AvatarView.swift`: reusable circular avatar component
 
 ### Habits
+
 - `Habit`, `HabitLog`, `Streak`, `HabitPlan` models
 - `HabitService`: fetchActiveHabits, toggleHabitLog, updateLogNote, updatePlanNotes, createAccountableHabit, broadcastHabitCompletion
 - `HabitPlanService`: fetchPlan, upsertInitialPlan, applyRefinement (RPC), ensureAIRoadmapForOnboarding
@@ -181,6 +206,7 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `HomeViewModel` + `HomeView` + `HabitDetailView` (roadmap + refine)
 
 ### Circles
+
 - `Circle`, `CircleMember` models (with genderSetting, coreHabits, groupStreakDays)
 - `CircleService`: fetchMyCircles, fetchCircle, createCircle, createCircleForAmir, joinByInviteCode, fetchCircleByCode, fetchMembers, updateCircleSettings, removeMember
 - `CirclesViewModel`: loadCircles, createCircle, joinCircle
@@ -190,12 +216,14 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `CircleDetailView`: member board (AvatarView), Amir settings sheet, feed, moment banner, nudge
 
 ### Circle Moment
+
 - `CircleMoment` model
 - `MomentService`: fetchTodayMoments, uploadPhoto, postMoment, computeIsOnTime
 - `CameraManager`, `MomentCameraView`, `MomentPreviewView`, `MomentCardView`
 - Reciprocity gate v2 via `DailyMomentService` (full-feed blur)
 
 ### Feed
+
 - `FeedItem` enum (moment, habitCheckin, streakMilestone) — Identifiable, Sendable, Equatable
 - `FeedService.fetchFeedPage(circleIds: [UUID], ...)` — multi-circle aware
 - `FeedViewModel`: loadInitial, loadNextPage, refresh — all accept [UUID]
@@ -204,20 +232,24 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 - `ReciprocityGateView`, `CommentDrawerView`
 
 ### Onboarding (v2.3)
+
 - `AmiirOnboardingCoordinator` + 4 step views (Circle Identity, Habits, Location, Soul Gate)
 - `MemberOnboardingCoordinator` + 2 step views (Habit Alignment, Location)
 - `CirclePreviewView` — unauthenticated invite landing
 - `StepIndicator`, `ShareSheet`
 
 ### Push Notifications
+
 - `NotificationService`: APNs permission, device token management
 - Edge Functions: moment-window cron, member-posted trigger, streak-milestone, peer nudge
 
 ### Profile
+
 - `ProfileView`: avatar picker (PHPicker), stats, settings, sign out
 - `AvatarService`: upload, fetch profiles, fetch stats
 
 ### Services
+
 - `DailyMomentService`: prayer of day + Aladhan API + gate state
 - `CommentService`: CRUD on `comments` table
 
