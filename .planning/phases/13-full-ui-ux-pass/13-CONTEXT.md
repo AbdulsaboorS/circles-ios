@@ -35,9 +35,16 @@ Every screen in the app redesigned and confirmed at 10/10 quality — iterative 
 
 ### Execution Model — Interactive, Not GSD Execute
 - This phase runs as iterative back-and-forth: user provides feedback per screen, Claude refines, repeat until 10/10.
-- No GSD plan+execute cycle. No plan files required.
+- No GSD plan+execute cycle. No plan files required. No `/gsd:plan-phase` or `/gsd:execute-phase` needed.
 - One screen at a time — fully complete each screen before moving to the next.
 - Documentation maintained here and in STATE.md for handoff continuity.
+
+### Workstyle — Collaborative Feedback Loop
+- **Who leads each screen:** Claude reads the current Swift file(s), proactively surfaces what it would improve (layout, copy, tokens, bugs), presents a prioritized list.
+- **Who gives feedback:** The user + their collaborating AI agent. Feedback from both sources is treated equally — Claude synthesizes and acts on all of it.
+- **Iteration cycle:** Claude leads → user/AI agent gives feedback → Claude refines code → user/AI agent reviews → repeat until sign-off → next wave.
+- **No prompting needed to start a wave:** User just says "next screen" or "move to Wave N" — Claude reads the files and opens the discussion.
+- **Future agents reading this:** Do NOT wait for the user to describe what's wrong. Read the screen's files, form an opinion, present it, then ask for feedback. This phase is proactive-Claude, reactive-user — not the reverse.
 
 ### Wave Order (Screen Priority)
 Screens are worked in this fixed priority sequence:
