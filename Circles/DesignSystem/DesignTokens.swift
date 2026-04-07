@@ -89,6 +89,46 @@ extension Color {
     static var blobSecondary: Color  { .darkBlob.opacity(0.6) }
 }
 
+// MARK: - Midnight Sanctuary Color Tokens
+
+/// Shared module-level tokens. All files in the Circles target can use these
+/// without any import — same module. Use explicit `Color.msToken` prefix (not dot-syntax)
+/// because Xcode 26 / Swift 6 cannot infer Color from ShapeStyle context.
+extension Color {
+
+    // Backgrounds
+    /// Primary app background — deep forest green
+    static let msBackground     = Color(hex: "1A2E1E")
+    /// Deeper layered background — used as inner base
+    static let msBackgroundDeep = Color(hex: "131C14")
+
+    // Card surfaces
+    /// Shared/accountable habit card
+    static let msCardShared     = Color(hex: "243828")
+    /// Personal/private habit card — same as msCardDeep
+    static let msCardDeep       = Color(hex: "1E3122")
+    /// Shared habit — completed warmth
+    static let msCardDone       = Color(hex: "2A4A30")
+    /// Personal habit card — sanctuary warmth
+    static let msCardWarm       = Color(hex: "201C14")
+    /// Personal habit — completed warmth
+    static let msCardWarmDone   = Color(hex: "2E2410")
+
+    // Accent
+    /// Gold accent — CTAs, icons, highlights
+    static let msGold           = Color(hex: "D4A240")
+
+    // Text
+    /// Cream primary text
+    static let msTextPrimary    = Color(hex: "F0EAD6")
+    /// Sage muted text — labels, secondary copy
+    static let msTextMuted      = Color(hex: "8FAF94")
+
+    // Border
+    /// Subtle gold border at 18% opacity
+    static let msBorder         = Color(hex: "D4A240").opacity(0.18)
+}
+
 // MARK: - Typography Tokens (D-04, D-05)
 
 extension Font {
