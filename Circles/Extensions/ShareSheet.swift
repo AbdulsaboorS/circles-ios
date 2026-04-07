@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// UIActivityViewController bridge used for sharing invite links.
 struct ShareSheet: UIViewControllerRepresentable {
