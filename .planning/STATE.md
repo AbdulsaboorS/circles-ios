@@ -9,7 +9,9 @@ status: "Phase 11 complete. Moment capture, posting, feed rendering, captions, a
 
 ## Current Focus
 
-**Phase 12 — Codebase Cleanup** — Phase 11 is fully complete. The Moment pipeline is restored end-to-end: storage upload works, feed images render in circle and global feeds, captions show, duplicate-day posts return the correct message, and the camera flow now uses a sequential Double Take capture path.
+**Phase 12 — Codebase Cleanup** — 12-01 complete (12 dead files deleted); 12-02 complete (design system dead weight removed + RoadmapGenerationFlag inlined into HabitPlanService); 12-03 pending.
+
+**12-02 decisions:** (1) Inlined RoadmapGenerationFlag 3 static methods into HabitPlanService — eliminated a 25-line one-trick enum file. (2) Deleted AppBackground.swift (no live callers since Phase 11.1 MS pass). (3) Pruned Components.swift from 171 to 33 lines — AppCard, PrimaryButton, ChipButton were all dead; SectionHeader preserved verbatim for CircleDetailView.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
 
