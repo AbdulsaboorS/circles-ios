@@ -142,12 +142,12 @@ final class MemberOnboardingCoordinator {
 
             // 5. Fire AI plans (background, non-blocking)
             let habitsForPlan = created
-            RoadmapGenerationFlag.set(userId: userId)
+            HabitPlanService.setRoadmapGenerating(userId: userId)
             Task {
                 for habit in habitsForPlan {
                     await HabitPlanService.shared.ensureAIRoadmapForOnboarding(habit: habit, userId: userId)
                 }
-                RoadmapGenerationFlag.clear(userId: userId)
+                HabitPlanService.clearRoadmapGenerating(userId: userId)
             }
 
             // 6. Complete + clear pending state

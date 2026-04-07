@@ -138,6 +138,28 @@ final class HabitPlanService {
             }
         )
     }
+
+    // MARK: - Roadmap generation flag (inlined from RoadmapGenerationFlag)
+
+    private static func roadmapFlagKey(userId: UUID) -> String {
+        "roadmap_generating_\(userId.uuidString)"
+    }
+
+    static func setRoadmapGenerating(userId: UUID) {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: roadmapFlagKey(userId: userId))
+    }
+
+    static func clearRoadmapGenerating(userId: UUID) {
+        UserDefaults.standard.removeObject(forKey: roadmapFlagKey(userId: userId))
+    }
+
+    /// Returns true while the flag is set AND is less than 5 minutes old.
+    static func isRoadmapGenerating(userId: UUID) -> Bool {
+        guard let ts = UserDefaults.standard.object(forKey: roadmapFlagKey(userId: userId)) as? TimeInterval else {
+            return false
+        }
+        return Date().timeIntervalSince1970 - ts < 300
+    }
 }
 
 // MARK: - Encodable row
