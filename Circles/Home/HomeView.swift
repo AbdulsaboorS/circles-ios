@@ -78,36 +78,6 @@ private struct CardGrain: View {
     }
 }
 
-// MARK: - Wobble Modifier (edit mode shake)
-
-private struct WobbleModifier: ViewModifier {
-    let active: Bool
-    @State private var angle: Double = 0
-
-    func body(content: Content) -> some View {
-        content
-            .rotationEffect(.degrees(angle))
-            .onChange(of: active) { _, newValue in
-                if newValue {
-                    angle = -2.5
-                    withAnimation(.easeInOut(duration: 0.13).repeatForever(autoreverses: true)) {
-                        angle = 2.5
-                    }
-                } else {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        angle = 0
-                    }
-                }
-            }
-    }
-}
-
-private extension View {
-    func wobble(active: Bool) -> some View {
-        modifier(WobbleModifier(active: active))
-    }
-}
-
 // MARK: - Delete Confirmation Modal
 
 private struct DeleteConfirmationModal: View {
@@ -201,9 +171,8 @@ struct HomeView: View {
     @State private var showRoadmapBanner  = false
     @State private var scrollOffset: CGFloat = 0
 
-    // Edit mode + delete
-    @State private var isEditMode: Bool    = false
-    @State private var habitToDelete: Habit? = nil
+    // Edit layout sheet
+    @State private var showEditLayout = false
 
     // Ordering
     @State private var sharedHabits: [Habit]   = []
@@ -405,31 +374,24 @@ struct HomeView: View {
                     ? Self.fallbackPresence : viewModel.circlePresence
                 MembersSheet(presence: presenceData, nudgedIds: $nudgedIds)
             }
-        }
-        // Delete confirmation modal — overlays the entire NavigationStack
-        .overlay {
-            if let habit = habitToDelete {
-                DeleteConfirmationModal(
-                    habitName: habit.name,
-                    onConfirm: {
-                        let h = habit
-                        withAnimation(.spring(response: 0.3)) {
-                            habitToDelete = nil
-                            isEditMode = false
-                        }
-                        Task {
-                            await viewModel.deleteHabit(h)
-                            updateOrderedHabits(from: viewModel.habits)
-                        }
+            .sheet(isPresented: $showEditLayout) {
+                EditLayoutSheet(
+                    shared: sharedHabits,
+                    personal: personalHabits,
+                    onSave: { newShared, newPersonal in
+                        sharedHabits   = newShared
+                        personalHabits = newPersonal
+                        saveSharedOrder()
+                        savePersonalOrder()
                     },
-                    onCancel: {
-                        withAnimation(.spring(response: 0.3)) { habitToDelete = nil }
+                    onDelete: { habit in
+                        await viewModel.deleteHabit(habit)
+                        updateOrderedHabits(from: viewModel.habits)
                     }
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .environment(auth)
             }
         }
-        .animation(.spring(response: 0.3), value: habitToDelete?.id)
         .overlay(alignment: .bottom) {
             if toastVisible, let msg = displayedToastMessage {
                 Text(msg)
@@ -550,31 +512,6 @@ struct HomeView: View {
 
     private var habitsSection: some View {
         VStack(alignment: .leading, spacing: 28) {
-            // Edit mode control bar
-            if isEditMode {
-                HStack {
-                    Text("Tap ★ to set as lead • tap × to remove")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.msTextMuted.opacity(0.65))
-                    Spacer()
-                    Button {
-                        withAnimation(.spring(response: 0.3)) { isEditMode = false }
-                    } label: {
-                        Text("Done")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.msGold)
-                            .padding(.horizontal, 14).padding(.vertical, 6)
-                            .background(
-                                Capsule().fill(Color.msGold.opacity(0.12))
-                                    .overlay(Capsule().stroke(Color.msGold.opacity(0.35), lineWidth: 1))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 4)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
             if viewModel.isLoading {
                 HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                     .padding(.vertical, 32)
@@ -585,7 +522,6 @@ struct HomeView: View {
                 if !personalHabits.isEmpty { personalSection(habits: personalHabits) }
             }
         }
-        .animation(.spring(response: 0.35), value: isEditMode)
     }
 
     private var emptyState: some View {
@@ -609,9 +545,24 @@ struct HomeView: View {
 
     private func sharedSection(habits: [Habit]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Shared Intentions")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.msTextPrimary)
+            HStack {
+                Text("Shared Intentions")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.msTextPrimary)
+                Spacer()
+                Button { showEditLayout = true } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.msGold.opacity(0.75))
+                        .frame(width: 30, height: 30)
+                        .background(
+                            SwiftUI.Circle()
+                                .fill(Color.msGold.opacity(0.10))
+                                .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.28), lineWidth: 1))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
 
             let presenceData = viewModel.circlePresence.isEmpty
                 ? Self.fallbackPresence
@@ -626,36 +577,18 @@ struct HomeView: View {
             )
 
             if let hero = habits.first {
-                // Hero: NavigationLink in normal mode, plain card in edit mode
-                Group {
-                    if isEditMode {
-                        HeroHabitCard(
-                            habit: hero,
-                            isCompleted: viewModel.isCompleted(habitId: hero.id),
-                            onToggle: {}
-                        )
-                        .wobble(active: true)
-                    } else {
-                        NavigationLink(value: hero) {
-                            HeroHabitCard(
-                                habit: hero,
-                                isCompleted: viewModel.isCompleted(habitId: hero.id),
-                                onToggle: {
-                                    guard let uid = auth.session?.user.id else { return }
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    Task { await viewModel.toggleHabit(hero, userId: uid) }
-                                }
-                            )
-                            .simultaneousGesture(
-                                LongPressGesture(minimumDuration: 0.4).onEnded { _ in
-                                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                                    withAnimation(.spring(response: 0.3)) { isEditMode = true }
-                                }
-                            )
+                NavigationLink(value: hero) {
+                    HeroHabitCard(
+                        habit: hero,
+                        isCompleted: viewModel.isCompleted(habitId: hero.id),
+                        onToggle: {
+                            guard let uid = auth.session?.user.id else { return }
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            Task { await viewModel.toggleHabit(hero, userId: uid) }
                         }
-                        .buttonStyle(.plain)
-                    }
+                    )
                 }
+                .buttonStyle(.plain)
 
                 let remaining = Array(habits.dropFirst())
                 if !remaining.isEmpty { habitGrid(remaining) }
@@ -674,42 +607,17 @@ struct HomeView: View {
         }
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(sorted) { habit in
-                ZStack(alignment: .topTrailing) {
-                    SharedHabitCard(
-                        habit: habit,
-                        isCompleted: viewModel.isCompleted(habitId: habit.id),
-                        onToggle: {
-                            guard !isEditMode else { return }
-                            guard let uid = auth.session?.user.id else { return }
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            Task { await viewModel.toggleHabit(habit, userId: uid) }
-                        }
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard !isEditMode else { return }
-                        navigationPath.append(habit)
+                SharedHabitCard(
+                    habit: habit,
+                    isCompleted: viewModel.isCompleted(habitId: habit.id),
+                    onToggle: {
+                        guard let uid = auth.session?.user.id else { return }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        Task { await viewModel.toggleHabit(habit, userId: uid) }
                     }
-
-                    if isEditMode {
-                        Button { promoteToHero(habit) } label: {
-                            ZStack {
-                                SwiftUI.Circle()
-                                    .fill(Color.msGold.opacity(0.15))
-                                    .frame(width: 26, height: 26)
-                                    .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.45), lineWidth: 1))
-                                Image(systemName: "star.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(Color.msGold)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .offset(x: 6, y: -6)
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                .wobble(active: isEditMode)
-                .animation(.spring(response: 0.3), value: isEditMode)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture { navigationPath.append(habit) }
             }
         }
     }
@@ -737,21 +645,14 @@ struct HomeView: View {
                     PersonalHabitCard(
                         habit: habit,
                         isCompleted: viewModel.isCompleted(habitId: habit.id),
-                        isEditMode: isEditMode,
                         onToggle: {
-                            guard !isEditMode else { return }
                             guard let uid = auth.session?.user.id else { return }
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             Task { await viewModel.toggleHabit(habit, userId: uid) }
-                        },
-                        onDelete: { habitToDelete = habit }
+                        }
                     )
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard !isEditMode else { return }
-                        navigationPath.append(habit)
-                    }
-                    .wobble(active: isEditMode)
+                    .onTapGesture { navigationPath.append(habit) }
                 }
             }
         }
@@ -781,13 +682,9 @@ struct HomeView: View {
                                   forKey: "circles_shared_order")
     }
 
-    private func promoteToHero(_ habit: Habit) {
-        guard let idx = sharedHabits.firstIndex(where: { $0.id == habit.id }), idx != 0 else { return }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        withAnimation(.spring(response: 0.35)) {
-            sharedHabits.move(fromOffsets: IndexSet(integer: idx), toOffset: 0)
-        }
-        saveSharedOrder()
+    private func savePersonalOrder() {
+        UserDefaults.standard.set(personalHabits.map { $0.id.uuidString },
+                                  forKey: "circles_personal_order")
     }
 
     // MARK: - FAB
@@ -1237,16 +1134,12 @@ private struct SharedHabitCard: View {
 private struct PersonalHabitCard: View {
     let habit: Habit
     let isCompleted: Bool
-    let isEditMode: Bool
     let onToggle: () -> Void
-    let onDelete: () -> Void
 
     private var symbol: String { habitSymbol(for: habit.name) }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            // Main row
-            HStack(spacing: 12) {
+        HStack(spacing: 12) {
                 ZStack {
                     SwiftUI.Circle()
                         .fill(isCompleted ? Color.msGold.opacity(0.08) : Color.msTextMuted.opacity(0.06))
@@ -1305,29 +1198,126 @@ private struct PersonalHabitCard: View {
                 }
             )
             .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
-
-            // Delete badge (edit mode only)
-            if isEditMode {
-                Button(action: onDelete) {
-                    ZStack {
-                        SwiftUI.Circle()
-                            .fill(Color(hex: "CC3333"))
-                            .frame(width: 22, height: 22)
-                            .shadow(color: Color.black.opacity(0.30), radius: 4, x: 0, y: 2)
-                        Image(systemName: "minus")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .buttonStyle(.plain)
-                .offset(x: -6, y: -6)
-                .transition(.scale.combined(with: .opacity))
-            }
-        }
-        .animation(.spring(response: 0.3), value: isEditMode)
     }
 }
 
+
+// MARK: - Edit Layout Sheet
+
+private struct EditLayoutSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var shared:   [Habit]
+    @State private var personal: [Habit]
+
+    let onSave:   ([Habit], [Habit]) -> Void
+    let onDelete: (Habit) async -> Void
+
+    init(
+        shared: [Habit],
+        personal: [Habit],
+        onSave: @escaping ([Habit], [Habit]) -> Void,
+        onDelete: @escaping (Habit) async -> Void
+    ) {
+        _shared   = State(initialValue: shared)
+        _personal = State(initialValue: personal)
+        self.onSave   = onSave
+        self.onDelete = onDelete
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if !shared.isEmpty {
+                    Section {
+                        ForEach(shared) { habit in
+                            HStack(spacing: 12) {
+                                if habit.id == shared.first?.id {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color.msGold)
+                                        .frame(width: 16)
+                                } else {
+                                    Color.clear.frame(width: 16)
+                                }
+                                Image(systemName: habitSymbol(for: habit.name))
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color.msGold)
+                                    .frame(width: 24)
+                                Text(habit.name)
+                                    .font(.system(size: 15, design: .serif))
+                                    .foregroundStyle(Color.msTextPrimary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .onMove { shared.move(fromOffsets: $0, toOffset: $1) }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Shared Intentions")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.msTextMuted)
+                            Text("Drag to reorder · first becomes lead")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.msTextMuted.opacity(0.55))
+                        }
+                        .textCase(nil)
+                    }
+                }
+
+                if !personal.isEmpty {
+                    Section {
+                        ForEach(personal) { habit in
+                            HStack(spacing: 12) {
+                                Image(systemName: habitSymbol(for: habit.name))
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color.msTextMuted.opacity(0.65))
+                                    .frame(width: 24)
+                                Text(habit.name)
+                                    .font(.system(size: 15, design: .serif))
+                                    .foregroundStyle(Color.msTextPrimary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .onMove { personal.move(fromOffsets: $0, toOffset: $1) }
+                        .onDelete { offsets in
+                            let toRemove = offsets.map { personal[$0] }
+                            personal.remove(atOffsets: offsets)
+                            Task {
+                                for h in toRemove { await onDelete(h) }
+                            }
+                        }
+                    } header: {
+                        Text("Personal Intentions")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.msTextMuted)
+                            .textCase(nil)
+                    }
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .scrollContentBackground(.hidden)
+            .background(Color.msBackgroundDeep)
+            .listStyle(.insetGrouped)
+            .navigationTitle("Edit Layout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Color.msTextMuted)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(shared, personal)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.msGold)
+                }
+            }
+        }
+        .background(Color.msBackgroundDeep)
+    }
+}
 
 // MARK: - Members Sheet
 
