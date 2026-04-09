@@ -130,31 +130,24 @@ final class HabitService {
     // MARK: - Accountable Habit Broadcast
 
     /// Insert a habit_checkin event into activity_feed for accountable habits.
-    /// Only called when completed = true and habit.circleId is set.
-    /// Fire-and-forget — feed is additive, no rollback on failure.
-    /// Guarded: skips insert if a row already exists for this user+habit+today (prevents duplicate feed cards).
+    /// Always deletes any existing entry for today first, then inserts fresh — ensures
+    /// created_at reflects the latest check-in time (fixes stale timestamp after undo+re-check-in).
     func broadcastHabitCompletion(habitId: UUID, habitName: String, circleId: UUID, userId: UUID) async throws {
         let todayStart: String = {
             let f = DateFormatter()
             f.dateFormat = "yyyy-MM-dd"
             return f.string(from: Date()) + "T00:00:00"
         }()
-        struct IdRow: Decodable {
-            let id: String
-            enum CodingKeys: String, CodingKey { case id }
-        }
-        let existing: [IdRow] = (try? await client
+        // Delete any stale entry first (idempotent — no-op if already removed by undo)
+        try await client
             .from("activity_feed")
-            .select("id")
+            .delete()
             .eq("user_id", value: userId.uuidString)
             .eq("habit_name", value: habitName)
             .eq("event_type", value: "habit_checkin")
             .gte("created_at", value: todayStart)
-            .limit(1)
             .execute()
-            .value) ?? []
-        guard existing.isEmpty else { return }
-
+        // Insert fresh row — created_at always reflects current check-in time
         let row: [String: AnyJSON] = [
             "circle_id":  .string(circleId.uuidString),
             "user_id":    .string(userId.uuidString),

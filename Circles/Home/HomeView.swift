@@ -948,13 +948,15 @@ private struct HeroHabitCard: View {
     let onToggle: () -> Void
 
     @State private var borderGlow: Double = 0.45
+    @State private var shimmerPhase: CGFloat = -0.5
+    @State private var bloomOpacity: Double = 0
+    @State private var bloomScale: CGFloat = 0.8
 
     private var symbol: String { habitSymbol(for: habit.name) }
 
     var body: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                // Icon row (Now badge removed)
                 ZStack {
                     SwiftUI.Circle()
                         .fill(Color.msGold.opacity(0.12))
@@ -973,24 +975,33 @@ private struct HeroHabitCard: View {
 
             Spacer()
 
-            // Check-in / Undo CTA
+            // Check-in / done CTA — checkmark IS the undo trigger
             Button(action: onToggle) {
-                VStack(spacing: 4) {
-                    Image(systemName: isCompleted ? "arrow.uturn.backward.circle" : "circle")
-                        .font(.system(size: 22))
-                    Text(isCompleted ? "Undo" : "Check\nIn")
-                        .font(.system(size: 9, weight: .semibold))
-                        .multilineTextAlignment(.center)
+                if isCompleted {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 46))
+                        .foregroundStyle(Color.msGold.opacity(0.80))
+                        .frame(width: 58, height: 58)
+                        .shadow(color: Color.msGold.opacity(0.45), radius: 10)
+                } else {
+                    VStack(spacing: 4) {
+                        Image(systemName: "circle")
+                            .font(.system(size: 22))
+                        Text("Check\nIn")
+                            .font(.system(size: 9, weight: .semibold))
+                            .multilineTextAlignment(.center)
+                    }
+                    .foregroundStyle(Color.msGold)
+                    .frame(width: 58, height: 58)
+                    .background(
+                        SwiftUI.Circle()
+                            .fill(Color.msGold.opacity(0.14))
+                            .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.50), lineWidth: 1.5))
+                    )
                 }
-                .foregroundStyle(isCompleted ? Color.msTextMuted : Color.msGold)
-                .frame(width: 58, height: 58)
-                .background(
-                    SwiftUI.Circle()
-                        .fill(isCompleted ? Color.msGold.opacity(0.08) : Color.msGold.opacity(0.14))
-                        .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(isCompleted ? 0.22 : 0.50), lineWidth: 1.5))
-                )
             }
             .buttonStyle(.plain)
+            .animation(.spring(response: 0.35), value: isCompleted)
         }
         .padding(20)
         .frame(maxWidth: .infinity, minHeight: 110)
@@ -1006,9 +1017,29 @@ private struct HeroHabitCard: View {
                     endRadius: 180
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 28))
-                // Grain texture — sacred parchment feel
+                // One-shot completion shimmer
+                if isCompleted {
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: .clear,               location: shimmerPhase - 0.25),
+                                .init(color: .white.opacity(0.11), location: shimmerPhase),
+                                .init(color: .clear,               location: shimmerPhase + 0.25)
+                            ]),
+                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
+                // Gold bloom pulse
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(RadialGradient(
+                        colors: [Color.msGold.opacity(0.42), Color.clear],
+                        center: .center, startRadius: 0, endRadius: 130
+                    ))
+                    .scaleEffect(bloomScale)
+                    .opacity(bloomOpacity)
+                    .allowsHitTesting(false)
+                // Grain texture
                 CardGrain().clipShape(RoundedRectangle(cornerRadius: 28))
-                // Inner shadow — carved depth
+                // Inner shadow
                 RoundedRectangle(cornerRadius: 28)
                     .stroke(Color.black.opacity(0.40), lineWidth: 10)
                     .blur(radius: 8)
@@ -1026,6 +1057,17 @@ private struct HeroHabitCard: View {
                 borderGlow = 0.88
             }
         }
+        .onChange(of: isCompleted) { _, newValue in
+            guard newValue else { return }
+            shimmerPhase = -0.5
+            bloomOpacity = 0.65
+            bloomScale   = 0.75
+            withAnimation(.easeOut(duration: 1.5)) { shimmerPhase = 1.7 }
+            withAnimation(.easeOut(duration: 0.9)) {
+                bloomOpacity = 0
+                bloomScale   = 1.55
+            }
+        }
     }
 }
 
@@ -1037,6 +1079,8 @@ private struct SharedHabitCard: View {
     let onToggle: () -> Void
 
     @State private var shimmerPhase: CGFloat = -0.5
+    @State private var bloomOpacity: Double  = 0
+    @State private var bloomScale: CGFloat   = 0.8
 
     private var symbol: String { habitSymbol(for: habit.name) }
 
@@ -1053,10 +1097,23 @@ private struct SharedHabitCard: View {
                         .shadow(color: Color.msGold.opacity(isCompleted ? 0.55 : 0.30), radius: 5)
                 }
                 Spacer()
-                Image(systemName: isCompleted ? "checkmark.circle.fill" : "ellipsis")
-                    .font(.system(size: isCompleted ? 13 : 11))
-                    .foregroundStyle(isCompleted ? Color.msGold : Color.msTextMuted)
+                // Checkmark IS the undo trigger when completed
+                if isCompleted {
+                    Button(action: onToggle) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color.msGold.opacity(0.85))
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.msTextMuted)
+                        .transition(.opacity)
+                }
             }
+            .animation(.spring(response: 0.35), value: isCompleted)
 
             Text(habit.name)
                 .font(.system(size: 14, weight: .semibold, design: .serif))
@@ -1066,21 +1123,23 @@ private struct SharedHabitCard: View {
 
             Spacer(minLength: 4)
 
-            HStack {
-                Spacer(minLength: 0)
-                Button(action: onToggle) {
-                    Text(isCompleted ? "↩ Undo" : "Check In")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(isCompleted ? Color.msTextMuted : Color.msBackgroundDeep)
-                        .padding(.horizontal, 9).padding(.vertical, 5)
-                        .background(
-                            Capsule().fill(isCompleted ? Color.clear : Color.msGold)
-                                .overlay(Capsule().stroke(isCompleted ? Color.msTextMuted.opacity(0.30) : Color.clear, lineWidth: 1))
-                        )
+            // Check In button only when pending — completed state is clean
+            if !isCompleted {
+                HStack {
+                    Spacer(minLength: 0)
+                    Button(action: onToggle) {
+                        Text("Check In")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color.msBackgroundDeep)
+                            .padding(.horizontal, 9).padding(.vertical, 5)
+                            .background(Capsule().fill(Color.msGold))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .transition(.opacity)
             }
         }
+        .animation(.spring(response: 0.35), value: isCompleted)
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
@@ -1107,6 +1166,15 @@ private struct SharedHabitCard: View {
                             ]),
                             startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
+                // Gold bloom pulse
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(RadialGradient(
+                        colors: [Color.msGold.opacity(0.38), Color.clear],
+                        center: .center, startRadius: 0, endRadius: 90
+                    ))
+                    .scaleEffect(bloomScale)
+                    .opacity(bloomOpacity)
+                    .allowsHitTesting(false)
                 // Grain — sacred parchment
                 CardGrain().clipShape(RoundedRectangle(cornerRadius: 24))
                 // Inner shadow — carved depth
@@ -1124,7 +1192,13 @@ private struct SharedHabitCard: View {
         .onChange(of: isCompleted) { _, newValue in
             guard newValue else { return }
             shimmerPhase = -0.5
+            bloomOpacity  = 0.65
+            bloomScale    = 0.75
             withAnimation(.easeOut(duration: 1.4)) { shimmerPhase = 1.6 }
+            withAnimation(.easeOut(duration: 0.85)) {
+                bloomOpacity = 0
+                bloomScale   = 1.45
+            }
         }
     }
 }
@@ -1135,6 +1209,8 @@ private struct PersonalHabitCard: View {
     let habit: Habit
     let isCompleted: Bool
     let onToggle: () -> Void
+
+    @State private var shimmerPhase: CGFloat = -0.5
 
     private var symbol: String { habitSymbol(for: habit.name) }
 
@@ -1157,27 +1233,27 @@ private struct PersonalHabitCard: View {
 
                 Spacer()
 
+                // Checkmark IS the undo trigger when completed
                 Button(action: onToggle) {
-                    HStack(spacing: 4) {
-                        if isCompleted {
-                            Image(systemName: "arrow.uturn.backward")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                        Text(isCompleted ? "Undo" : "Check in")
+                    if isCompleted {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Color.msGold.opacity(0.70))
+                    } else {
+                        Text("Check in")
                             .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.msTextMuted)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule()
+                                    .fill(Color.clear)
+                                    .overlay(Capsule().stroke(Color.msTextMuted.opacity(0.25), lineWidth: 1))
+                            )
                     }
-                    .foregroundStyle(isCompleted ? Color.msTextMuted.opacity(0.70) : Color.msTextMuted)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule()
-                            .fill(Color.clear)
-                            .overlay(Capsule().stroke(
-                                isCompleted ? Color.msTextMuted.opacity(0.20) : Color.msTextMuted.opacity(0.25),
-                                lineWidth: 1))
-                    )
                 }
                 .buttonStyle(.plain)
+                .animation(.spring(response: 0.35), value: isCompleted)
             }
             .padding(.horizontal, 16)
             .frame(height: 58)
@@ -1195,9 +1271,25 @@ private struct PersonalHabitCard: View {
                         .blur(radius: 5)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .allowsHitTesting(false)
+                    // Completion shimmer
+                    if isCompleted {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(LinearGradient(
+                                gradient: Gradient(stops: [
+                                    .init(color: .clear,               location: shimmerPhase - 0.30),
+                                    .init(color: .white.opacity(0.07), location: shimmerPhase),
+                                    .init(color: .clear,               location: shimmerPhase + 0.30)
+                                ]),
+                                startPoint: .topLeading, endPoint: .bottomTrailing))
+                    }
                 }
             )
             .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
+        .onChange(of: isCompleted) { _, newValue in
+            guard newValue else { return }
+            shimmerPhase = -0.5
+            withAnimation(.easeOut(duration: 1.2)) { shimmerPhase = 1.7 }
+        }
     }
 }
 
