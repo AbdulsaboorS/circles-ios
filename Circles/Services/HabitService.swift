@@ -167,6 +167,23 @@ final class HabitService {
             .execute()
     }
 
+    /// Delete today's activity_feed entry for an accountable habit (called on undo check-in).
+    func removeHabitCompletion(habitName: String, circleId: UUID, userId: UUID) async throws {
+        let todayStart: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            return f.string(from: Date()) + "T00:00:00"
+        }()
+        try await client
+            .from("activity_feed")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("habit_name", value: habitName)
+            .eq("event_type", value: "habit_checkin")
+            .gte("created_at", value: todayStart)
+            .execute()
+    }
+
     /// Soft-delete a habit by setting is_active = false.
     /// Preserves habit_logs and habit_plans for history.
     func archiveHabit(habitId: UUID) async throws {

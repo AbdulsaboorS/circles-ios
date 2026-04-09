@@ -1,6 +1,5 @@
 import SwiftUI
 import Supabase
-import UniformTypeIdentifiers
 
 // MARK: - Scroll Offset Preference Key
 
@@ -206,10 +205,13 @@ struct HomeView: View {
     @State private var isEditMode: Bool    = false
     @State private var habitToDelete: Habit? = nil
 
-    // Drag-to-reorder
+    // Ordering
     @State private var sharedHabits: [Habit]   = []
     @State private var personalHabits: [Habit] = []
-    @State private var draggingId: UUID?       = nil
+
+    // Toast
+    @State private var toastVisible = false
+    @State private var displayedToastMessage: String? = nil
 
     // Nudge
     @State private var nudgedIds: Set<UUID>    = []
@@ -379,6 +381,16 @@ struct HomeView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
+            .onChange(of: viewModel.toastMessage) { _, newMsg in
+                guard let msg = newMsg else { return }
+                displayedToastMessage = msg
+                viewModel.toastMessage = nil
+                withAnimation(.spring(response: 0.4)) { toastVisible = true }
+                Task {
+                    try? await Task.sleep(for: .seconds(2.5))
+                    withAnimation(.easeOut(duration: 0.3)) { toastVisible = false }
+                }
+            }
             .sheet(isPresented: $showAddIntention) {
                 AddPrivateIntentionSheet { newHabit in
                     if let uid = auth.session?.user.id {
@@ -418,6 +430,27 @@ struct HomeView: View {
             }
         }
         .animation(.spring(response: 0.3), value: habitToDelete?.id)
+        .overlay(alignment: .bottom) {
+            if toastVisible, let msg = displayedToastMessage {
+                Text(msg)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.msTextPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.msCardShared)
+                            .overlay(RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.msGold.opacity(0.40), lineWidth: 1))
+                    )
+                    .shadow(color: Color.black.opacity(0.45), radius: 14, x: 0, y: 6)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 110)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .animation(.spring(response: 0.4), value: toastVisible)
     }
 
     // MARK: - Header
@@ -520,7 +553,7 @@ struct HomeView: View {
             // Edit mode control bar
             if isEditMode {
                 HStack {
-                    Text("Drag to reorder • tap × to remove")
+                    Text("Tap ★ to set as lead • tap × to remove")
                         .font(.system(size: 11))
                         .foregroundStyle(Color.msTextMuted.opacity(0.65))
                     Spacer()
@@ -613,14 +646,14 @@ struct HomeView: View {
                                     Task { await viewModel.toggleHabit(hero, userId: uid) }
                                 }
                             )
+                            .simultaneousGesture(
+                                LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                    withAnimation(.spring(response: 0.3)) { isEditMode = true }
+                                }
+                            )
                         }
                         .buttonStyle(.plain)
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.4).onEnded { _ in
-                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                                withAnimation(.spring(response: 0.3)) { isEditMode = true }
-                            }
-                        )
                     }
                 }
 
@@ -632,42 +665,51 @@ struct HomeView: View {
 
     @ViewBuilder
     private func habitGrid(_ habits: [Habit]) -> some View {
+        // Pending first, completed last — gives "UI clears up" reward as day progresses
+        let sorted = habits.sorted { a, b in
+            let aDone = viewModel.isCompleted(habitId: a.id)
+            let bDone = viewModel.isCompleted(habitId: b.id)
+            if aDone == bDone { return false }
+            return !aDone
+        }
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            ForEach(habits) { habit in
-                SharedHabitCard(
-                    habit: habit,
-                    isCompleted: viewModel.isCompleted(habitId: habit.id),
-                    onToggle: {
+            ForEach(sorted) { habit in
+                ZStack(alignment: .topTrailing) {
+                    SharedHabitCard(
+                        habit: habit,
+                        isCompleted: viewModel.isCompleted(habitId: habit.id),
+                        onToggle: {
+                            guard !isEditMode else { return }
+                            guard let uid = auth.session?.user.id else { return }
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            Task { await viewModel.toggleHabit(habit, userId: uid) }
+                        }
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
                         guard !isEditMode else { return }
-                        guard let uid = auth.session?.user.id else { return }
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        Task { await viewModel.toggleHabit(habit, userId: uid) }
+                        navigationPath.append(habit)
                     }
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard !isEditMode else { return }
-                    navigationPath.append(habit)
+
+                    if isEditMode {
+                        Button { promoteToHero(habit) } label: {
+                            ZStack {
+                                SwiftUI.Circle()
+                                    .fill(Color.msGold.opacity(0.15))
+                                    .frame(width: 26, height: 26)
+                                    .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.45), lineWidth: 1))
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(Color.msGold)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: 6, y: -6)
+                        .transition(.scale.combined(with: .opacity))
+                    }
                 }
                 .wobble(active: isEditMode)
-                .opacity(draggingId == habit.id ? 0.5 : 1.0)
-                .scaleEffect(draggingId == habit.id ? 0.96 : 1.0)
-                .animation(.easeInOut(duration: 0.18), value: draggingId)
-                .onDrag {
-                    if !isEditMode {
-                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                        withAnimation(.spring(response: 0.3)) { isEditMode = true }
-                    }
-                    draggingId = habit.id
-                    return NSItemProvider(object: habit.id.uuidString as NSString)
-                }
-                .onDrop(of: [.text], delegate: HabitDropDelegate(
-                    habit: habit,
-                    habits: $sharedHabits,
-                    draggingId: $draggingId,
-                    isEditMode: isEditMode,
-                    onReorder: saveSharedOrder
-                ))
+                .animation(.spring(response: 0.3), value: isEditMode)
             }
         }
     }
@@ -710,24 +752,6 @@ struct HomeView: View {
                         navigationPath.append(habit)
                     }
                     .wobble(active: isEditMode)
-                    .opacity(draggingId == habit.id ? 0.5 : 1.0)
-                    .scaleEffect(draggingId == habit.id ? 0.97 : 1.0)
-                    .animation(.easeInOut(duration: 0.18), value: draggingId)
-                    .onDrag {
-                        if !isEditMode {
-                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                            withAnimation(.spring(response: 0.3)) { isEditMode = true }
-                        }
-                        draggingId = habit.id
-                        return NSItemProvider(object: habit.id.uuidString as NSString)
-                    }
-                    .onDrop(of: [.text], delegate: HabitDropDelegate(
-                        habit: habit,
-                        habits: $personalHabits,
-                        draggingId: $draggingId,
-                        isEditMode: isEditMode,
-                        onReorder: savePersonalOrder
-                    ))
                 }
             }
         }
@@ -757,9 +781,13 @@ struct HomeView: View {
                                   forKey: "circles_shared_order")
     }
 
-    private func savePersonalOrder() {
-        UserDefaults.standard.set(personalHabits.map { $0.id.uuidString },
-                                  forKey: "circles_personal_order")
+    private func promoteToHero(_ habit: Habit) {
+        guard let idx = sharedHabits.firstIndex(where: { $0.id == habit.id }), idx != 0 else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        withAnimation(.spring(response: 0.35)) {
+            sharedHabits.move(fromOffsets: IndexSet(integer: idx), toOffset: 0)
+        }
+        saveSharedOrder()
     }
 
     // MARK: - FAB
@@ -1048,25 +1076,24 @@ private struct HeroHabitCard: View {
 
             Spacer()
 
-            // Check-in CTA (disabled appearance when already done — VM enforces once-per-day)
+            // Check-in / Undo CTA
             Button(action: onToggle) {
                 VStack(spacing: 4) {
-                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                    Image(systemName: isCompleted ? "arrow.uturn.backward.circle" : "circle")
                         .font(.system(size: 22))
-                    Text(isCompleted ? "Done" : "Check\nIn")
+                    Text(isCompleted ? "Undo" : "Check\nIn")
                         .font(.system(size: 9, weight: .semibold))
                         .multilineTextAlignment(.center)
                 }
-                .foregroundStyle(isCompleted ? Color.msBackgroundDeep : Color.msGold)
+                .foregroundStyle(isCompleted ? Color.msTextMuted : Color.msGold)
                 .frame(width: 58, height: 58)
                 .background(
                     SwiftUI.Circle()
-                        .fill(isCompleted ? Color.msGold : Color.msGold.opacity(0.14))
-                        .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.50), lineWidth: 1.5))
+                        .fill(isCompleted ? Color.msGold.opacity(0.08) : Color.msGold.opacity(0.14))
+                        .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(isCompleted ? 0.22 : 0.50), lineWidth: 1.5))
                 )
             }
             .buttonStyle(.plain)
-            .disabled(isCompleted)
         }
         .padding(20)
         .frame(maxWidth: .infinity, minHeight: 110)
@@ -1145,14 +1172,16 @@ private struct SharedHabitCard: View {
             HStack {
                 Spacer(minLength: 0)
                 Button(action: onToggle) {
-                    Text(isCompleted ? "Done ✓" : "Check In")
+                    Text(isCompleted ? "↩ Undo" : "Check In")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.msBackgroundDeep)
+                        .foregroundStyle(isCompleted ? Color.msTextMuted : Color.msBackgroundDeep)
                         .padding(.horizontal, 9).padding(.vertical, 5)
-                        .background(Capsule().fill(Color.msGold.opacity(isCompleted ? 0.55 : 1.0)))
+                        .background(
+                            Capsule().fill(isCompleted ? Color.clear : Color.msGold)
+                                .overlay(Capsule().stroke(isCompleted ? Color.msTextMuted.opacity(0.30) : Color.clear, lineWidth: 1))
+                        )
                 }
                 .buttonStyle(.plain)
-                .disabled(isCompleted)
             }
         }
         .padding(14)
@@ -1238,25 +1267,24 @@ private struct PersonalHabitCard: View {
                 Button(action: onToggle) {
                     HStack(spacing: 4) {
                         if isCompleted {
-                            Image(systemName: "checkmark")
+                            Image(systemName: "arrow.uturn.backward")
                                 .font(.system(size: 9, weight: .bold))
                         }
-                        Text(isCompleted ? "Done" : "Check in")
+                        Text(isCompleted ? "Undo" : "Check in")
                             .font(.system(size: 11, weight: .medium))
                     }
-                    .foregroundStyle(isCompleted ? Color.msGold : Color.msTextMuted)
+                    .foregroundStyle(isCompleted ? Color.msTextMuted.opacity(0.70) : Color.msTextMuted)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
                     .background(
                         Capsule()
-                            .fill(isCompleted ? Color.msCardWarmDone : Color.clear)
+                            .fill(Color.clear)
                             .overlay(Capsule().stroke(
-                                isCompleted ? Color.msGold.opacity(0.55) : Color.msTextMuted.opacity(0.25),
+                                isCompleted ? Color.msTextMuted.opacity(0.20) : Color.msTextMuted.opacity(0.25),
                                 lineWidth: 1))
                     )
                 }
                 .buttonStyle(.plain)
-                .disabled(isCompleted)
             }
             .padding(.horizontal, 16)
             .frame(height: 58)
@@ -1300,38 +1328,6 @@ private struct PersonalHabitCard: View {
     }
 }
 
-// MARK: - Drag-to-reorder Drop Delegate
-
-private struct HabitDropDelegate: DropDelegate {
-    let habit: Habit
-    @Binding var habits: [Habit]
-    @Binding var draggingId: UUID?
-    let isEditMode: Bool
-    let onReorder: () -> Void
-
-    func performDrop(info: DropInfo) -> Bool {
-        draggingId = nil
-        onReorder()
-        return true
-    }
-
-    func dropEntered(info: DropInfo) {
-        guard isEditMode else { return }
-        guard let draggingId,
-              draggingId != habit.id,
-              let fromIndex = habits.firstIndex(where: { $0.id == draggingId }),
-              let toIndex   = habits.firstIndex(where: { $0.id == habit.id })
-        else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            habits.move(fromOffsets: IndexSet(integer: fromIndex),
-                        toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
-        }
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-}
 
 // MARK: - Members Sheet
 

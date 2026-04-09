@@ -131,6 +131,13 @@ final class HomeViewModel {
         return String(name.prefix(2)).uppercased()
     }
 
+    // MARK: - Toast (shown by HomeView)
+
+    var toastMessage: String? = nil
+
+    // Tracks check-in count per habit this session (resets on app kill — intentional)
+    private var checkInCount: [UUID: Int] = [:]
+
     // MARK: - Delete (archive)
 
     func deleteHabit(_ habit: Habit) async {
@@ -145,46 +152,74 @@ final class HomeViewModel {
     // MARK: - Optimistic toggle
 
     func toggleHabit(_ habit: Habit, userId: UUID) async {
-        // Once-per-day lock — completed habits cannot be unchecked
-        guard !isCompleted(habitId: habit.id) else { return }
-        let newCompleted = true
+        let alreadyCompleted = isCompleted(habitId: habit.id)
 
-        if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
-            todayLogs[idx].completed = newCompleted
-        } else {
-            let placeholder = HabitLog(
-                id: UUID(),
-                habitId: habit.id,
-                userId: userId,
-                date: todayString,
-                completed: newCompleted,
-                notes: nil,
-                createdAt: Date()
-            )
-            todayLogs.append(placeholder)
-        }
+        if alreadyCompleted {
+            // Undo path — blocked once check-in count reaches 3
+            let count = checkInCount[habit.id] ?? 1
+            guard count < 3 else { return }
 
-        do {
-            try await HabitService.shared.toggleHabitLog(
-                habitId: habit.id,
-                userId: userId,
-                date: todayString,
-                completed: newCompleted
-            )
-            streak = try await HabitService.shared.fetchStreak(userId: userId)
-            if newCompleted, habit.isAccountable, let circleId = habit.circleId {
-                try? await HabitService.shared.broadcastHabitCompletion(
-                    habitId: habit.id,
-                    habitName: habit.name,
-                    circleId: circleId,
-                    userId: userId
-                )
-            }
-        } catch {
+            // Optimistic undo
             if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
-                todayLogs[idx].completed = !newCompleted
+                todayLogs[idx].completed = false
             }
-            errorMessage = error.localizedDescription
+
+            do {
+                try await HabitService.shared.toggleHabitLog(
+                    habitId: habit.id, userId: userId, date: todayString, completed: false
+                )
+                if habit.isAccountable, let circleId = habit.circleId {
+                    try? await HabitService.shared.removeHabitCompletion(
+                        habitName: habit.name, circleId: circleId, userId: userId
+                    )
+                }
+            } catch {
+                if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
+                    todayLogs[idx].completed = true
+                }
+                errorMessage = error.localizedDescription
+            }
+
+        } else {
+            // Check-in path
+            let count = (checkInCount[habit.id] ?? 0) + 1
+            checkInCount[habit.id] = count
+
+            // Optimistic check-in
+            if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
+                todayLogs[idx].completed = true
+            } else {
+                todayLogs.append(HabitLog(
+                    id: UUID(), habitId: habit.id, userId: userId,
+                    date: todayString, completed: true, notes: nil, createdAt: Date()
+                ))
+            }
+
+            // Progressive warnings
+            if count == 2 {
+                toastMessage = "pls stop doing and undoing. did u actually do it or not?? 😭"
+            } else if count >= 3 {
+                toastMessage = "Locked in. No more undos — we trust you this time. 🤝"
+            }
+
+            do {
+                try await HabitService.shared.toggleHabitLog(
+                    habitId: habit.id, userId: userId, date: todayString, completed: true
+                )
+                streak = try await HabitService.shared.fetchStreak(userId: userId)
+                if habit.isAccountable, let circleId = habit.circleId {
+                    try? await HabitService.shared.broadcastHabitCompletion(
+                        habitId: habit.id, habitName: habit.name,
+                        circleId: circleId, userId: userId
+                    )
+                }
+            } catch {
+                if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
+                    todayLogs[idx].completed = false
+                }
+                checkInCount[habit.id] = count - 1
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
