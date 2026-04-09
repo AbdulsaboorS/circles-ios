@@ -67,13 +67,20 @@ Two pre-existing `withAnimation` unused-result warnings (cosmetic, no impact).
 
 ---
 
-## What's Next — Wave 2 (Habit Detail Screen)
+## What's Next
 
-Wave 1 is done. User needs to test in simulator, then move to Wave 2.
+### PRIORITY 1 — Feed auto-refresh after check-in (small, do first)
 
-### Wave 2 items (from original Phase 13 spec):
-- **HabitDetailView** redesign — see `.planning/phases/` for spec if it exists
-- Check STATE.md for the queued Wave 2 items
+**Problem:** DB is correct (delete-then-insert ensures only ONE card per habit, always fresh timestamp). But FeedView only re-fetches when the user switches tabs or pulls to refresh. If the user checks in → undoes → re-checks-in while staying on the Home tab, the Community feed still shows the old card until they navigate to it.
+
+**Fix:** Post a `NotificationCenter` notification (e.g., `"habitCheckinBroadcast"`) at the end of `broadcastHabitCompletion` in `HabitService.swift`. In `CommunityView`, observe it via `.onReceive(NotificationCenter.default.publisher(for: ...))` and call `loadGlobalFeed()`. This gives near-real-time feed updates after any check-in or re-check-in.
+
+No DB changes needed — just the notification bridge between Home and Community layers.
+
+### PRIORITY 2 — Wave 2 (Habit Detail Screen)
+
+After PRIORITY 1 is done, move to Wave 2.
+- **HabitDetailView** redesign — check STATE.md for queued items
 
 ### Open Issues (pre-existing, unresolved)
 - RLS bug for `circle_moments` INSERT
