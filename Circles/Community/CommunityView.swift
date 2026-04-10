@@ -61,13 +61,6 @@ struct CommunityView: View {
                 await loadGlobalFeed()
                 await DailyMomentService.shared.load(userId: userId)
             }
-            .onAppear {
-                Task {
-                    guard let userId = auth.session?.user.id else { return }
-                    await viewModel.loadCircles(userId: userId)
-                    await loadGlobalFeed()
-                }
-            }
             .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
                 Task { await loadGlobalFeed() }
             }
@@ -127,13 +120,14 @@ struct CommunityView: View {
                 )
                 .environment(auth)
             }
-            .onChange(of: viewModel.circles) { _, _ in
+            .sheet(isPresented: $viewModel.showCreateSheet, onDismiss: {
                 Task { await loadGlobalFeed() }
-            }
-            .sheet(isPresented: $viewModel.showCreateSheet) {
+            }) {
                 CreateCircleView(viewModel: viewModel).environment(auth)
             }
-            .sheet(isPresented: $viewModel.showJoinSheet) {
+            .sheet(isPresented: $viewModel.showJoinSheet, onDismiss: {
+                Task { await loadGlobalFeed() }
+            }) {
                 JoinCircleView(viewModel: viewModel).environment(auth)
             }
             .onChange(of: pendingInviteCode) { _, code in

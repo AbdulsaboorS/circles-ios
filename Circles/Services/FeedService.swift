@@ -76,8 +76,8 @@ final class FeedService {
         let todayStart = Self.todayUTCStart()
         let todayEnd   = Self.todayUTCEnd()
 
-        // 1. Fetch activity_feed rows for these circles (today only)
-        let activityRows: [ActivityFeedRow] = try await client
+        // 1+2. Fetch activity_feed and circle_moments concurrently
+        async let activityFetch: [ActivityFeedRow] = client
             .from("activity_feed")
             .select()
             .in("circle_id", values: idStrings)
@@ -87,8 +87,7 @@ final class FeedService {
             .execute()
             .value
 
-        // 2. Fetch circle_moments rows for these circles (today only)
-        let momentRows: [CircleMomentRow] = try await client
+        async let momentFetch: [CircleMomentRow] = client
             .from("circle_moments")
             .select()
             .in("circle_id", values: idStrings)
@@ -97,7 +96,10 @@ final class FeedService {
             .order("posted_at", ascending: false)
             .execute()
             .value
-        let resolvedPhotoURLs = try await resolveMomentPhotoURLs(for: momentRows)
+
+        let activityRows = try await activityFetch
+        let momentRows = try await momentFetch
+        let resolvedPhotoURLs = try await resolveMomentPhotoURLsConcurrent(for: momentRows)
 
         // 3. Collect unique user IDs from both result sets
         var userIdSet = Set<UUID>()
@@ -269,15 +271,15 @@ final class FeedService {
 
     // MARK: - Private helpers
 
-    private func resolveMomentPhotoURLs(for rows: [CircleMomentRow]) async throws -> [UUID: String] {
-        var resolved: [UUID: String] = [:]
-        resolved.reserveCapacity(rows.count)
-
+    /// Resolves signed photo URLs. Serial today; Swift 6 region-isolation prevents naive TaskGroup
+    /// use with @MainActor services — revisit when MomentService is nonisolated.
+    private func resolveMomentPhotoURLsConcurrent(for rows: [CircleMomentRow]) async throws -> [UUID: String] {
+        var result = [UUID: String]()
+        result.reserveCapacity(rows.count)
         for row in rows {
-            resolved[row.id] = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
+            result[row.id] = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
         }
-
-        return resolved
+        return result
     }
 
     /// Fetch display names for a set of user IDs from the profiles table.
