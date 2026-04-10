@@ -1,6 +1,8 @@
 import SwiftUI
 import Supabase
 
+// MARK: - Enums
+
 private enum PlanLoadingMode {
     case generating
     case refining
@@ -14,6 +16,14 @@ private enum PlanLoadingMode {
         }
     }
 }
+
+private enum DetailTab: String, CaseIterable {
+    case path       = "Path"
+    case roadmap    = "Roadmap"
+    case reflection = "Reflection"
+}
+
+// MARK: - HabitDetailView
 
 struct HabitDetailView: View {
     let habit: Habit
@@ -31,11 +41,16 @@ struct HabitDetailView: View {
     @State private var planLoadingMode: PlanLoadingMode = .generating
     @State private var showRefineSheet = false
     @State private var showReflectionSheet = false
+    @State private var editingReflectionDate: String? = nil
     @State private var todayReflection = ""
-    // Collapsible weeks: default all collapsed; week 1 opens after plan generates
+    @State private var allReflections: [(date: String, note: String)] = []
     @State private var expandedWeeks: Set<Int> = []
-    // Editing
     @State private var editingMilestone: HabitMilestone?
+    @State private var revealedGlow: Set<Int> = []
+    @State private var showFullRoadmapSheet = false
+    @State private var selectedTab: DetailTab = .path
+
+    // MARK: - Computed helpers
 
     private var last28Days: [String] {
         let formatter = DateFormatter()
@@ -47,19 +62,42 @@ struct HabitDetailView: View {
         }
     }
 
-    private var twentyEightDaysAgoString: String {
-        last28Days.first ?? ""
-    }
+    private var twentyEightDaysAgoString: String { last28Days.first ?? "" }
 
     private func isCompleted(dateString: String) -> Bool {
         logs.first { $0.date == dateString }?.completed ?? false
     }
 
-    private var totalCompletions: Int {
-        logs.filter { $0.completed }.count
+    private var totalCompletions: Int { logs.filter { $0.completed }.count }
+    private var todayDateString: String { last28Days.last ?? "" }
+    private var isCompletedToday: Bool { isCompleted(dateString: todayDateString) }
+
+    /// Consecutive days this habit has been completed, counting backwards from today.
+    /// If today isn't done yet, starts counting from yesterday so an in-progress streak
+    /// isn't zeroed out mid-day.
+    private var habitStreak: Int {
+        var count = 0
+        for dateStr in last28Days.reversed() {
+            if isCompleted(dateString: dateStr) {
+                count += 1
+            } else if dateStr == todayDateString {
+                continue   // today not done yet — skip, don't break
+            } else {
+                break
+            }
+        }
+        return count
+    }
+
+    private var currentPlanWeek: Int? {
+        guard let plan else { return nil }
+        return plan.milestones.first { plan.isMilestoneToday(day: $0.day) }
+            .map { plan.displayWeek(forMilestoneDay: $0.day) }
     }
 
     private let columns = Array(repeating: GridItem(.flexible()), count: 7)
+
+    // MARK: - Body
 
     var body: some View {
         ZStack {
@@ -67,15 +105,13 @@ struct HabitDetailView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    heroCard
-
-                    historySection   // heatmap first
-
-                    reflectionSection
-
-                    roadmapSection
+                    heroSection
+                    tabBar
+                    tabContent
+                        .animation(.easeInOut(duration: 0.2), value: selectedTab)
                 }
-                .padding(.vertical)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
 
             if isGeneratingPlan {
@@ -89,6 +125,8 @@ struct HabitDetailView: View {
             await fetchLogs()
             await loadPlan()
             loadTodayReflection()
+            loadAllReflections()
+            await triggerConstellationReveal()
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
             Button("OK") { errorMessage = nil }
@@ -98,138 +136,297 @@ struct HabitDetailView: View {
         .sheet(isPresented: $showRefineSheet) {
             RefinePlanSheet(
                 isRefining: $isGeneratingPlan,
-                onRefine: { userNote in
-                    await refineWithAI(userNote: userNote)
-                }
+                onRefine: { userNote in await refineWithAI(userNote: userNote) }
             )
         }
         .sheet(isPresented: $showReflectionSheet) {
+            let date = editingReflectionDate ?? todayDateString
+            let initial = ReflectionLogStore.load(habitId: habit.id, date: date)
+            let label = formatReflectionDate(date, style: .full)
             ReflectionLogSheet(
-                dateLabel: todayReflectionDateLabel,
-                initialNote: todayReflection,
-                onSave: { note in
-                    saveTodayReflection(note)
-                }
+                dateLabel: label,
+                initialNote: initial,
+                onSave: { note in saveReflection(note, for: date) }
             )
         }
         .sheet(item: $editingMilestone) { milestone in
-            EditMilestoneSheet(milestone: milestone) { updated in
-                applyMilestoneEdit(updated)
+            EditMilestoneSheet(milestone: milestone) { updated in applyMilestoneEdit(updated) }
+        }
+        .sheet(isPresented: $showFullRoadmapSheet) {
+            fullRoadmapSheet
+        }
+    }
+
+    // MARK: - Tab bar
+
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            ForEach(DetailTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    Text(tab.rawValue)
+                        .font(.system(size: 13, weight: selectedTab == tab ? .semibold : .medium))
+                        .foregroundStyle(selectedTab == tab ? Color.msGold : Color.msTextMuted)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 18)
+                        .background(
+                            selectedTab == tab
+                                ? Color.msGold.opacity(0.14)
+                                : Color.clear,
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
             }
+        }
+        .padding(4)
+        .background(Color.msCardShared, in: Capsule())
+        .overlay(Capsule().stroke(Color.msBorder, lineWidth: 1))
+    }
+
+    // MARK: - Tab content router
+
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .path:
+            constellationSection
+        case .roadmap:
+            roadmapCard
+        case .reflection:
+            reflectionTabContent
         }
     }
 
     // MARK: - Hero
 
-    private var heroCard: some View {
-        VStack(spacing: 8) {
-            Image(systemName: habit.icon)
-                .font(.system(size: 56))
-                .foregroundStyle(Color.msGold)
-            Text(habit.name)
-                .font(.appTitle)
-                .foregroundStyle(Color.msTextPrimary)
+    private var heroSection: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                RadialGradient(
+                    colors: [
+                        Color.msGold.opacity(isCompletedToday ? 0.22 : 0.10),
+                        Color.clear
+                    ],
+                    center: .center,
+                    startRadius: 20,
+                    endRadius: 72
+                )
+                .frame(width: 144, height: 144)
+                .animation(.easeInOut(duration: 0.7), value: isCompletedToday)
+
+                if isCompletedToday {
+                    SwiftUI.Circle()
+                        .stroke(Color.msGold.opacity(0.08), lineWidth: 10)
+                        .frame(width: 116, height: 116)
+
+                    SwiftUI.Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.msGold.opacity(0.65), Color.msGold.opacity(0.18)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                        .frame(width: 96, height: 96)
+                        .shadow(color: Color.msGold.opacity(0.55), radius: 14)
+                }
+
+                Image(systemName: habit.icon)
+                    .font(.system(size: 54))
+                    .foregroundStyle(Color.msGold)
+                    .shadow(
+                        color: Color.msGold.opacity(isCompletedToday ? 0.70 : 0.28),
+                        radius: isCompletedToday ? 20 : 8
+                    )
+            }
+            .animation(.easeInOut(duration: 0.7), value: isCompletedToday)
+
             if let goal = habit.acceptedAmount, !goal.isEmpty {
                 Label(goal, systemImage: "target")
-                    .font(.appSubheadline)
+                    .font(.appCaption)
                     .foregroundStyle(Color.msTextMuted)
             }
-            HStack(spacing: 16) {
-                StatBadge(label: "Completions", value: "\(totalCompletions)")
-                StatBadge(label: "Last 28 days", value: "\(totalCompletions)/28")
+
+            HStack(spacing: 10) {
+                StatPill(text: habitStreak > 0 ? "\(habitStreak) Day Streak" : "Start a Streak")
+                StatPill(text: "\(totalCompletions)/28 Completions")
             }
         }
-        .padding()
         .frame(maxWidth: .infinity)
-        .background(Color.msCardShared)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
+        .padding(.top, 20)
+        .padding(.bottom, 4)
         .padding(.horizontal, 16)
     }
 
-    // MARK: - Roadmap
+    // MARK: - Path tab
 
-    private var planLoadingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.28).ignoresSafeArea()
+    private var constellationSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if isLoading {
+                HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
+                    .padding(.vertical, 20)
+            } else if totalCompletions == 0 {
+                VStack(spacing: 8) {
+                    Text("Your path begins today.")
+                        .font(.system(size: 15, weight: .regular, design: .serif).italic())
+                        .foregroundStyle(Color.msTextMuted.opacity(0.7))
+                    Text("Each check-in lights a node on your constellation.")
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .padding(.horizontal, 20)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(0..<4, id: \.self) { row in
+                        HStack(spacing: 0) {
+                            Text(shortDateLabel(last28Days[row * 7]))
+                                .font(.system(size: 9, weight: .regular))
+                                .foregroundStyle(Color.msTextMuted.opacity(0.4))
+                                .frame(width: 30, alignment: .leading)
 
-            VStack(spacing: 14) {
-                Text(planLoadingTitle)
-                    .font(.system(size: 20, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color.msTextPrimary)
+                            ForEach(0..<7, id: \.self) { col in
+                                let index = row * 7 + col
+                                let dateStr = last28Days[index]
+                                let done = isCompleted(dateString: dateStr)
+                                let glowing = revealedGlow.contains(index)
+                                let isToday = dateStr == todayDateString
 
-                Text(planLoadingSubtitle)
-                    .font(.appSubheadline)
-                    .foregroundStyle(Color.msTextMuted)
-                    .multilineTextAlignment(.center)
+                                ZStack {
+                                    SwiftUI.Circle()
+                                        .fill(done ? Color.msGold : Color.clear)
+                                        .shadow(color: glowing ? Color.msGold.opacity(0.75) : .clear,
+                                                radius: glowing ? 9 : 0)
 
-                RoadmapLoadingIndicator(mode: planLoadingMode)
+                                    SwiftUI.Circle()
+                                        .stroke(
+                                            isToday
+                                                ? Color.msTextPrimary.opacity(0.55)
+                                                : (done ? Color.clear : Color.msTextMuted.opacity(0.22)),
+                                            lineWidth: isToday ? 2 : 1
+                                        )
 
-                ProgressView()
-                    .tint(Color.msGold)
-                    .progressViewStyle(.linear)
-                    .frame(maxWidth: .infinity)
+                                    if isToday && !done {
+                                        SwiftUI.Circle()
+                                            .fill(Color.msTextPrimary.opacity(0.25))
+                                            .frame(width: 5, height: 5)
+                                    }
+                                }
+                                .frame(width: 30, height: 30)
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
             }
-            .padding(20)
-            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.msBorder, lineWidth: 1)
-            )
-            .padding(.horizontal, 28)
         }
-        .transition(.opacity)
     }
 
-    private var reflectionSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Reflection Log")
-                        .font(.system(size: 18, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color.msTextPrimary)
-                    Text(todayReflectionDateLabel)
-                        .font(.appCaption)
-                        .foregroundStyle(Color.msTextMuted)
-                }
-                Spacer()
-                Button(todayReflection.isEmpty ? "Add Note" : "Edit Note") {
-                    showReflectionSheet = true
-                }
-                .font(.appCaptionMedium)
-                .foregroundStyle(Color.msGold)
-            }
+    // MARK: - Reflection tab
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("A private space for your progress, setbacks, or spiritual state today.")
-                    .font(.appSubheadline)
-                    .foregroundStyle(Color.msTextMuted)
+    private var reflectionTabContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Today's card — tappable to write/edit
+            todayReflectionCard
+
+            // Past entries
+            let past = allReflections.filter { $0.date != todayDateString }
+            if !past.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Past Reflections")
+                        .font(.system(size: 14, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.msTextMuted)
+                        .padding(.horizontal, 20)
+
+                    ForEach(past, id: \.date) { entry in
+                        pastReflectionCard(date: entry.date, note: entry.note)
+                    }
+                }
+            }
+        }
+    }
+
+    private var todayReflectionCard: some View {
+        Button {
+            editingReflectionDate = todayDateString
+            showReflectionSheet = true
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Today's Reflection")
+                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color.msTextPrimary)
+                        Text(formatReflectionDate(todayDateString, style: .long))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(Color.msTextMuted.opacity(0.65))
+                    }
+                    Spacer()
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.msGold.opacity(0.7))
+                }
 
                 if todayReflection.isEmpty {
-                    Text("No reflection saved for today yet.")
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color.msTextMuted)
-                        .padding(14)
+                    Text("What did your heart hear today?")
+                        .font(.system(size: 14, weight: .regular, design: .serif).italic())
+                        .foregroundStyle(Color.msTextMuted.opacity(0.55))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 14))
+                        .padding(.top, 2)
                 } else {
                     Text(todayReflection)
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextPrimary)
-                        .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 14))
+                        .lineLimit(5)
                 }
             }
+            .padding(20)
+            .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 24))
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.msBorder, lineWidth: 1))
         }
+        .buttonStyle(.plain)
         .padding(.horizontal, 16)
     }
 
-    private var roadmapSection: some View {
+    private func pastReflectionCard(date: String, note: String) -> some View {
+        Button {
+            editingReflectionDate = date
+            showReflectionSheet = true
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(formatReflectionDate(date, style: .medium))
+                    .font(.system(size: 12, weight: .medium, design: .serif))
+                    .foregroundStyle(Color.msGold.opacity(0.75))
+                Text(note)
+                    .font(.appSubheadline)
+                    .foregroundStyle(Color.msTextPrimary.opacity(0.8))
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Roadmap tab
+
+    private var roadmapCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("28-Day Roadmap")
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
+                    .font(.system(size: 17, weight: .semibold, design: .serif))
                     .foregroundStyle(Color.msTextPrimary)
                 Spacer()
                 if plan != nil {
@@ -245,21 +442,74 @@ struct HabitDetailView: View {
                     .disabled(isGeneratingPlan)
                 }
             }
-            .padding(.horizontal, 16)
 
             if isLoadingPlan {
                 HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
                     .padding(.vertical, 8)
             } else if let plan {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(1 ... 4, id: \.self) { week in
-                        let days = plan.milestones.filter { plan.displayWeek(forMilestoneDay: $0.day) == week }
-                        if !days.isEmpty {
-                            weekSection(week: week, days: days, plan: plan)
-                        }
-                    }
+                let week = currentPlanWeek ?? 1
+                let weekMilestones = plan.milestones.filter {
+                    plan.displayWeek(forMilestoneDay: $0.day) == week
                 }
-                .padding(.horizontal, 16)
+                let todayMilestone = weekMilestones.first { plan.isMilestoneToday(day: $0.day) }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Text("Week \(week)")
+                            .font(.appCaptionMedium)
+                            .foregroundStyle(Color.msGold)
+                        Text("Current")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Color.msBackground)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.msGold, in: Capsule())
+                    }
+
+                    if let m = todayMilestone {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Day \(m.day) · Today")
+                                .font(.appCaption)
+                                .foregroundStyle(Color.msGold.opacity(0.85))
+                            Text(m.title)
+                                .font(.appSubheadline)
+                                .foregroundStyle(Color.msTextPrimary)
+                            Text(m.description)
+                                .font(.appCaption)
+                                .foregroundStyle(Color.msTextMuted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.msGold.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.msGold.opacity(0.25), lineWidth: 1)
+                        )
+                    }
+
+                    Button {
+                        showFullRoadmapSheet = true
+                    } label: {
+                        HStack {
+                            Text("View Full Roadmap")
+                                .font(.appCaptionMedium)
+                                .foregroundStyle(Color.msGold)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.msGold.opacity(0.7))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.msBorder, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             } else {
                 VStack(spacing: 12) {
                     Text("Get a gentle, personalized 28-day path for this habit.")
@@ -291,20 +541,85 @@ struct HabitDetailView: View {
                 .padding(.vertical, 8)
             }
         }
+        .padding(20)
+        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 24))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.msBorder, lineWidth: 1))
+        .padding(.horizontal, 16)
     }
+
+    // MARK: - Full roadmap sheet (bug fix: expandedWeeks set in .onAppear)
+
+    private var fullRoadmapSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackground.ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let plan {
+                            ForEach(1...4, id: \.self) { week in
+                                let days = plan.milestones.filter {
+                                    plan.displayWeek(forMilestoneDay: $0.day) == week
+                                }
+                                if !days.isEmpty {
+                                    weekSection(week: week, days: days, plan: plan)
+                                }
+                            }
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+            .onAppear { expandedWeeks = Set(1...4) }  // fix: initialize after sheet renders
+            .navigationTitle("28-Day Roadmap")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showFullRoadmapSheet = false }
+                        .foregroundStyle(Color.msGold)
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    // MARK: - Plan loading overlay
+
+    private var planLoadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.28).ignoresSafeArea()
+            VStack(spacing: 14) {
+                Text(planLoadingTitle)
+                    .font(.system(size: 20, weight: .semibold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+                Text(planLoadingSubtitle)
+                    .font(.appSubheadline)
+                    .foregroundStyle(Color.msTextMuted)
+                    .multilineTextAlignment(.center)
+                RoadmapLoadingIndicator(mode: planLoadingMode)
+                ProgressView()
+                    .tint(Color.msGold)
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(20)
+            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.msBorder, lineWidth: 1))
+            .padding(.horizontal, 28)
+        }
+        .transition(.opacity)
+    }
+
+    // MARK: - Week / Milestone rows
 
     private func weekSection(week: Int, days: [HabitMilestone], plan: HabitPlan) -> some View {
         let isExpanded = expandedWeeks.contains(week)
         let hasToday = days.contains { plan.isMilestoneToday(day: $0.day) }
 
         return VStack(alignment: .leading, spacing: 0) {
-            // Week header — tappable to collapse/expand
             Button {
-                if isExpanded {
-                    expandedWeeks.remove(week)
-                } else {
-                    expandedWeeks.insert(week)
-                }
+                if isExpanded { expandedWeeks.remove(week) } else { expandedWeeks.insert(week) }
             } label: {
                 HStack {
                     Text("Week \(week)")
@@ -325,7 +640,7 @@ struct HabitDetailView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 14)
-                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: isExpanded ? 14 : 14))
+                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(hasToday ? Color.msGold.opacity(0.4) : Color.msBorder, lineWidth: 1)
@@ -335,9 +650,7 @@ struct HabitDetailView: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(days) { m in
-                        milestoneRow(plan: plan, milestone: m)
-                    }
+                    ForEach(days) { m in milestoneRow(plan: plan, milestone: m) }
                 }
                 .padding(.top, 8)
             }
@@ -397,55 +710,21 @@ struct HabitDetailView: View {
         )
     }
 
-    // MARK: - Apply milestone edit
+    // MARK: - Constellation animation
 
-    private func applyMilestoneEdit(_ updated: HabitMilestone) {
-        guard var currentPlan = plan,
-              let idx = currentPlan.milestones.firstIndex(where: { $0.day == updated.day }) else { return }
-        currentPlan.milestones[idx] = updated
-        plan = currentPlan
-        Task {
-            try? await HabitPlanService.shared.updateMilestones(
-                planId: currentPlan.id,
-                milestones: currentPlan.milestones
-            )
-        }
-    }
-
-    // MARK: - History grid
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("28-Day History")
-                .font(.system(size: 18, weight: .semibold, design: .serif))
-                .foregroundStyle(Color.msTextPrimary)
-                .padding(.horizontal, 16)
-
-            if isLoading {
-                HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
-            } else {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(last28Days, id: \.self) { dateStr in
-                        VStack(spacing: 2) {
-                            SwiftUI.Circle()
-                                .fill(isCompleted(dateString: dateStr) ? Color.msGold : Color.msCardShared)
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    SwiftUI.Circle()
-                                        .stroke(Color.msBorder, lineWidth: isCompleted(dateString: dateStr) ? 0 : 1)
-                                )
-                            Text(dayNumber(from: dateStr))
-                                .font(.system(size: 9))
-                                .foregroundStyle(Color.msTextMuted)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
+    private func triggerConstellationReveal() async {
+        let completedIndices = last28Days.enumerated()
+            .filter { isCompleted(dateString: $0.element) }
+            .map { $0.offset }
+        for (i, idx) in completedIndices.enumerated() {
+            try? await Task.sleep(nanoseconds: UInt64(i * 80_000_000))
+            withAnimation(.easeOut(duration: 0.35)) {
+                revealedGlow.insert(idx)
             }
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Data actions
 
     private func loadPlan() async {
         guard let userId = auth.session?.user.id else { return }
@@ -473,7 +752,7 @@ struct HabitDetailView: View {
                 userId: userId,
                 milestones: milestones
             )
-            expandedWeeks = [1]  // reveal week 1 so user sees it generated
+            expandedWeeks = [1]
         } catch {
             errorMessage = HabitPlanService.userFacingMessage(from: error)
         }
@@ -520,34 +799,74 @@ struct HabitDetailView: View {
         isLoading = false
     }
 
-    private func dayNumber(from dateString: String) -> String {
-        let day = String(dateString.suffix(2))
-        return day.hasPrefix("0") ? String(day.dropFirst()) : day
+    private func applyMilestoneEdit(_ updated: HabitMilestone) {
+        guard var currentPlan = plan,
+              let idx = currentPlan.milestones.firstIndex(where: { $0.day == updated.day }) else { return }
+        currentPlan.milestones[idx] = updated
+        plan = currentPlan
+        Task {
+            try? await HabitPlanService.shared.updateMilestones(
+                planId: currentPlan.id,
+                milestones: currentPlan.milestones
+            )
+        }
     }
 
-    private var todayReflectionDateLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        return formatter.string(from: Date())
-    }
+    // MARK: - Reflection helpers
 
     private func loadTodayReflection() {
-        todayReflection = ReflectionLogStore.load(
-            habitId: habit.id,
-            date: ReflectionLogStore.todayString()
-        )
+        todayReflection = ReflectionLogStore.load(habitId: habit.id, date: todayDateString)
     }
 
-    private func saveTodayReflection(_ note: String) {
-        ReflectionLogStore.save(
-            note,
-            habitId: habit.id,
-            date: ReflectionLogStore.todayString()
-        )
-        todayReflection = ReflectionLogStore.load(
-            habitId: habit.id,
-            date: ReflectionLogStore.todayString()
-        )
+    private func loadAllReflections() {
+        // Newest first; includes today so the list stays in sync
+        allReflections = last28Days.reversed().compactMap { dateStr in
+            let note = ReflectionLogStore.load(habitId: habit.id, date: dateStr)
+            return note.isEmpty ? nil : (date: dateStr, note: note)
+        }
+    }
+
+    private func saveReflection(_ note: String, for date: String) {
+        ReflectionLogStore.save(note, habitId: habit.id, date: date)
+        if date == todayDateString {
+            todayReflection = ReflectionLogStore.load(habitId: habit.id, date: date)
+        }
+        loadAllReflections()
+    }
+
+    private func shortDateLabel(_ dateString: String) -> String {
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: dateString) else { return "" }
+        let display = DateFormatter()
+        display.dateFormat = "MMM d"
+        return display.string(from: date)
+    }
+
+    private func formatReflectionDate(_ dateString: String, style: DateFormatter.Style) -> String {
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: dateString) else { return dateString }
+        let display = DateFormatter()
+        display.dateStyle = style
+        display.timeStyle = .none
+        return display.string(from: date)
+    }
+}
+
+// MARK: - Stat Pill
+
+private struct StatPill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Color.msTextMuted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(Color.msCardShared, in: Capsule())
+            .overlay(Capsule().stroke(Color.msBorder, lineWidth: 1))
     }
 }
 
@@ -569,7 +888,7 @@ private struct RefinePlanSheet: View {
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
                     TextField("e.g. I can only practice on weekdays…", text: $note, axis: .vertical)
-                        .lineLimit(3 ... 6)
+                        .lineLimit(3...6)
                         .foregroundStyle(Color.msTextPrimary)
                         .padding(12)
                         .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
@@ -604,6 +923,8 @@ private struct RefinePlanSheet: View {
     }
 }
 
+// MARK: - Reflection log sheet
+
 private struct ReflectionLogSheet: View {
     let dateLabel: String
     let initialNote: String
@@ -627,22 +948,19 @@ private struct ReflectionLogSheet: View {
                     Text(dateLabel)
                         .font(.appCaptionMedium)
                         .foregroundStyle(Color.msGold)
-
                     Text("Private reflection for today")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
-
                     TextField(
                         "Write about your consistency, intention, or spiritual state today…",
                         text: $note,
                         axis: .vertical
                     )
-                    .lineLimit(8 ... 16)
+                    .lineLimit(8...16)
                     .foregroundStyle(Color.msTextPrimary)
                     .padding(14)
                     .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
                     .tint(Color.msGold)
-
                     Spacer()
                 }
                 .padding(20)
@@ -656,11 +974,8 @@ private struct ReflectionLogSheet: View {
                         .foregroundStyle(Color.msGold)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        onSave(note)
-                        dismiss()
-                    }
-                    .foregroundStyle(Color.msGold)
+                    Button("Save") { onSave(note); dismiss() }
+                        .foregroundStyle(Color.msGold)
                 }
             }
         }
@@ -693,7 +1008,6 @@ private struct EditMilestoneSheet: View {
                     Text("Day \(milestone.day)")
                         .font(.appCaptionMedium)
                         .foregroundStyle(Color.msGold)
-
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Title")
                             .font(.appCaption)
@@ -704,19 +1018,17 @@ private struct EditMilestoneSheet: View {
                             .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
                             .tint(Color.msGold)
                     }
-
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Description")
                             .font(.appCaption)
                             .foregroundStyle(Color.msTextMuted)
                         TextField("Description", text: $desc, axis: .vertical)
-                            .lineLimit(3 ... 8)
+                            .lineLimit(3...8)
                             .foregroundStyle(Color.msTextPrimary)
                             .padding(12)
                             .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 10))
                             .tint(Color.msGold)
                     }
-
                     Spacer()
                 }
                 .padding(20)
@@ -746,26 +1058,7 @@ private struct EditMilestoneSheet: View {
     }
 }
 
-// MARK: - Small views
-
-private struct StatBadge: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.title3.bold())
-                .foregroundStyle(Color.msTextPrimary)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(Color.msTextMuted)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.msCardDeep, in: RoundedRectangle(cornerRadius: 10))
-    }
-}
+// MARK: - Roadmap loading indicator
 
 private struct RoadmapLoadingIndicator: View {
     let mode: PlanLoadingMode
@@ -790,7 +1083,9 @@ private struct RoadmapLoadingIndicator: View {
                     ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                         VStack(alignment: .leading, spacing: 6) {
                             Capsule()
-                                .fill(index == activeIndex ? Color.msGold : Color.msGold.opacity(index < activeIndex ? 0.45 : 0.18))
+                                .fill(index == activeIndex
+                                      ? Color.msGold
+                                      : Color.msGold.opacity(index < activeIndex ? 0.45 : 0.18))
                                 .frame(height: 6)
                             Text(step)
                                 .font(.system(size: 10, weight: index == activeIndex ? .semibold : .regular))

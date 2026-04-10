@@ -158,6 +158,7 @@ final class HabitService {
             .from("activity_feed")
             .insert(row)
             .execute()
+        NotificationCenter.default.post(name: .habitCheckinBroadcast, object: nil)
     }
 
     /// Delete today's activity_feed entry for an accountable habit (called on undo check-in).
@@ -201,4 +202,8 @@ final class HabitService {
             .value
         return results.first
     }
+}
+
+extension Notification.Name {
+    static let habitCheckinBroadcast = Notification.Name("habitCheckinBroadcast")
 }

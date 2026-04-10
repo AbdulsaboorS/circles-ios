@@ -68,6 +68,9 @@ struct CommunityView: View {
                     await loadGlobalFeed()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
+                Task { await loadGlobalFeed() }
+            }
             .fullScreenCover(isPresented: $showGlobalCamera) {
                 if let circleId = viewModel.circles.first?.id {
                     MomentCameraView(circleId: circleId) { image in
