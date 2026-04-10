@@ -238,8 +238,7 @@ struct HomeView: View {
     }
 
     private var islamicQuote: String {
-        let streak = viewModel.streak?.currentStreak ?? 0
-        return islamicQuotes[streak % islamicQuotes.count]
+        islamicQuotes[viewModel.computedStreak % islamicQuotes.count]
     }
 
     // MARK: - Body
@@ -496,7 +495,7 @@ struct HomeView: View {
                 .animation(.easeInOut(duration: 0.6), value: isAllDone)
             }
 
-            Text("\(viewModel.streak?.currentStreak ?? 0) Day Streak")
+            Text("\(viewModel.computedStreak) Day Streak")
                 .font(.system(size: 26, weight: .bold, design: .serif))
                 .foregroundStyle(Color.msTextPrimary)
 

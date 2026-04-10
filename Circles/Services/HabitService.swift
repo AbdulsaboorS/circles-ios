@@ -67,6 +67,18 @@ final class HabitService {
             .value
     }
 
+    /// Fetch all habit_log rows for a user within a date range (inclusive, "YYYY-MM-DD").
+    func fetchLogsInRange(userId: UUID, from: String, to: String) async throws -> [HabitLog] {
+        try await client
+            .from("habit_logs")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .gte("date", value: from)
+            .lte("date", value: to)
+            .execute()
+            .value
+    }
+
     /// Toggle a habit's completion for today. Uses upsert on (habit_id, date) unique constraint.
     /// Optimistic: caller should update local state before awaiting this.
     func toggleHabitLog(habitId: UUID, userId: UUID, date: String, completed: Bool) async throws {
