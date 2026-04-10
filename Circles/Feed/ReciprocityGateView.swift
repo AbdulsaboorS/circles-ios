@@ -22,7 +22,7 @@ struct ReciprocityGateView: View {
                     Text("It's \(prayerName) time")
                         .font(.appHeadline)
                         .foregroundStyle(Color(hex: "F0EAD6"))
-                    Text("Post your Moment to unlock your circles.")
+                    Text("Your circle is waiting. Share this moment to unlock.")
                         .font(.appSubheadline)
                         .foregroundStyle(Color(hex: "8FAF94"))
                         .multilineTextAlignment(.center)
@@ -30,7 +30,7 @@ struct ReciprocityGateView: View {
                 }
 
                 Button(action: onPostTapped) {
-                    Text("Unlock Your Circles")
+                    Text("Share your Pause")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color(hex: "1A2E1E"))
                         .frame(maxWidth: .infinity)

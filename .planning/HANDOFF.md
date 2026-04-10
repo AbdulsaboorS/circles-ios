@@ -1,4 +1,4 @@
-# Handoff — 2026-04-10 (Session 7 — Wave 3 Stage 1 partial)
+# Handoff — 2026-04-10 (Session 8 — Wave 3 Stage 2+3 complete; Stage I partially started)
 
 ## Current Build State
 **BUILD SUCCEEDED — zero errors.**
@@ -7,86 +7,136 @@
 
 ## What Was Done This Session
 
-### Stage 1 Performance — PARTIAL (commit `c96915b`)
+### Stage 2 — Architecture ✓ COMPLETE
+- Double-tier sticky header (Feed|Circles tier 1 + Posts|Check-ins tier 2) in `CommunityView`
+- Pinned own-moment card above feed (120pt, gold border, "Shared with X Circles" pill)
+- `OwnMomentFullView.swift` — new full-screen view for tapping own pinned card
+- `FeedView` refactored: `FeedFilter` public, two custom inits, `excludeUserId`, grouped check-ins with `GroupedCheckinCard`
 
-**Done:**
-- `FeedService.fetchFeedPage`: activity_feed + circle_moments now fetched with `async let` (parallel, saves ~300-500ms per load)
-- `CachedAsyncImage.swift` (new): NSCache-backed image view, 60MB/80-image limit, auto-cancels on disappear — drop-in for `AsyncImage`
-- `CommunityView`: removed duplicate `.onAppear` load + `onChange(of: viewModel.circles)` load trigger (was causing 3× load on every community tab open)
-- `CommunityView`: join/create sheet `onDismiss` now explicitly triggers feed reload (safe, intentional)
+### Stage 3 — Visual ✓ COMPLETE
+- `MomentFeedCard`: cornerRadius 16→32, `AsyncImage`→`CachedAsyncImage`
+- `FeedIdentityHeader`: display name uses `design: .serif`
+- `ReciprocityGateView`: "Share your Pause" button + updated body copy
 
-**Not done — blocked:**
-- URL resolution concurrency: `resolveMomentPhotoURLsConcurrent` attempted with `withThrowingTaskGroup` but Swift 6 region-isolation checker rejects `@MainActor in` closures calling `@MainActor`-isolated `MomentService`. Reverted to serial loop with comment explaining the blocker. Fix path: make `MomentService.resolveMomentPhotoURL` `nonisolated` and call Supabase client directly (no MainActor hop needed for storage URL signing).
+### Stage I — Dual Camera Tap-to-Toggle — PARTIALLY STARTED (build still green, no functional change yet)
+
+**DB migration: DONE** — `secondary_photo_url TEXT` column added to `circle_moments`.
+
+**CameraManager: DONE** — `capturedPrimaryImage: UIImage?` and `capturedSecondaryImage: UIImage?` added as observable state; set alongside `capturedImage` after compositing; cleared in `resetCapture()`.
+
+**Remaining work for Stage I (start here next session):**
 
 ---
 
-## Stage 2 + 3 — NOT STARTED
+## Stage I — Exact Next Steps
 
-Everything below is fully designed and planned, ready to implement in the next session. All design decisions are confirmed by the user.
+The goal: tap the PiP inset in `MomentFeedCard` to swap primary ↔ secondary photo.
 
-### Stage 2 — Architecture
-
-**A. Double-tier sticky header in `CommunityView`**
-- Remove current capsule `pageSelector`
-- Tier 1: `Feed | Circles` — two full-width buttons, gold `Rectangle(height: 2)` underline for active, `.ultraThinMaterial` background, 0.5pt bottom divider
-- Tier 2: `Posts | Check-ins` — 12pt font, gold underline, `padding(.horizontal, 20)`, only visible when `selectedPage == 0`
-- Lift `@State private var activeFilter: FeedFilter = .posts` to `CommunityView`
-- `navigationTitle("")` — empty, nav bar only holds the `+` toolbar button
-
-**B. Pinned 'Me' moment card**
-- Helper: `ownMomentItem(for: userId) -> MomentFeedItem?` — finds own moment in `feedViewModel.items`
-- Card: `ZStack(alignment: .topTrailing)` with `CachedAsyncImage`, `frame(height: 120)`, `cornerRadius(24)`, gold border
-- Gold pill top-right: `"Shared with X Circle(s)"`
-- `@State private var expandedOwnMoment: MomentFeedItem? = nil`
-- `.fullScreenCover(item: $expandedOwnMoment)` → `OwnMomentFullView`
-- Card shown above `FeedView` in `globalFeedPage`
-
-**C. `FeedView` changes**
-- `FeedFilter` enum: remove `private` keyword (needs to be visible in `CommunityView`)
-- Two custom inits:
-  - `init(circleIds:currentUserId:viewModel:activeFilter:Binding<FeedFilter>:excludeUserId:)` — CommunityView path, `showFilterTabs = true`
-  - `init(circleIds:currentUserId:viewModel:excludeUserId:)` — CircleDetailView path, `showFilterTabs = false`, uses `.constant(.posts)`
-- `excludeUserId: UUID?` param — filters own moment from main feed list (shown in pinned card instead)
-- Remove `feedFilterPicker` from `FeedView.body` (now in CommunityView header)
-- Grouped check-ins: when `showFilterTabs && activeFilter == .checkins`, group by user using `checkinGroups` computed prop
-
-**D. New types (in `FeedView.swift`)**
+### Step 1 — `MomentPreviewView.swift` (`MomentDraft` struct)
+Add `primaryImage` and `secondaryImage` to `MomentDraft`:
 ```swift
-struct UserCheckinGroup: Identifiable {
-    let id: UUID // userId
-    let userName: String
-    let avatarUrl: String?
-    let circleName: String
-    let habitCheckins: [HabitCheckinFeedItem]
-    let streakMilestones: [StreakMilestoneFeedItem]
+struct MomentDraft: Identifiable {
+    let id = UUID()
+    let image: UIImage          // composited for preview (unchanged)
+    let primaryImage: UIImage   // raw primary for upload
+    let secondaryImage: UIImage // raw secondary for upload
 }
-struct GroupedCheckinCard: View { ... }
 ```
-- `GroupedCheckinCard`: avatar + name + "in [Circle]", "Completed X intentions" summary, horizontal scroll of habit name pills (gold), streak milestone rows, `ReactionBar` for first checkin
 
-**E. New file: `OwnMomentFullView.swift`**
-- Full-screen dark view: close X button, `FeedIdentityHeader`, gold "Shared with X circles" pill, `CachedAsyncImage` photo (3:4 ratio, 20pt corners, 12pt padding), on-time badge, caption
+### Step 2 — `MomentCameraView.swift`
+Change `onCapture` signature from `(UIImage) -> Void` to `(UIImage, UIImage, UIImage) -> Void`:
+```swift
+let onCapture: (UIImage, UIImage, UIImage) -> Void  // (composited, primary, secondary)
+```
+Update `onChange(of: cameraManager.capturedImage)`:
+```swift
+.onChange(of: cameraManager.capturedImage) { _, image in
+    if let image,
+       let primary = cameraManager.capturedPrimaryImage,
+       let secondary = cameraManager.capturedSecondaryImage {
+        onCapture(image, primary, secondary)
+    }
+}
+```
 
-### Stage 3 — Visual (cards + gate + typography)
+### Step 3 — `MomentService.swift`
+Add `suffix: String = ""` param to `uploadPhoto`:
+```swift
+func uploadPhoto(image: UIImage, userId: UUID, suffix: String = "") async throws -> String {
+    let suffixPart = suffix.isEmpty ? "" : "_\(suffix)"
+    let filename = "shared/\(userId.uuidString.lowercased())_\(Self.todayDateString())\(suffixPart).jpg"
+    ...
+}
+```
+Change `postMomentToAllCircles` params from `image: UIImage` to `primaryImage: UIImage, secondaryImage: UIImage?`:
+- Upload primary with `suffix: "primary"`
+- Upload secondary with `suffix: "secondary"` (if non-nil)
+- Add `secondary_photo_url` to each row dict if secondary upload succeeded
 
-**F. `MomentFeedCard.swift`**
-- Corner radius: 16 → 32pt (both `background` and `clipShape`)
-- Replace `AsyncImage` → `CachedAsyncImage`
-- Display name font: `.system(size: 14, weight: .semibold, design: .serif)` (in `FeedIdentityHeader`)
-- Padding: `FeedView` already uses `.padding(.horizontal, 12)` in the rewrite
+### Step 4 — `CircleMoment.swift`
+Add `secondaryPhotoUrl: String?` field + CodingKey `secondary_photo_url`.
 
-**G. `FeedIdentityHeader.swift`**
-- `displayName` Text: add `design: .serif` to font
+### Step 5 — `FeedItem.swift` (`MomentFeedItem`)
+Add `secondaryPhotoUrl: String?` field.
 
-**H. `ReciprocityGateView.swift`**
-- Button: `"Unlock Your Circles"` → `"Share your Pause"`
-- Body: `"Post your Moment to unlock your circles."` → `"Your circle is waiting. Share this moment to unlock."`
+### Step 6 — `FeedService.swift`
+- `CircleMomentRow` private struct: add `secondaryPhotoUrl: String?` (CodingKey `secondary_photo_url`)
+- `resolveMomentPhotoURLsConcurrent` return type: `[UUID: (primary: String, secondary: String?)]`
+  - Resolve secondary URL if `row.secondaryPhotoUrl` is non-nil (using `try? await` — don't fail whole fetch)
+- In `fetchFeedPage` when building `MomentFeedItem`: pass `secondaryPhotoUrl: resolved?.secondary`
 
-**I. Dual camera tap-to-toggle — BLOCKED on DB migration**
-User wants: tap the PiP secondary image to swap with primary. Currently the app bakes both shots into ONE JPEG (no separate URLs stored).
-Required before building:
-1. User runs in Supabase SQL editor: `ALTER TABLE circle_moments ADD COLUMN secondary_photo_url TEXT;`
-2. Then next agent updates: `CircleMomentRow`, `CircleMoment`, `MomentFeedItem`, `FeedService`, `MomentService.postMomentToAllCircles` (upload second image, store second path), `CameraManager` (preserve both UIImages before compositing), `MomentFeedCard` (PiP tap-to-toggle using `@State private var swapped = false`)
+### Step 7 — `MomentService.swift` — `resolveMomentPhotoURLs`
+Update `CircleMoment` init calls in `resolveMomentPhotoURLs` to pass `secondaryPhotoUrl`:
+```swift
+CircleMoment(
+    id: moment.id, circleId: moment.circleId, userId: moment.userId,
+    photoUrl: renderableURL,
+    secondaryPhotoUrl: moment.secondaryPhotoUrl, // pass through (not resolved here — only used for hasPostedToday check)
+    caption: moment.caption, postedAt: moment.postedAt, isOnTime: moment.isOnTime
+)
+```
+
+### Step 8 — `MomentFeedCard.swift`
+Add `@State private var swapped = false`.
+Add computed props:
+```swift
+private var mainPhotoUrl: String {
+    swapped ? (item.secondaryPhotoUrl ?? item.photoUrl) : item.photoUrl
+}
+private var pipPhotoUrl: String? {
+    guard let secondary = item.secondaryPhotoUrl else { return nil }
+    return swapped ? item.photoUrl : secondary
+}
+```
+Update `momentImage` to a `ZStack(alignment: .bottomLeading)`:
+- Main: `CachedAsyncImage(url: mainPhotoUrl)` full 3:4
+- PiP (if `pipPhotoUrl != nil && !isLocked`): `CachedAsyncImage(url: pipUrl)`, `frame(width: 80, height: 107)`, `clipShape(RoundedRectangle(cornerRadius: 12))`, `overlay(stroke white 0.9, lineWidth: 2)`, `padding(10)`, `onTapGesture { withAnimation(.easeInOut(duration: 0.25)) { swapped.toggle() } }`
+
+### Step 9 — `CommunityView.swift`
+Update `MomentCameraView` closure:
+```swift
+MomentCameraView(circleId: circleId) { composited, primary, secondary in
+    showGlobalCamera = false
+    Task { @MainActor in
+        await Task.yield()
+        draftMoment = MomentDraft(image: composited, primaryImage: primary, secondaryImage: secondary)
+    }
+}
+```
+Update `postMomentToAllCircles` call:
+```swift
+let result = try await MomentService.shared.postMomentToAllCircles(
+    primaryImage: draft.primaryImage,
+    secondaryImage: draft.secondaryImage,
+    circleIds: circleIds,
+    userId: userId,
+    caption: caption,
+    windowStart: viewModel.circles.first?.momentWindowStart
+)
+```
+
+### Step 10 — `CircleDetailView.swift`
+Same two updates as Step 9 (MomentCameraView closure + postMomentToAllCircles call).
 
 ---
 
@@ -96,7 +146,7 @@ Required before building:
 |------|--------|--------|
 | 1 | Home | ✓ Complete |
 | 2 | Habit Detail | ✓ Complete |
-| 3+4 | Community/Feed + Cards | 🔄 Stage 1 partial — Stage 2+3 next |
+| 3+4 | Community/Feed + Cards | ✓ Stage 1–3 complete; Stage I dual camera in progress |
 | 5 | Circles | ⬜ |
 | 6 | Profile | ⬜ |
 | 7 | Auth | ⬜ |
@@ -104,7 +154,11 @@ Required before building:
 ## Simulator UDID
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)
 
-## Key Files Changed
-- `Circles/Feed/CachedAsyncImage.swift` — new
-- `Circles/Services/FeedService.swift` — parallel DB fetches
-- `Circles/Community/CommunityView.swift` — triple-load fix
+## Key Files Changed This Session
+- `Circles/Feed/FeedView.swift` — FeedFilter public, two inits, excludeUserId, GroupedCheckinCard
+- `Circles/Feed/OwnMomentFullView.swift` — new file
+- `Circles/Community/CommunityView.swift` — double-tier header, pinned own-moment card
+- `Circles/Feed/MomentFeedCard.swift` — cornerRadius 32, CachedAsyncImage
+- `Circles/Feed/FeedIdentityHeader.swift` — serif display name
+- `Circles/Feed/ReciprocityGateView.swift` — copy updates
+- `Circles/Moment/CameraManager.swift` — capturedPrimaryImage + capturedSecondaryImage exposed

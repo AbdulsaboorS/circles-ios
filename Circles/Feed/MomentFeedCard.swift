@@ -122,11 +122,11 @@ struct MomentFeedCard: View {
             .padding(.vertical, 12)
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 32)
                 .fill(Color(hex: "243828"))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 32).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
     }
 
     private var displayName: String {
@@ -135,31 +135,14 @@ struct MomentFeedCard: View {
     }
 
     private var momentImage: some View {
-        AsyncImage(url: URL(string: item.photoUrl)) { phase in
-            switch phase {
-            case .empty:
-                Color(hex: "243828")
-                    .overlay(ProgressView().tint(Color(hex: "D4A240")))
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: isLocked ? 20 : 0)
-            case .failure:
-                Color(hex: "243828")
-                    .overlay(
-                        VStack(spacing: 8) {
-                            Image(systemName: "photo.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(Color(hex: "8FAF94"))
-                            Text("Couldn't load this Moment")
-                                .font(.appCaption)
-                                .foregroundStyle(Color(hex: "8FAF94"))
-                        }
-                    )
-            @unknown default:
-                Color(hex: "243828")
-            }
+        CachedAsyncImage(url: item.photoUrl) { image in
+            image
+                .resizable()
+                .scaledToFill()
+                .blur(radius: isLocked ? 20 : 0)
+        } placeholder: {
+            Color(hex: "243828")
+                .overlay(ProgressView().tint(Color(hex: "D4A240")))
         }
         .frame(maxWidth: .infinity)
         .aspectRatio(3.0 / 4.0, contentMode: .fill)

@@ -7,9 +7,11 @@ struct CommunityView: View {
     @State private var viewModel = CirclesViewModel()
     @State private var feedViewModel = FeedViewModel()
     @State private var selectedPage = 0
+    @State private var activeFilter: FeedFilter = .posts
     @State private var showGlobalCamera = false
     @State private var draftMoment: MomentDraft?
-    @State private var pendingFeedRefresh = false  // set true by onPost, consumed by onDismiss
+    @State private var pendingFeedRefresh = false
+    @State private var expandedOwnMoment: MomentFeedItem? = nil
     private var momentService = DailyMomentService.shared
 
     var body: some View {
@@ -18,10 +20,7 @@ struct CommunityView: View {
                 Color.msBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    pageSelector
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
+                    stickyHeader
 
                     TabView(selection: $selectedPage) {
                         globalFeedPage.tag(0)
@@ -31,27 +30,25 @@ struct CommunityView: View {
                     .animation(.easeInOut(duration: 0.25), value: selectedPage)
                 }
             }
-            .navigationTitle("Circles")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 14) {
-                        Menu {
-                            Button {
-                                viewModel.showCreateSheet = true
-                            } label: {
-                                Label("Create Circle", systemImage: "plus.circle")
-                            }
-                            Button {
-                                viewModel.showJoinSheet = true
-                            } label: {
-                                Label("Join Circle", systemImage: "person.badge.plus")
-                            }
+                    Menu {
+                        Button {
+                            viewModel.showCreateSheet = true
                         } label: {
-                            Image(systemName: "plus")
-                                .foregroundStyle(Color.msGold)
+                            Label("Create Circle", systemImage: "plus.circle")
                         }
+                        Button {
+                            viewModel.showJoinSheet = true
+                        } label: {
+                            Label("Join Circle", systemImage: "person.badge.plus")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .foregroundStyle(Color.msGold)
                     }
                 }
             }
@@ -74,6 +71,9 @@ struct CommunityView: View {
                         }
                     }
                 }
+            }
+            .fullScreenCover(item: $expandedOwnMoment) { moment in
+                OwnMomentFullView(item: moment, profile: feedViewModel.authorProfiles[moment.userId])
             }
             .sheet(item: $draftMoment, onDismiss: {
                 guard pendingFeedRefresh else { return }
@@ -143,30 +143,66 @@ struct CommunityView: View {
         }
     }
 
-    // MARK: - Page Selector
+    // MARK: - Sticky Double-Tier Header
 
-    private var pageSelector: some View {
-        HStack(spacing: 0) {
-            pageTab(title: "Feed", index: 0)
-            pageTab(title: "Circles", index: 1)
+    private var stickyHeader: some View {
+        VStack(spacing: 0) {
+            // Tier 1: Feed | Circles
+            HStack(spacing: 0) {
+                tier1Button(title: "Feed", index: 0)
+                tier1Button(title: "Circles", index: 1)
+            }
+            .background(.ultraThinMaterial)
+
+            // Tier 2: Posts | Check-ins (only on Feed tab)
+            if selectedPage == 0 {
+                HStack(spacing: 0) {
+                    tier2Button(title: "Posts", filter: .posts)
+                    tier2Button(title: "Check-ins", filter: .checkins)
+                }
+                .padding(.horizontal, 20)
+                .background(.ultraThinMaterial)
+            }
+
+            // Bottom divider
+            Rectangle()
+                .fill(Color.msBorder.opacity(0.5))
+                .frame(height: 0.5)
         }
-        .background(Color.msCardShared, in: Capsule())
-        .overlay(Capsule().stroke(Color.msBorder, lineWidth: 1))
     }
 
-    private func pageTab(title: String, index: Int) -> some View {
+    private func tier1Button(title: String, index: Int) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.22)) { selectedPage = index }
         } label: {
-            Text(title)
-                .font(.system(size: 14, weight: selectedPage == index ? .semibold : .regular))
-                .foregroundStyle(selectedPage == index ? Color.msBackground : Color.msTextMuted)
-                .frame(maxWidth: .infinity)
-                .frame(height: 34)
-                .background(
-                    selectedPage == index ? Color.msGold : Color.clear,
-                    in: Capsule()
-                )
+            VStack(spacing: 0) {
+                Text(title)
+                    .font(.system(size: 15, weight: selectedPage == index ? .semibold : .regular))
+                    .foregroundStyle(selectedPage == index ? Color.msTextPrimary : Color.msTextMuted)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                Rectangle()
+                    .fill(selectedPage == index ? Color.msGold : Color.clear)
+                    .frame(height: 2)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func tier2Button(title: String, filter: FeedFilter) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) { activeFilter = filter }
+        } label: {
+            VStack(spacing: 0) {
+                Text(title)
+                    .font(.system(size: 12, weight: activeFilter == filter ? .semibold : .regular))
+                    .foregroundStyle(activeFilter == filter ? Color.msTextPrimary : Color.msTextMuted)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34)
+                Rectangle()
+                    .fill(activeFilter == filter ? Color.msGold : Color.clear)
+                    .frame(height: 2)
+            }
         }
         .buttonStyle(.plain)
     }
@@ -201,14 +237,27 @@ struct CommunityView: View {
                 ZStack {
                     ScrollView {
                         if let userId = auth.session?.user.id {
-                            FeedView(
-                                circleIds: viewModel.circles.map { $0.id },
-                                currentUserId: userId,
-                                viewModel: feedViewModel,
-                                showFilterTabs: true
-                            )
-                            .padding(.top, 8)
-                            .padding(.bottom, 24)
+                            VStack(spacing: 0) {
+                                // Pinned own-moment card (shown only if user posted today)
+                                if momentService.hasPostedToday,
+                                   let moment = ownMomentItem(for: userId) {
+                                    ownMomentCard(moment)
+                                        .padding(.horizontal, 16)
+                                        .padding(.top, 12)
+                                        .padding(.bottom, 4)
+                                        .onTapGesture { expandedOwnMoment = moment }
+                                }
+
+                                FeedView(
+                                    circleIds: viewModel.circles.map { $0.id },
+                                    currentUserId: userId,
+                                    viewModel: feedViewModel,
+                                    activeFilter: $activeFilter,
+                                    excludeUserId: userId
+                                )
+                                .padding(.top, 8)
+                                .padding(.bottom, 24)
+                            }
                         }
                     }
                     .refreshable { await loadGlobalFeed() }
@@ -247,6 +296,42 @@ struct CommunityView: View {
                 )
             }
         }
+    }
+
+    // MARK: - Pinned Own-Moment Card
+
+    private func ownMomentItem(for userId: UUID) -> MomentFeedItem? {
+        for item in feedViewModel.items {
+            if case .moment(let m) = item, m.userId == userId { return m }
+        }
+        return nil
+    }
+
+    private func ownMomentCard(_ moment: MomentFeedItem) -> some View {
+        ZStack(alignment: .topTrailing) {
+            CachedAsyncImage(url: moment.photoUrl) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Color(hex: "243828").overlay(ProgressView().tint(Color(hex: "D4A240")))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 120)
+            .clipped()
+
+            // Gold "Shared with X Circle(s)" pill
+            Text("Shared with \(moment.circleIds.count) Circle\(moment.circleIds.count == 1 ? "" : "s")")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color(hex: "1A2E1E"))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color(hex: "D4A240"), in: Capsule())
+                .padding(10)
+        }
+        .cornerRadius(24)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Color.msGold, lineWidth: 1.5)
+        )
     }
 
     // MARK: - Helpers

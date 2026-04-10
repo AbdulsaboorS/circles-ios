@@ -32,6 +32,8 @@ final class CameraManager: NSObject {
     var permissionGranted = false
     var isSessionReady = false
     var capturedImage: UIImage?
+    var capturedPrimaryImage: UIImage?
+    var capturedSecondaryImage: UIImage?
     var previewLayer: AVCaptureVideoPreviewLayer?
     var activeSource: CaptureSource = .rear
     var firstCapturedPreview: UIImage?
@@ -144,6 +146,8 @@ final class CameraManager: NSObject {
 
     func resetCapture() {
         capturedImage = nil
+        capturedPrimaryImage = nil
+        capturedSecondaryImage = nil
         firstCapturedPreview = nil
         primaryImage = nil
         secondaryImage = nil
@@ -411,6 +415,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
 
         capturedImage = composedImage(primary: primaryImage, secondary: secondaryImage)
+        capturedPrimaryImage = primaryImage
+        capturedSecondaryImage = secondaryImage
         self.primaryImage = nil
         self.secondaryImage = nil
         firstCapturedPreview = nil

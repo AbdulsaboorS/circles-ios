@@ -13,7 +13,7 @@ struct FeedIdentityHeader: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(displayName)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold, design: .serif))
                         .foregroundStyle(Color(hex: "F0EAD6"))
                         .lineLimit(1)
 
