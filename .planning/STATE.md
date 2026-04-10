@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: milestone
 status: unknown
-last_updated: "2026-04-07T00:57:50.614Z"
+last_updated: "2026-04-10T00:00:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -15,7 +15,22 @@ progress:
 
 ## Current Focus
 
-**Phase 13 — Full UI/UX Pass** — Active. Wave 1 (Home) analysis complete, awaiting user + AI-agent feedback before writing code.
+**Phase 13 — Full UI/UX Pass** — Active. Wave 3 (Community / Feed) is next.
+
+### Phase 13 Wave Status
+
+| Wave | Screen | Status |
+|------|--------|--------|
+| 1 | Home (Dashboard) | ✓ Complete |
+| 2 | Habit Detail | ✓ Complete |
+| 3 | Community / Feed | 🔄 Active — next up |
+| 4 | Feed Cards | ⬜ Queued |
+| 5 | My Circles + Circle Detail | ⬜ Queued |
+| 6 | Profile | ⬜ Queued |
+| 7 | Auth | ⬜ Queued |
+
+### Paused
+- **Home hero streak definition** — client-side `computedStreak` shipped (commit `1f8d5b8`). Works correctly. User paused further refinement; resume only if user brings it up.
 
 **Phase 12 complete (2026-04-07):** All 3 plans done — 12 dead files deleted, Components.swift pruned, AppBackground deleted, RoadmapGenerationFlag inlined, 29 per-file Color extension blocks consolidated into DesignTokens.swift, ThemeManager simplified to 17-line dark-mode enforcer.
 
@@ -294,7 +309,7 @@ progress:
 | 11.3 — Onboarding In Depth | ✓ Complete | Onboarding rebuild landed earlier in phase 11; no remaining blocker for phase progression |
 | 11.5 — Feed Polish | ✓ Complete | Dedup, filter tabs, countdown, today-only, post-refresh race fix, Moment pipeline restoration, sequential Double Take capture |
 | 12 — Codebase Cleanup | ⬜ Planned | Delete dead files, consolidate MS tokens, simplify DesignSystem |
-| 13 — Full UI/UX Pass | ⬜ Planned | Every screen redesigned + confirmed working (Dashboard, Habits, Moments, Check-ins, Circles, Onboarding, Profile) |
+| 13 — Full UI/UX Pass | 🔄 Active | Waves 1+2 complete; Wave 3 (Community/Feed) next; home streak paused |
 | 14 — Naming + Branding | ⬜ Planned | Lock feature names, finalize logo, update app icon |
 | 15 — Notifications | ⬜ Planned | All push flows working, tone/copy pass, Edge Functions deployed |
 | 16 — Onboarding Videos | ⬜ Planned | Wire real video assets, animation polish (blocked on content) |

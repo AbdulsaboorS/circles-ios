@@ -1,4 +1,4 @@
-# Handoff — 2026-04-10 (Session 5 — Wave 2 Path/Hero polish)
+# Handoff — 2026-04-10 (Session 6 — Wave 3 start)
 
 ## Current Build State
 **BUILD SUCCEEDED — zero errors.** Three cosmetic `withAnimation` unused-result warnings (pre-existing).
@@ -7,55 +7,44 @@
 
 ## What Was Done This Session
 
-### Wave 1 complete (from previous session)
-- Feed auto-refresh: `NotificationCenter.habitCheckinBroadcast` posted after check-in; CommunityView observes and reloads feed
+### Home hero streak — client-side computation (commit `1f8d5b8`)
+Replaced DB trigger value with client-computed accountable streak on home hero.
+- `HabitService.fetchLogsInRange(userId:from:to:)` — fetches habit_logs in date range
+- `HomeViewModel.computedStreak: Int` — walks last 30 days backwards, counts consecutive days where all `is_accountable` habits are completed (falls back to all habits if none accountable)
+- Recomputes on `loadAll` and after each successful toggle
+- `HomeView` uses `viewModel.computedStreak` instead of `viewModel.streak?.currentStreak ?? 0`
 
-### Wave 2 complete — HabitDetailView full redesign
-
-**Tabbed layout** — three pill tabs: `Path` · `Roadmap` · `Reflection`
-
-**Hero section**
-- Icon with RadialGradient ambient glow
-- Gold double-ring halo when habit completed today (animated .easeInOut 0.7s)
-- Pills: `habitStreak Day Streak` (computed from logs, consecutive backwards from today) + `X/28 Completions`
-- If streak = 0 → shows "Start a Streak"
-
-**Path tab**
-- 4-row explicit VStack/HStack layout (not LazyVGrid) — gives full control over row structure
-- Left column: date anchor label per row ("Apr 7", "Apr 14", etc.) — temporal orientation without cluttering nodes
-- Today's node: cream ring outline (2pt) + center dot if not yet completed — clear "you are here" marker
-- Completed nodes: solid gold + glow animates in sequentially on load (80ms stagger)
-- Empty state (0 completions): encouraging italic serif message instead of 28 dead gray circles
-
-**Roadmap tab**
-- Current week card + today's milestone
-- "View Full Roadmap" → bottom sheet
-- Bug fixed: `expandedWeeks = Set(1...4)` now in sheet `.onAppear` (not button action) — fixes Dhikr-style plans loaded from DB showing collapsed weeks
-
-**Reflection tab**
-- Today's card: serif title + actual date subtitle ("April 10, 2026") + ghost italic placeholder "What did your heart hear today?"
-- Past reflections: last 28 days surfaced from UserDefaults, newest first, tappable to edit
-- All entries stored in UserDefaults keyed by `habitId + date`
+**Status: PAUSED** — user wants to revisit later. Shipped and working but streak definition may need further tuning. Do not re-open unless user brings it up.
 
 ---
 
-## Open Items / Next Session
+## Active Work — Wave 3: Community / Feed
 
-### Home hero streak — Option A (accountable habits only) — NOT YET DONE
-**Context:** The `streaks` table is updated by an unknown DB trigger (not from client code). We agreed the home streak should count only when all `is_accountable = true` habits are completed (Option A). The per-habit streak on detail view is done (computed from logs). The home streak still shows the DB trigger's value (unknown definition).
+### Files to read before touching anything
+- `Circles/Community/CommunityView.swift`
+- `Circles/Feed/FeedView.swift`
+- `Circles/Feed/FeedViewModel.swift`
+- `Circles/Feed/ReciprocityGateView.swift`
 
-**Two paths to fix:**
-1. **Find the DB trigger** — user can open Supabase Dashboard → Database → Triggers, find the trigger on `habit_logs`, and share the definition so we can modify it
-2. **Client-side override** — load last 30 days of `habit_logs` for the user in `HomeViewModel.loadAll()`, then compute `computedAccountableStreak` by walking backwards through days checking `is_accountable` habits. Display this instead of `viewModel.streak?.currentStreak`. No DB changes needed.
+### Wave 3 approach
+Same as Waves 1 + 2 — read all files, lead with proactive analysis (what's broken, what needs polish, copy, layout, tokens), present to user, iterate on feedback until sign-off. Do NOT wait for the user to describe problems first.
 
-Option 2 is the faster MVP path. Implement in `HomeViewModel`:
-- Add `@State var computedStreak: Int = 0`
-- In `loadAll`, fetch last 30 days logs: `habit_logs` where `user_id = userId AND date >= thirtyDaysAgo`
-- Walk backwards: day counts if all `is_accountable` habits have a completed log (fallback: any habit if none are accountable)
-- Display `computedStreak` on home hero instead of `viewModel.streak?.currentStreak`
+---
 
-### Phase 13 Wave 3 — after streak is resolved
-- Check STATE.md for any remaining items
+## Wave Status Summary
+
+| Wave | Screen | Status |
+|------|--------|--------|
+| 1 | Home (Dashboard) | ✓ Complete |
+| 2 | Habit Detail | ✓ Complete |
+| 3 | Community / Feed | 🔄 Active — starting next |
+| 4 | Feed Cards | ⬜ Queued |
+| 5 | My Circles + Circle Detail | ⬜ Queued |
+| 6 | Profile | ⬜ Queued |
+| 7 | Auth | ⬜ Queued |
+
+### Paused items (do not re-open unless user asks)
+- **Home hero streak definition** — client-side implementation shipped (`computedStreak`). User may want to revisit the definition (currently: all accountable habits must be complete). No DB changes needed to resume.
 
 ---
 
@@ -63,6 +52,6 @@ Option 2 is the faster MVP path. Implement in `HomeViewModel`:
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)
 
 ## Key Files Changed This Session
-- `Circles/Home/HabitDetailView.swift` — full redesign
-- `Circles/Services/HabitService.swift` — NotificationCenter broadcast + Notification.Name extension
-- `Circles/Community/CommunityView.swift` — .onReceive for feed auto-refresh
+- `Circles/Services/HabitService.swift` — `fetchLogsInRange` added
+- `Circles/Home/HomeViewModel.swift` — `computedStreak` + `computeAccountableStreak`
+- `Circles/Home/HomeView.swift` — uses `computedStreak`
