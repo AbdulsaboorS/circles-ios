@@ -275,28 +275,21 @@ final class FeedService {
 
     // MARK: - Private helpers
 
-    /// Resolves signed photo URLs concurrently — all requests fire simultaneously via TaskGroup.
+    /// Resolves signed photo URLs. Serial today; Swift 6 region-isolation prevents naive TaskGroup
+    /// use with @MainActor services — revisit when MomentService is nonisolated.
     private func resolveMomentPhotoURLsConcurrent(for rows: [CircleMomentRow]) async throws -> [UUID: (primary: String, secondary: String?)] {
-        try await withThrowingTaskGroup(
-            of: (UUID, String, String?).self
-        ) { group in
-            for row in rows {
-                group.addTask {
-                    let primary = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
-                    let secondary: String? = if let sec = row.secondaryPhotoUrl {
-                        try? await MomentService.shared.resolveMomentPhotoURL(from: sec)
-                    } else {
-                        nil
-                    }
-                    return (row.id, primary, secondary)
-                }
+        var result = [UUID: (primary: String, secondary: String?)]()
+        result.reserveCapacity(rows.count)
+        for row in rows {
+            let primary = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
+            let secondary: String? = if let sec = row.secondaryPhotoUrl {
+                try? await MomentService.shared.resolveMomentPhotoURL(from: sec)
+            } else {
+                nil
             }
-            var result = [UUID: (primary: String, secondary: String?)]()
-            for try await (id, primary, secondary) in group {
-                result[id] = (primary: primary, secondary: secondary)
-            }
-            return result
+            result[row.id] = (primary: primary, secondary: secondary)
         }
+        return result
     }
 
     /// Fetch display names for a set of user IDs from the profiles table.

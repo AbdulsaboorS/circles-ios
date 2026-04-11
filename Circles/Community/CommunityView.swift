@@ -150,57 +150,58 @@ struct CommunityView: View {
         VStack(spacing: 0) {
             // Tier 1: Feed | Circles
             HStack(spacing: 0) {
-                tier1Tab(title: "Feed", index: 0)
-                tier1Tab(title: "Circles", index: 1)
+                tier1Button(title: "Feed", index: 0)
+                tier1Button(title: "Circles", index: 1)
             }
+            .background(.ultraThinMaterial)
 
-            // Tier 2: Posts | Check-ins (Feed tab only)
+            // Tier 2: Posts | Check-ins (only on Feed tab)
             if selectedPage == 0 {
                 HStack(spacing: 0) {
-                    tier2Tab(title: "Posts", filter: .posts)
-                    tier2Tab(title: "Check-ins", filter: .checkins)
+                    tier2Button(title: "Posts", filter: .posts)
+                    tier2Button(title: "Check-ins", filter: .checkins)
                 }
                 .padding(.horizontal, 20)
+                .background(.ultraThinMaterial)
             }
 
+            // Bottom divider
             Rectangle()
-                .fill(Color.msBorder.opacity(0.4))
+                .fill(Color.msBorder.opacity(0.5))
                 .frame(height: 0.5)
         }
     }
 
-    private func tier1Tab(title: String, index: Int) -> some View {
-        let isActive = selectedPage == index
-        return Button {
+    private func tier1Button(title: String, index: Int) -> some View {
+        Button {
             withAnimation(.easeInOut(duration: 0.22)) { selectedPage = index }
         } label: {
             VStack(spacing: 0) {
                 Text(title)
-                    .font(.system(size: 15, weight: isActive ? .semibold : .regular, design: .serif))
-                    .foregroundStyle(isActive ? Color.msTextPrimary : Color.msTextMuted)
+                    .font(.system(size: 15, weight: selectedPage == index ? .semibold : .regular))
+                    .foregroundStyle(selectedPage == index ? Color.msTextPrimary : Color.msTextMuted)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                 Rectangle()
-                    .fill(isActive ? Color.msGold : Color.clear)
+                    .fill(selectedPage == index ? Color.msGold : Color.clear)
                     .frame(height: 2)
             }
         }
         .buttonStyle(.plain)
     }
 
-    private func tier2Tab(title: String, filter: FeedFilter) -> some View {
-        let isActive = activeFilter == filter
-        return Button {
+    private func tier2Button(title: String, filter: FeedFilter) -> some View {
+        Button {
             withAnimation(.easeInOut(duration: 0.22)) { activeFilter = filter }
         } label: {
             VStack(spacing: 0) {
                 Text(title)
-                    .font(.system(size: 12, weight: isActive ? .semibold : .regular, design: .serif))
-                    .foregroundStyle(isActive ? Color.msTextPrimary : Color.msTextMuted)
+                    .font(.system(size: 12, weight: activeFilter == filter ? .semibold : .regular))
+                    .foregroundStyle(activeFilter == filter ? Color.msTextPrimary : Color.msTextMuted)
                     .frame(maxWidth: .infinity)
                     .frame(height: 34)
                 Rectangle()
-                    .fill(isActive ? Color.msGold : Color.clear)
+                    .fill(activeFilter == filter ? Color.msGold : Color.clear)
                     .frame(height: 2)
             }
         }
@@ -308,35 +309,17 @@ struct CommunityView: View {
     }
 
     private func ownMomentCard(_ moment: MomentFeedItem) -> some View {
-        ZStack(alignment: .bottomLeading) {
-            // Primary photo — fills card
+        ZStack(alignment: .topTrailing) {
             CachedAsyncImage(url: moment.photoUrl) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Color(hex: "243828").overlay(ProgressView().tint(Color(hex: "D4A240")))
             }
             .frame(maxWidth: .infinity)
-            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .frame(height: 120)
             .clipped()
 
-            // Secondary PiP inset — bottom-left, static display only
-            if let secondaryUrl = moment.secondaryPhotoUrl {
-                CachedAsyncImage(url: secondaryUrl) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color(hex: "243828")
-                }
-                .frame(width: 80, height: 107)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.9), lineWidth: 2)
-                )
-                .padding(10)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            // "Shared with X Circles" gold pill — top-right
+            // Gold "Shared with X Circle(s)" pill
             Text("Shared with \(moment.circleIds.count) Circle\(moment.circleIds.count == 1 ? "" : "s")")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Color(hex: "1A2E1E"))
@@ -345,7 +328,7 @@ struct CommunityView: View {
                 .background(Color(hex: "D4A240"), in: Capsule())
                 .padding(10)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .cornerRadius(24)
         .overlay(
             RoundedRectangle(cornerRadius: 24)
                 .stroke(Color.msGold, lineWidth: 1.5)
