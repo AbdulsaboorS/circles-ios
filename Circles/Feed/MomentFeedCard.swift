@@ -7,9 +7,10 @@ struct MomentFeedCard: View {
     let profile: Profile?
     @Bindable var viewModel: FeedViewModel
     var onComment: (() -> Void)? = nil
+    var onOpenFullScreen: (() -> Void)? = nil
 
-    @State private var circleListExpanded = false
     @State private var swapped = false
+    @State private var showMenu = false
 
     private var mainPhotoUrl: String {
         swapped ? (item.secondaryPhotoUrl ?? item.photoUrl) : item.photoUrl
@@ -24,53 +25,40 @@ struct MomentFeedCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Identity row — floating on msBackground
             FeedIdentityHeader(
                 avatarUrl: profile?.avatarUrl,
                 displayName: displayName,
                 circleName: isOwnPost ? nil : item.circleName,
-                timestamp: timestampLabel
+                timestamp: timestampLabel,
+                isOnTime: isLocked ? nil : item.isOnTime,
+                avatarSize: 36,
+                onMenuTap: isOwnPost ? nil : { showMenu = true }
             )
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, isOwnPost ? 4 : 10)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 10)
 
-            // Own-post: expandable circle list
-            if isOwnPost {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { circleListExpanded.toggle() }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(circleListExpanded
-                             ? "Sent to \(item.circleNames.count) circle\(item.circleNames.count == 1 ? "" : "s") ▾"
-                             : "Sent to \(item.circleNames.count) circle\(item.circleNames.count == 1 ? "" : "s") ▸")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color(hex: "D4A240"))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
+            // Photo card — edge-to-edge, 3:4 ratio
+            ZStack(alignment: .topLeading) {
+                CachedAsyncImage(url: mainPhotoUrl) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .blur(radius: isLocked ? 20 : 0)
+                } placeholder: {
+                    Color(hex: "243828")
+                        .overlay(ProgressView().tint(Color(hex: "D4A240")))
                 }
-                .buttonStyle(.plain)
-
-                if circleListExpanded {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(item.circleNames, id: \.self) { name in
-                            Text("• \(name)")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color(hex: "8FAF94"))
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 4)
+                .frame(maxWidth: .infinity)
+                .aspectRatio(3.0 / 4.0, contentMode: .fill)
+                .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !isLocked, let onOpenFullScreen { onOpenFullScreen() }
                 }
-
-                Spacer().frame(height: 6)
-            }
-
-            ZStack(alignment: .center) {
-                momentImage
 
                 if isLocked {
+                    // Lock overlay
                     VStack(spacing: 8) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 28))
@@ -82,100 +70,84 @@ struct MomentFeedCard: View {
                     }
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+                }
+
+                // PiP — top-left
+                if let pipUrl = pipPhotoUrl, !isLocked {
+                    CachedAsyncImage(url: pipUrl) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color(hex: "243828")
+                    }
+                    .frame(width: 118, height: 157)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.msGold, lineWidth: 2)
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.25)) { swapped.toggle() }
+                    }
+                    .padding(10)
                 }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
 
+            // Actions row — floating on msBackground
             if !isLocked {
-                HStack(spacing: 8) {
-                    Text(item.isOnTime ? "On Time" : "Late")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(item.isOnTime ? Color(hex: "1A2E1E") : Color(hex: "F0EAD6"))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            item.isOnTime ? Color(hex: "D4A240") : Color(hex: "8FAF94").opacity(0.22),
-                            in: Capsule()
-                        )
+                HStack {
+                    ReactionBar(
+                        itemId: item.id, itemType: "moment",
+                        currentUserId: currentUserId, viewModel: viewModel
+                    )
                     Spacer()
+                    if let onComment {
+                        Button(action: onComment) {
+                            Image(systemName: "bubble.left")
+                                .font(.system(size: 16))
+                                .foregroundStyle(Color(hex: "8FAF94"))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
 
+                // Caption
                 if let caption = item.caption, !caption.isEmpty {
                     Text(caption)
-                        .font(.appSubheadline)
+                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .italic()
                         .foregroundStyle(Color(hex: "F0EAD6"))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 10)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 6)
                 }
             }
 
-            // Reaction bar + comment
-            HStack {
-                ReactionBar(
-                    itemId: item.id, itemType: "moment",
-                    currentUserId: currentUserId, viewModel: viewModel
-                )
-                Spacer()
-                if let onComment {
-                    Button(action: onComment) {
-                        Image(systemName: "bubble.left")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color(hex: "8FAF94"))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            // Gold divider
+            Rectangle()
+                .fill(Color.msGold.opacity(0.15))
+                .frame(height: 1)
+                .padding(.top, 16)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 32)
-                .fill(Color(hex: "243828"))
-                .overlay(RoundedRectangle(cornerRadius: 32).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 32))
+        .confirmationDialog("Post Options", isPresented: $showMenu) {
+            Button("Report", role: .destructive) {
+                // Stub — toast in future
+            }
+            Button("Hide post") {
+                // Stub — toast in future
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     private var displayName: String {
         let preferred = profile?.preferredName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return preferred.isEmpty ? item.userName : preferred
-    }
-
-    private var momentImage: some View {
-        ZStack(alignment: .bottomLeading) {
-            CachedAsyncImage(url: mainPhotoUrl) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: isLocked ? 20 : 0)
-            } placeholder: {
-                Color(hex: "243828")
-                    .overlay(ProgressView().tint(Color(hex: "D4A240")))
-            }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(3.0 / 4.0, contentMode: .fill)
-            .clipped()
-
-            if let pipUrl = pipPhotoUrl, !isLocked {
-                CachedAsyncImage(url: pipUrl) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color(hex: "243828")
-                }
-                .frame(width: 80, height: 107)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.9), lineWidth: 2)
-                )
-                .padding(10)
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.25)) { swapped.toggle() }
-                }
-            }
-        }
     }
 
     private var timestampLabel: String {
@@ -200,7 +172,7 @@ struct MomentFeedCard: View {
     let mockItem = MomentFeedItem(
         id: UUID(),
         circleId: UUID(),
-        userId: UUID(),  // different from currentUserId below
+        userId: UUID(),
         userName: "Yusuf Al-Rashid",
         circleName: "Brothers Circle",
         circleIds: [UUID()],
@@ -215,12 +187,11 @@ struct MomentFeedCard: View {
     return ScrollView {
         MomentFeedCard(
             item: mockItem,
-            currentUserId: UUID(),  // different user → not locked (hasPostedToday: true)
+            currentUserId: UUID(),
             hasPostedToday: true,
             profile: nil,
             viewModel: vm
         )
-        .padding(16)
     }
-    .background(Color(hex: "111A13"))
+    .background(Color(hex: "1A2E1E"))
 }

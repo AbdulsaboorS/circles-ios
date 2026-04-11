@@ -73,7 +73,12 @@ struct CommunityView: View {
                 }
             }
             .fullScreenCover(item: $expandedOwnMoment) { moment in
-                OwnMomentFullView(item: moment, profile: feedViewModel.authorProfiles[moment.userId])
+                MomentFullScreenView(
+                    item: moment,
+                    currentUserId: auth.session?.user.id ?? UUID(),
+                    profile: feedViewModel.authorProfiles[moment.userId],
+                    viewModel: feedViewModel
+                )
             }
             .sheet(item: $draftMoment, onDismiss: {
                 guard pendingFeedRefresh else { return }
@@ -148,26 +153,31 @@ struct CommunityView: View {
 
     private var stickyHeader: some View {
         VStack(spacing: 0) {
-            // Tier 1: Feed | Circles
+            // Brand title
+            Text("Circles")
+                .font(.system(size: 22, weight: .bold, design: .serif))
+                .foregroundStyle(Color.msTextPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+
+            // Tier 1: Feed | Circles — full width
             HStack(spacing: 0) {
                 tier1Button(title: "Feed", index: 0)
                 tier1Button(title: "Circles", index: 1)
             }
-            .background(.ultraThinMaterial)
 
-            // Tier 2: Posts | Check-ins (only on Feed tab)
+            // Tier 2: Posts | Check-ins — centered, compact
             if selectedPage == 0 {
-                HStack(spacing: 0) {
+                HStack(spacing: 24) {
                     tier2Button(title: "Posts", filter: .posts)
                     tier2Button(title: "Check-ins", filter: .checkins)
                 }
-                .padding(.horizontal, 20)
-                .background(.ultraThinMaterial)
+                .frame(height: 32)
             }
 
             // Bottom divider
             Rectangle()
-                .fill(Color.msBorder.opacity(0.5))
+                .fill(Color.msGold.opacity(0.15))
                 .frame(height: 0.5)
         }
     }
@@ -176,16 +186,11 @@ struct CommunityView: View {
         Button {
             withAnimation(.easeInOut(duration: 0.22)) { selectedPage = index }
         } label: {
-            VStack(spacing: 0) {
-                Text(title)
-                    .font(.system(size: 15, weight: selectedPage == index ? .semibold : .regular))
-                    .foregroundStyle(selectedPage == index ? Color.msTextPrimary : Color.msTextMuted)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                Rectangle()
-                    .fill(selectedPage == index ? Color.msGold : Color.clear)
-                    .frame(height: 2)
-            }
+            Text(title)
+                .font(.system(size: 15, weight: selectedPage == index ? .semibold : .regular, design: .serif))
+                .foregroundStyle(selectedPage == index ? Color.msTextPrimary : Color.msTextMuted)
+                .frame(maxWidth: .infinity)
+                .frame(height: 38)
         }
         .buttonStyle(.plain)
     }
@@ -194,16 +199,9 @@ struct CommunityView: View {
         Button {
             withAnimation(.easeInOut(duration: 0.22)) { activeFilter = filter }
         } label: {
-            VStack(spacing: 0) {
-                Text(title)
-                    .font(.system(size: 12, weight: activeFilter == filter ? .semibold : .regular))
-                    .foregroundStyle(activeFilter == filter ? Color.msTextPrimary : Color.msTextMuted)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
-                Rectangle()
-                    .fill(activeFilter == filter ? Color.msGold : Color.clear)
-                    .frame(height: 2)
-            }
+            Text(title)
+                .font(.system(size: 13, weight: activeFilter == filter ? .semibold : .regular, design: .serif))
+                .foregroundStyle(activeFilter == filter ? Color.msTextPrimary : Color.msTextMuted)
         }
         .buttonStyle(.plain)
     }
@@ -242,10 +240,11 @@ struct CommunityView: View {
                                 // Pinned own-moment card (shown only if user posted today)
                                 if momentService.hasPostedToday,
                                    let moment = ownMomentItem(for: userId) {
-                                    ownMomentCard(moment)
-                                        .padding(.horizontal, 16)
-                                        .padding(.top, 12)
+                                    ownMomentStrip(moment)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.top, 8)
                                         .padding(.bottom, 4)
+                                        .contentShape(Rectangle())
                                         .onTapGesture { expandedOwnMoment = moment }
                                 }
 
@@ -308,30 +307,56 @@ struct CommunityView: View {
         return nil
     }
 
-    private func ownMomentCard(_ moment: MomentFeedItem) -> some View {
-        ZStack(alignment: .topTrailing) {
-            CachedAsyncImage(url: moment.photoUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Color(hex: "243828").overlay(ProgressView().tint(Color(hex: "D4A240")))
+    private func ownMomentStrip(_ moment: MomentFeedItem) -> some View {
+        VStack(spacing: 10) {
+            // Side-by-side thumbnails, centered
+            HStack(spacing: 10) {
+                if let secondaryUrl = moment.secondaryPhotoUrl {
+                    // Two photos: front + back
+                    ownMomentThumbnail(url: moment.photoUrl)
+                    ownMomentThumbnail(url: secondaryUrl)
+                } else {
+                    // Single photo centered
+                    ownMomentThumbnail(url: moment.photoUrl)
+                }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 120)
-            .clipped()
 
-            // Gold "Shared with X Circle(s)" pill
+            // Caption prompt
+            if let caption = moment.caption, !caption.isEmpty {
+                Text(caption)
+                    .font(.system(size: 13, weight: .regular, design: .serif))
+                    .italic()
+                    .foregroundStyle(Color.msTextPrimary)
+                    .lineLimit(1)
+            } else {
+                Text("Add a caption...")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Color.msTextMuted)
+            }
+
+            // Shared pill
             Text("Shared with \(moment.circleIds.count) Circle\(moment.circleIds.count == 1 ? "" : "s")")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Color(hex: "1A2E1E"))
                 .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color(hex: "D4A240"), in: Capsule())
-                .padding(10)
+                .padding(.vertical, 4)
+                .background(Color.msGold, in: Capsule())
         }
-        .cornerRadius(24)
+        .padding(.vertical, 14)
+    }
+
+    private func ownMomentThumbnail(url: String) -> some View {
+        CachedAsyncImage(url: url) { image in
+            image.resizable().scaledToFill()
+        } placeholder: {
+            Color(hex: "243828")
+                .overlay(ProgressView().tint(Color.msGold))
+        }
+        .frame(width: 140, height: 187)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(Color.msGold, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
         )
     }
 

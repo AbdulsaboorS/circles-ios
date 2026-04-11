@@ -30,6 +30,8 @@ struct FeedView: View {
     private let excludeUserId: UUID?
 
     @State private var commentingOnItem: FeedItem? = nil
+    @State private var fullScreenMoment: MomentFeedItem? = nil
+    @State private var fullScreenScrollToComments = false
 
     // CommunityView path — filter tabs active, own moment excluded (shown in pinned card)
     init(
@@ -123,7 +125,7 @@ struct FeedView: View {
     // MARK: - Body
 
     var body: some View {
-        LazyVStack(spacing: 10) {
+        LazyVStack(spacing: 0) {
             if showFilterTabs && activeFilter.wrappedValue == .checkins {
                 // Grouped check-ins
                 ForEach(checkinGroups) { group in
@@ -139,14 +141,19 @@ struct FeedView: View {
                             }
                         }
                     )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
                 }
                 if checkinGroups.isEmpty && !viewModel.isLoadingInitial {
                     emptyState(message: "No check-ins yet.", subMessage: "Check-ins from your circles will appear here.")
+                        .padding(.horizontal, 16)
                 }
             } else {
-                // Normal feed items
+                // Normal feed items — moments are edge-to-edge, others get padding
                 ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
                     feedItemView(for: item)
+                        .padding(.horizontal, item.isMoment ? 0 : 16)
+                        .padding(.top, index == 0 ? 0 : (item.isMoment ? 12 : 10))
                         .onAppear {
                             if index >= filteredItems.count - 3 {
                                 Task { await viewModel.loadNextPage(circleIds: circleIds) }
@@ -165,10 +172,10 @@ struct FeedView: View {
 
                 if filteredItems.isEmpty && !viewModel.isLoadingInitial {
                     emptyState(message: "No moments yet.", subMessage: "Be the first to post today.")
+                        .padding(.horizontal, 16)
                 }
             }
         }
-        .padding(.horizontal, 16)
         .sheet(item: $commentingOnItem) { item in
             CommentDrawerView(
                 postId: item.id,
@@ -178,6 +185,15 @@ struct FeedView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(item: $fullScreenMoment) { moment in
+            MomentFullScreenView(
+                item: moment,
+                currentUserId: currentUserId,
+                profile: viewModel.authorProfiles[moment.userId],
+                viewModel: viewModel,
+                scrollToComments: fullScreenScrollToComments
+            )
         }
     }
 
@@ -192,7 +208,14 @@ struct FeedView: View {
                 hasPostedToday: viewModel.hasPostedToday,
                 profile: viewModel.authorProfiles[m.userId],
                 viewModel: viewModel,
-                onComment: { commentingOnItem = item }
+                onComment: {
+                    fullScreenScrollToComments = true
+                    fullScreenMoment = m
+                },
+                onOpenFullScreen: {
+                    fullScreenScrollToComments = false
+                    fullScreenMoment = m
+                }
             )
         case .habitCheckin(let h):
             HabitCheckinRow(

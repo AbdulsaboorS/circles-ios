@@ -232,6 +232,19 @@ final class MomentService {
         return storedValue
     }
 
+    /// Update caption on all of today's moment rows for a user.
+    func updateCaption(_ caption: String?, userId: UUID) async throws {
+        let today = Self.todayDateString()
+        struct CaptionUpdate: Encodable { let caption: String? }
+        try await client
+            .from("circle_moments")
+            .update(CaptionUpdate(caption: caption))
+            .eq("user_id", value: userId.uuidString)
+            .gte("posted_at", value: "\(today)T00:00:00Z")
+            .lt("posted_at", value: "\(today)T23:59:59Z")
+            .execute()
+    }
+
     static func isDuplicateMomentError(_ error: Error) -> Bool {
         let message = String(describing: error)
         return message.contains("circle_moments_one_per_day") || message.contains("duplicate key value")

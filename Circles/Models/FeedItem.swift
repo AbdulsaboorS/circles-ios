@@ -78,4 +78,9 @@ enum FeedItem: Identifiable, Sendable, Equatable {
         case .streakMilestone:  return "streak_milestone"
         }
     }
+
+    var isMoment: Bool {
+        if case .moment = self { return true }
+        return false
+    }
 }
