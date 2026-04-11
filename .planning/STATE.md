@@ -23,7 +23,7 @@ progress:
 |------|--------|--------|
 | 1 | Home (Dashboard) | ✓ Complete |
 | 2 | Habit Detail | ✓ Complete |
-| 3 | Community / Feed | 🔄 Active — next up |
+| 3 | Community / Feed | 🔄 Built — pending user QA |
 | 4 | Feed Cards | ⬜ Queued |
 | 5 | My Circles + Circle Detail | ⬜ Queued |
 | 6 | Profile | ⬜ Queued |
