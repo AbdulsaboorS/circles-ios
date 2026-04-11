@@ -238,74 +238,76 @@ struct GroupedCheckinCard: View {
     var onComment: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
+            // Floating identity header — no card background behind it
             FeedIdentityHeader(
                 avatarUrl: group.avatarUrl,
                 displayName: group.userName,
                 circleName: group.circleName,
                 timestamp: relativeTimestamp(group.latestTimestamp)
             )
+            .padding(.horizontal, 4)
 
-            if !group.habitCheckins.isEmpty {
-                Text("Completed \(group.habitCheckins.count) intention\(group.habitCheckins.count == 1 ? "" : "s")")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color(hex: "8FAF94"))
+            // Card body — habit pills + reactions + comment button only
+            VStack(alignment: .leading, spacing: 10) {
+                if !group.habitCheckins.isEmpty {
+                    Text("Completed \(group.habitCheckins.count) intention\(group.habitCheckins.count == 1 ? "" : "s")")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(hex: "8FAF94"))
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(group.habitCheckins) { checkin in
-                            Text(checkin.habitName)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(Color(hex: "1A2E1E"))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color(hex: "D4A240"), in: Capsule())
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(group.habitCheckins) { checkin in
+                                Text(checkin.habitName)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Color(hex: "1A2E1E"))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color(hex: "D4A240"), in: Capsule())
+                            }
                         }
                     }
                 }
-            }
 
-            ForEach(group.streakMilestones) { milestone in
-                HStack(spacing: 6) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "D4A240"))
-                    Text("\(milestone.streakDays)-day streak on '\(milestone.habitName)'")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "F0EAD6"))
-                }
-            }
-
-            HStack {
-                if let first = group.habitCheckins.first {
-                    ReactionBar(
-                        itemId: first.id, itemType: "habit_checkin",
-                        currentUserId: currentUserId, viewModel: viewModel
-                    )
-                } else if let first = group.streakMilestones.first {
-                    ReactionBar(
-                        itemId: first.id, itemType: "streak_milestone",
-                        currentUserId: currentUserId, viewModel: viewModel
-                    )
-                }
-                Spacer()
-                if let onComment {
-                    Button(action: onComment) {
-                        Image(systemName: "bubble.left")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color(hex: "8FAF94"))
+                ForEach(group.streakMilestones) { milestone in
+                    HStack(spacing: 6) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(hex: "D4A240"))
+                        Text("\(milestone.streakDays)-day streak on '\(milestone.habitName)'")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(hex: "F0EAD6"))
                     }
-                    .buttonStyle(.plain)
+                }
+
+                HStack {
+                    if let first = group.habitCheckins.first {
+                        ReactionBar(itemId: first.id, itemType: "habit_checkin",
+                                    currentUserId: currentUserId, viewModel: viewModel)
+                    } else if let first = group.streakMilestones.first {
+                        ReactionBar(itemId: first.id, itemType: "streak_milestone",
+                                    currentUserId: currentUserId, viewModel: viewModel)
+                    }
+                    Spacer()
+                    if let onComment {
+                        Button(action: onComment) {
+                            Image(systemName: "bubble.left")
+                                .font(.system(size: 16))
+                                .foregroundStyle(Color(hex: "8FAF94"))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(hex: "243828"))
+                    .overlay(RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
+            )
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(hex: "243828"))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
-        )
     }
 
     private func relativeTimestamp(_ iso: String) -> String {
