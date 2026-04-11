@@ -4,6 +4,16 @@ struct OwnMomentFullView: View {
     let item: MomentFeedItem
     let profile: Profile?
     @Environment(\.dismiss) private var dismiss
+    @State private var swapped = false
+    @State private var showComments = false
+
+    private var mainPhotoUrl: String {
+        swapped ? (item.secondaryPhotoUrl ?? item.photoUrl) : item.photoUrl
+    }
+    private var pipPhotoUrl: String? {
+        guard let secondary = item.secondaryPhotoUrl else { return nil }
+        return swapped ? item.photoUrl : secondary
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -30,18 +40,38 @@ struct OwnMomentFullView: View {
                         .background(Color(hex: "D4A240"), in: Capsule())
                         .padding(.horizontal, 16)
 
-                    // Photo (3:4 ratio)
-                    CachedAsyncImage(url: item.photoUrl) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color(hex: "243828").overlay(ProgressView().tint(Color(hex: "D4A240")))
+                    // Photo with PiP overlay
+                    ZStack(alignment: .bottomLeading) {
+                        CachedAsyncImage(url: mainPhotoUrl) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Color(hex: "243828").overlay(ProgressView().tint(Color(hex: "D4A240")))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(3.0 / 4.0, contentMode: .fill)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+
+                        if let pipUrl = pipPhotoUrl {
+                            CachedAsyncImage(url: pipUrl) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                Color(hex: "243828")
+                            }
+                            .frame(width: 80, height: 107)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.9), lineWidth: 2)
+                            )
+                            .padding(10)
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.25)) { swapped.toggle() }
+                            }
+                        }
                     }
-                    .frame(maxWidth: .infinity)
-                    .aspectRatio(3.0 / 4.0, contentMode: .fill)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
                     .padding(.horizontal, 12)
 
-                    // On-time badge
+                    // On-time badge + comment button
                     HStack {
                         Text(item.isOnTime ? "On Time" : "Late")
                             .font(.system(size: 11, weight: .semibold))
@@ -53,6 +83,14 @@ struct OwnMomentFullView: View {
                                 in: Capsule()
                             )
                         Spacer()
+                        Button {
+                            showComments = true
+                        } label: {
+                            Image(systemName: "bubble.left")
+                                .font(.system(size: 18))
+                                .foregroundStyle(Color(hex: "8FAF94"))
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 16)
 
@@ -82,6 +120,16 @@ struct OwnMomentFullView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
             .padding(.top, 8)
+        }
+        .sheet(isPresented: $showComments) {
+            CommentDrawerView(
+                postId: item.id,
+                postType: "moment",
+                circleId: item.circleId,
+                currentUserId: item.userId
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 

@@ -193,3 +193,34 @@ struct MomentFeedCard: View {
         return "\(Int(diff / 86400))d ago"
     }
 }
+
+// MARK: - Preview
+
+#Preview("Other user — dual camera") {
+    let mockItem = MomentFeedItem(
+        id: UUID(),
+        circleId: UUID(),
+        userId: UUID(),  // different from currentUserId below
+        userName: "Yusuf Al-Rashid",
+        circleName: "Brothers Circle",
+        circleIds: [UUID()],
+        circleNames: ["Brothers Circle"],
+        photoUrl: "https://picsum.photos/seed/primary/400/533",
+        secondaryPhotoUrl: "https://picsum.photos/seed/secondary/400/533",
+        caption: "Alhamdulillah, fajr done ✓",
+        postedAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-720)),
+        isOnTime: true
+    )
+    let vm = FeedViewModel()
+    return ScrollView {
+        MomentFeedCard(
+            item: mockItem,
+            currentUserId: UUID(),  // different user → not locked (hasPostedToday: true)
+            hasPostedToday: true,
+            profile: nil,
+            viewModel: vm
+        )
+        .padding(16)
+    }
+    .background(Color(hex: "111A13"))
+}

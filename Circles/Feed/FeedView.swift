@@ -16,6 +16,7 @@ struct UserCheckinGroup: Identifiable {
     let circleName: String
     let habitCheckins: [HabitCheckinFeedItem]
     let streakMilestones: [StreakMilestoneFeedItem]
+    let latestTimestamp: String  // ISO8601 of most recent activity
 }
 
 // MARK: - FeedView
@@ -103,13 +104,18 @@ struct FeedView: View {
         return userMeta.keys.sorted { a, b in
             (userMeta[a]?.name ?? "") < (userMeta[b]?.name ?? "")
         }.map { userId in
-            UserCheckinGroup(
+            let checkins = checkinMap[userId, default: []]
+            let streaks = streakMap[userId, default: []]
+            let allTimestamps = checkins.map { $0.checkedAt } + streaks.map { $0.achievedAt }
+            let latest = allTimestamps.max() ?? ""
+            return UserCheckinGroup(
                 id: userId,
                 userName: userMeta[userId]!.name,
                 avatarUrl: viewModel.authorProfiles[userId]?.avatarUrl,
                 circleName: userMeta[userId]!.circleName,
-                habitCheckins: checkinMap[userId, default: []],
-                streakMilestones: streakMap[userId, default: []]
+                habitCheckins: checkins,
+                streakMilestones: streaks,
+                latestTimestamp: latest
             )
         }
     }
@@ -124,7 +130,14 @@ struct FeedView: View {
                     GroupedCheckinCard(
                         group: group,
                         currentUserId: currentUserId,
-                        viewModel: viewModel
+                        viewModel: viewModel,
+                        onComment: {
+                            if let first = group.habitCheckins.first {
+                                commentingOnItem = .habitCheckin(first)
+                            } else if let first = group.streakMilestones.first {
+                                commentingOnItem = .streakMilestone(first)
+                            }
+                        }
                     )
                 }
                 if checkinGroups.isEmpty && !viewModel.isLoadingInitial {
@@ -222,6 +235,7 @@ struct GroupedCheckinCard: View {
     let group: UserCheckinGroup
     let currentUserId: UUID
     @Bindable var viewModel: FeedViewModel
+    var onComment: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -229,7 +243,7 @@ struct GroupedCheckinCard: View {
                 avatarUrl: group.avatarUrl,
                 displayName: group.userName,
                 circleName: group.circleName,
-                timestamp: ""
+                timestamp: relativeTimestamp(group.latestTimestamp)
             )
 
             if !group.habitCheckins.isEmpty {
@@ -262,16 +276,27 @@ struct GroupedCheckinCard: View {
                 }
             }
 
-            if let first = group.habitCheckins.first {
-                ReactionBar(
-                    itemId: first.id, itemType: "habit_checkin",
-                    currentUserId: currentUserId, viewModel: viewModel
-                )
-            } else if let first = group.streakMilestones.first {
-                ReactionBar(
-                    itemId: first.id, itemType: "streak_milestone",
-                    currentUserId: currentUserId, viewModel: viewModel
-                )
+            HStack {
+                if let first = group.habitCheckins.first {
+                    ReactionBar(
+                        itemId: first.id, itemType: "habit_checkin",
+                        currentUserId: currentUserId, viewModel: viewModel
+                    )
+                } else if let first = group.streakMilestones.first {
+                    ReactionBar(
+                        itemId: first.id, itemType: "streak_milestone",
+                        currentUserId: currentUserId, viewModel: viewModel
+                    )
+                }
+                Spacer()
+                if let onComment {
+                    Button(action: onComment) {
+                        Image(systemName: "bubble.left")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Color(hex: "8FAF94"))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -281,5 +306,17 @@ struct GroupedCheckinCard: View {
                 .fill(Color(hex: "243828"))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1))
         )
+    }
+
+    private func relativeTimestamp(_ iso: String) -> String {
+        guard !iso.isEmpty else { return "" }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = f.date(from: iso) ?? { f.formatOptions = [.withInternetDateTime]; return f.date(from: iso) }()
+        else { return "" }
+        let diff = Date().timeIntervalSince(date)
+        if diff < 3600 { return "\(max(1, Int(diff / 60)))m ago" }
+        if diff < 86400 { return "\(Int(diff / 3600))h ago" }
+        return "\(Int(diff / 86400))d ago"
     }
 }
