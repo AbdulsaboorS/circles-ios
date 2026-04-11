@@ -11,6 +11,7 @@ struct MomentFeedItem: Identifiable, Sendable {
     let circleIds: [UUID]   // all circles this photo was posted to
     let circleNames: [String] // all circle names (parallel to circleIds)
     let photoUrl: String
+    let secondaryPhotoUrl: String?
     let caption: String?
     let postedAt: String  // ISO8601 string, per project date-as-string convention
     let isOnTime: Bool

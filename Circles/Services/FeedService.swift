@@ -29,13 +29,15 @@ private struct CircleMomentRow: Decodable {
     let circleId: UUID
     let userId: UUID
     let photoUrl: String
+    let secondaryPhotoUrl: String?
     let caption: String?
     let postedAt: String
     let isOnTime: Bool
 
     enum CodingKeys: String, CodingKey {
         case id; case circleId = "circle_id"; case userId = "user_id"
-        case photoUrl = "photo_url"; case caption
+        case photoUrl = "photo_url"; case secondaryPhotoUrl = "secondary_photo_url"
+        case caption
         case postedAt = "posted_at"; case isOnTime = "is_on_time"
     }
 }
@@ -161,6 +163,7 @@ final class FeedService {
             let userName = nameMap[first.userId] ?? String(first.userId.uuidString.prefix(8))
             let dedupedCircleIds = rowGroup.map { $0.circleId }
             let dedupedCircleNames = rowGroup.map { circleNameMap[$0.circleId] ?? "" }
+            let resolved = resolvedPhotoURLs[first.id]
             return .moment(MomentFeedItem(
                 id: first.id,
                 circleId: first.circleId,
@@ -169,7 +172,8 @@ final class FeedService {
                 circleName: circleNameMap[first.circleId] ?? "",
                 circleIds: dedupedCircleIds,
                 circleNames: dedupedCircleNames,
-                photoUrl: resolvedPhotoURLs[first.id] ?? first.photoUrl,
+                photoUrl: resolved?.primary ?? first.photoUrl,
+                secondaryPhotoUrl: resolved?.secondary,
                 caption: first.caption,
                 postedAt: first.postedAt,
                 isOnTime: first.isOnTime
@@ -273,11 +277,17 @@ final class FeedService {
 
     /// Resolves signed photo URLs. Serial today; Swift 6 region-isolation prevents naive TaskGroup
     /// use with @MainActor services — revisit when MomentService is nonisolated.
-    private func resolveMomentPhotoURLsConcurrent(for rows: [CircleMomentRow]) async throws -> [UUID: String] {
-        var result = [UUID: String]()
+    private func resolveMomentPhotoURLsConcurrent(for rows: [CircleMomentRow]) async throws -> [UUID: (primary: String, secondary: String?)] {
+        var result = [UUID: (primary: String, secondary: String?)]()
         result.reserveCapacity(rows.count)
         for row in rows {
-            result[row.id] = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
+            let primary = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
+            let secondary: String? = if let sec = row.secondaryPhotoUrl {
+                try? await MomentService.shared.resolveMomentPhotoURL(from: sec)
+            } else {
+                nil
+            }
+            result[row.id] = (primary: primary, secondary: secondary)
         }
         return result
     }

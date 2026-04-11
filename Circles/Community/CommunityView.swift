@@ -63,11 +63,11 @@ struct CommunityView: View {
             }
             .fullScreenCover(isPresented: $showGlobalCamera) {
                 if let circleId = viewModel.circles.first?.id {
-                    MomentCameraView(circleId: circleId) { image in
+                    MomentCameraView(circleId: circleId) { composited, primary, secondary in
                         showGlobalCamera = false
                         Task { @MainActor in
                             await Task.yield()
-                            draftMoment = MomentDraft(image: image)
+                            draftMoment = MomentDraft(image: composited, primaryImage: primary, secondaryImage: secondary)
                         }
                     }
                 }
@@ -92,7 +92,8 @@ struct CommunityView: View {
                         guard let userId = auth.session?.user.id else { return }
                         let circleIds = viewModel.circles.map { $0.id }
                         let result = try await MomentService.shared.postMomentToAllCircles(
-                            image: draft.image,
+                            primaryImage: draft.primaryImage,
+                            secondaryImage: draft.secondaryImage,
                             circleIds: circleIds,
                             userId: userId,
                             caption: caption,

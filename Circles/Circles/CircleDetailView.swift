@@ -147,11 +147,11 @@ struct CircleDetailView: View {
         }
         .onDisappear { windowTimer?.invalidate() }
         .fullScreenCover(isPresented: $showCamera) {
-            MomentCameraView(circleId: circle.id) { image in
+            MomentCameraView(circleId: circle.id) { composited, primary, secondary in
                 showCamera = false
                 Task { @MainActor in
                     await Task.yield()
-                    draftMoment = MomentDraft(image: image)
+                    draftMoment = MomentDraft(image: composited, primaryImage: primary, secondaryImage: secondary)
                 }
             }
         }
@@ -165,7 +165,8 @@ struct CircleDetailView: View {
                         ISO8601DateFormatter().string(from: $0)
                     }
                     let result = try await MomentService.shared.postMomentToAllCircles(
-                        image: draft.image,
+                        primaryImage: draft.primaryImage,
+                        secondaryImage: draft.secondaryImage,
                         circleIds: postCircleIds,
                         userId: userId,
                         caption: caption,

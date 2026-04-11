@@ -4,7 +4,7 @@ import Combine
 
 struct MomentCameraView: View {
     let circleId: UUID
-    let onCapture: (UIImage) -> Void
+    let onCapture: (UIImage, UIImage, UIImage) -> Void  // (composited, primary, secondary)
     @Environment(\.dismiss) private var dismiss
     @State private var cameraManager = CameraManager()
     @State private var flashOpacity: Double = 0
@@ -43,8 +43,10 @@ struct MomentCameraView: View {
             updateWindowCountdown()
         }
         .onChange(of: cameraManager.capturedImage) { _, image in
-            if let image {
-                onCapture(image)
+            if let image,
+               let primary = cameraManager.capturedPrimaryImage,
+               let secondary = cameraManager.capturedSecondaryImage {
+                onCapture(image, primary, secondary)
             }
         }
         .onDisappear {

@@ -9,6 +9,15 @@ struct MomentFeedCard: View {
     var onComment: (() -> Void)? = nil
 
     @State private var circleListExpanded = false
+    @State private var swapped = false
+
+    private var mainPhotoUrl: String {
+        swapped ? (item.secondaryPhotoUrl ?? item.photoUrl) : item.photoUrl
+    }
+    private var pipPhotoUrl: String? {
+        guard let secondary = item.secondaryPhotoUrl else { return nil }
+        return swapped ? item.photoUrl : secondary
+    }
 
     var isOwnPost: Bool { item.userId == currentUserId }
     var isLocked: Bool { !hasPostedToday && !isOwnPost }
@@ -135,18 +144,38 @@ struct MomentFeedCard: View {
     }
 
     private var momentImage: some View {
-        CachedAsyncImage(url: item.photoUrl) { image in
-            image
-                .resizable()
-                .scaledToFill()
-                .blur(radius: isLocked ? 20 : 0)
-        } placeholder: {
-            Color(hex: "243828")
-                .overlay(ProgressView().tint(Color(hex: "D4A240")))
+        ZStack(alignment: .bottomLeading) {
+            CachedAsyncImage(url: mainPhotoUrl) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: isLocked ? 20 : 0)
+            } placeholder: {
+                Color(hex: "243828")
+                    .overlay(ProgressView().tint(Color(hex: "D4A240")))
+            }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(3.0 / 4.0, contentMode: .fill)
+            .clipped()
+
+            if let pipUrl = pipPhotoUrl, !isLocked {
+                CachedAsyncImage(url: pipUrl) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Color(hex: "243828")
+                }
+                .frame(width: 80, height: 107)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.9), lineWidth: 2)
+                )
+                .padding(10)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.25)) { swapped.toggle() }
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .aspectRatio(3.0 / 4.0, contentMode: .fill)
-        .clipped()
     }
 
     private var timestampLabel: String {

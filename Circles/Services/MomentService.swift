@@ -33,11 +33,12 @@ final class MomentService {
     /// Upload a composited UIImage to Supabase Storage bucket "circle-moments".
     /// Uses a shared/ path so the same object can be inserted into multiple circle rows.
     /// Returns the storage path string of the uploaded file.
-    func uploadPhoto(image: UIImage, userId: UUID) async throws -> String {
+    func uploadPhoto(image: UIImage, userId: UUID, suffix: String = "") async throws -> String {
         guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
             throw MomentError.imageConversionFailed
         }
-        let filename = "shared/\(userId.uuidString.lowercased())_\(Self.todayDateString()).jpg"
+        let suffixPart = suffix.isEmpty ? "" : "_\(suffix)"
+        let filename = "shared/\(userId.uuidString.lowercased())_\(Self.todayDateString())\(suffixPart).jpg"
         await refreshAuthSessionIfPossible(reason: "moment upload")
         print("[MomentService] upload starting path=\(filename) bytes=\(jpegData.count)")
         try await client.storage
@@ -95,7 +96,8 @@ final class MomentService {
     /// Upload photo once and insert a circle_moments row for each circle.
     /// Returns a MomentPostResult with succeeded inserts and any failed circleIds.
     func postMomentToAllCircles(
-        image: UIImage,
+        primaryImage: UIImage,
+        secondaryImage: UIImage?,
         circleIds: [UUID],
         userId: UUID,
         caption: String?,
@@ -106,7 +108,12 @@ final class MomentService {
         }
 
         print("[MomentService] multi-circle post start circles=\(circleIds.count) userId=\(userId)")
-        let photoUrl = try await uploadPhoto(image: image, userId: userId)
+        let photoUrl = try await uploadPhoto(image: primaryImage, userId: userId, suffix: "primary")
+        let secondaryUrl: String? = if let secondary = secondaryImage {
+            try? await uploadPhoto(image: secondary, userId: userId, suffix: "secondary")
+        } else {
+            nil
+        }
         let isOnTime = Self.computeIsOnTime(windowStart: windowStart)
 
         var succeeded: [CircleMoment] = []
@@ -123,6 +130,9 @@ final class MomentService {
                 ]
                 if let caption = caption, !caption.isEmpty {
                     row["caption"] = .string(caption)
+                }
+                if let secondary = secondaryUrl {
+                    row["secondary_photo_url"] = .string(secondary)
                 }
 
                 let moment: CircleMoment = try await client
@@ -187,6 +197,7 @@ final class MomentService {
                     circleId: moment.circleId,
                     userId: moment.userId,
                     photoUrl: renderableURL,
+                    secondaryPhotoUrl: moment.secondaryPhotoUrl,
                     caption: moment.caption,
                     postedAt: moment.postedAt,
                     isOnTime: moment.isOnTime

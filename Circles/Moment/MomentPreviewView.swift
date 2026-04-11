@@ -3,7 +3,9 @@ import Combine
 
 struct MomentDraft: Identifiable {
     let id = UUID()
-    let image: UIImage
+    let image: UIImage          // composited for preview
+    let primaryImage: UIImage   // raw primary for upload
+    let secondaryImage: UIImage // raw secondary for upload
 }
 
 struct MomentPreviewView: View {
