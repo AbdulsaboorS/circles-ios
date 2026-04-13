@@ -1,213 +1,371 @@
 import SwiftUI
 
-// MARK: - MyCirclesView
+// MARK: - MyCirclesView (Focused Stage)
 
 struct MyCirclesView: View {
     let circles: [Circle]
     let onCreateCircle: () -> Void
     let onJoinCircle: () -> Void
 
+    @State private var centeredId: UUID?
+
+    /// Sorted circles: active (highest streak, then alphabetical) first
+    private var sortedCircles: [Circle] {
+        circles.sorted { a, b in
+            if a.groupStreakDaysSafe != b.groupStreakDaysSafe {
+                return a.groupStreakDaysSafe > b.groupStreakDaysSafe
+            }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+    }
+
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 20) {
-                if !circles.isEmpty { featuredGrid }
-                if circles.count > 3 { overflowGrid }
-                ctaButtons.padding(.top, 4)
+        VStack(spacing: 0) {
+            // Stage carousel
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 24) {
+                    ForEach(sortedCircles) { circle in
+                        NavigationLink(destination: CircleDetailView(circle: circle)) {
+                            CircleVignetteCard(circle: circle)
+                        }
+                        .buttonStyle(.plain)
+                        .id(circle.id)
+                    }
+                }
+                .scrollTargetLayout()
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 32)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $centeredId)
+            .contentMargins(.horizontal, 36, for: .scrollContent)
+            .sensoryFeedback(.impact(weight: .medium), trigger: centeredId)
+
+            Spacer(minLength: 0)
+
+            // Gem Bar — pinned above tab bar
+            GemBar(
+                circles: sortedCircles,
+                centeredId: $centeredId,
+                onCreateCircle: onCreateCircle,
+                onJoinCircle: onJoinCircle
+            )
+            .padding(.bottom, 8)
         }
     }
+}
 
-    // MARK: - Featured grid (first 3 circles)
+// MARK: - Gem Bar
 
-    private var featuredGrid: some View {
-        HStack(alignment: .top, spacing: 12) {
-            NavigationLink(destination: CircleDetailView(circle: circles[0])) {
-                FeaturedCircleCard(circle: circles[0])
-            }
-            .buttonStyle(.plain)
+private struct GemBar: View {
+    let circles: [Circle]
+    @Binding var centeredId: UUID?
+    let onCreateCircle: () -> Void
+    let onJoinCircle: () -> Void
 
-            VStack(spacing: 12) {
-                if circles.count > 1 {
-                    NavigationLink(destination: CircleDetailView(circle: circles[1])) {
-                        SmallCircleCard(circle: circles[1])
+    @State private var showActionSheet = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(circles) { circle in
+                let isActive = circle.id == centeredId
+                Button {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        centeredId = circle.id
                     }
-                    .buttonStyle(.plain)
-                }
-                if circles.count > 2 {
-                    NavigationLink(destination: CircleDetailView(circle: circles[2])) {
-                        SmallCircleCard(circle: circles[2])
+                } label: {
+                    ZStack {
+                        // Active glow ring
+                        if isActive {
+                            SwiftUI.Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [Color.msGold.opacity(0.25), Color.clear],
+                                        center: .center,
+                                        startRadius: 8,
+                                        endRadius: 20
+                                    )
+                                )
+                                .frame(width: 38, height: 38)
+                        }
+
+                        // Gem icon
+                        Image(systemName: CircleIconPicker.icon(for: circle.name))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(isActive ? Color.msGold : Color.msTextMuted.opacity(0.6))
+                            .frame(width: 28, height: 28)
+                            .background(
+                                SwiftUI.Circle()
+                                    .fill(Color.msBackground.opacity(0.8))
+                            )
+                            .overlay(
+                                SwiftUI.Circle()
+                                    .stroke(
+                                        isActive ? Color.msGold.opacity(0.6) : Color.msGold.opacity(0.12),
+                                        lineWidth: isActive ? 1.5 : 1
+                                    )
+                            )
                     }
-                    .buttonStyle(.plain)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .frame(height: 280)
-    }
-
-    // MARK: - Overflow grid
-
-    private var overflowGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            ForEach(circles.dropFirst(3)) { circle in
-                NavigationLink(destination: CircleDetailView(circle: circle)) {
-                    SmallCircleCard(circle: circle).frame(height: 134)
+                    .frame(width: 38, height: 38)
                 }
                 .buttonStyle(.plain)
+                .animation(.easeInOut(duration: 0.25), value: isActive)
             }
-        }
-    }
 
-    // MARK: - CTA Buttons
-
-    private var ctaButtons: some View {
-        VStack(spacing: 10) {
-            Button(action: onCreateCircle) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus").font(.system(size: 15, weight: .semibold))
-                    Text("Create a Circle").font(.system(size: 16, weight: .semibold))
-                }
-                .foregroundStyle(Color(hex: "1A2E1E"))
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .background(Color(hex: "D4A240"), in: Capsule())
-                .shadow(color: Color(hex: "D4A240").opacity(0.35), radius: 12, x: 0, y: 4)
+            // Permanent gold '+' gem
+            Button {
+                showActionSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(hex: "1A2E1E"))
+                    .frame(width: 28, height: 28)
+                    .background(Color.msGold, in: SwiftUI.Circle())
+                    .shadow(color: Color.msGold.opacity(0.3), radius: 6)
             }
             .buttonStyle(.plain)
-
-            Button(action: onJoinCircle) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.badge.plus").font(.system(size: 15, weight: .semibold))
-                    Text("Join with Code").font(.system(size: 16, weight: .semibold))
-                }
-                .foregroundStyle(Color(hex: "D4A240"))
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .overlay(Capsule().stroke(Color(hex: "D4A240"), lineWidth: 1.5))
+            .confirmationDialog("Expand the Brotherhood", isPresented: $showActionSheet) {
+                Button("Create a Circle") { onCreateCircle() }
+                Button("Join with Invite Code") { onJoinCircle() }
+                Button("Cancel", role: .cancel) {}
             }
-            .buttonStyle(.plain)
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.msGold.opacity(0.1), lineWidth: 1)
+                )
+        )
     }
 }
 
-// MARK: - FeaturedCircleCard
+// MARK: - Vignette Card (Stage Model)
 
-private struct FeaturedCircleCard: View {
+private struct CircleVignetteCard: View {
     let circle: Circle
+
+    private var iconName: String {
+        CircleIconPicker.icon(for: circle.name)
+    }
+
+    private var cardGradient: [Color] {
+        CircleColorDeriver.gradient(for: circle.name)
+    }
+
+    private var accentColor: Color {
+        CircleColorDeriver.accent(for: circle.name)
+    }
 
     var body: some View {
         ZStack {
-            UnevenRoundedRectangle(
-                topLeadingRadius: 28, bottomLeadingRadius: 28,
-                bottomTrailingRadius: 40, topTrailingRadius: 28
-            )
-            .fill(Color(hex: "243828"))
-            .overlay(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 28, bottomLeadingRadius: 28,
-                    bottomTrailingRadius: 40, topTrailingRadius: 28
+            // Layer 1: Background gradient
+            RoundedRectangle(cornerRadius: 28)
+                .fill(
+                    LinearGradient(
+                        colors: cardGradient,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
-                .stroke(Color(hex: "D4A240").opacity(0.35), lineWidth: 1.5)
+
+            // Layer 2: Atmospheric radial
+            RadialGradient(
+                colors: [accentColor.opacity(0.08), .clear],
+                center: .center,
+                startRadius: 20,
+                endRadius: 250
             )
 
-            VStack(spacing: 10) {
+            // Layer 3: Content
+            VStack(spacing: 0) {
                 Spacer(minLength: 0)
 
-                Text(circle.name)
-                    .font(.system(size: 20, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color(hex: "F0EAD6"))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-                    .padding(.horizontal, 12)
-
-                MemberDots(circleId: circle.id, count: 5, dotSize: 13)
-
-                Image(systemName: CircleIconPicker.icon(for: circle.name))
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(Color(hex: "D4A240"))
-                    .shadow(color: Color(hex: "D4A240").opacity(0.5), radius: 6)
-
-                if circle.groupStreakDaysSafe > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color(hex: "D4A240"))
-                        Text("\(circle.groupStreakDaysSafe) day streak")
-                            .font(.system(size: 11, weight: .medium))
-                            .italic()
-                            .foregroundStyle(Color(hex: "8FAF94"))
-                    }
-                } else if let desc = circle.description, !desc.isEmpty {
-                    Text(desc)
-                        .font(.system(size: 11, design: .serif))
-                        .italic()
-                        .foregroundStyle(Color(hex: "8FAF94").opacity(0.8))
+                // Name + Artifact composite — name sits behind
+                ZStack {
+                    // Ghost name — massive, behind
+                    Text(circle.name)
+                        .font(.system(size: 48, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary.opacity(0.08))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 8)
+
+                    // Artifact
+                    artifactView
                 }
 
-                Spacer(minLength: 0)
+                Spacer().frame(height: 20)
+
+                // Circle name — readable
+                Text(circle.name)
+                    .font(.system(size: 28, weight: .semibold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 24)
+
+                Spacer().frame(height: 20)
+
+                // Stats bar
+                statsBar
+
+                // Description
+                if let desc = circle.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.system(size: 13, design: .serif))
+                        .italic()
+                        .foregroundStyle(Color.msTextMuted)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, 32)
+                        .padding(.top, 14)
+                }
+
+                Spacer(minLength: 24)
             }
-            .padding(.vertical, 20)
+
+            // Layer 4: Gradient border
+            RoundedRectangle(cornerRadius: 28)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.msGold.opacity(0.35),
+                            accentColor.opacity(0.15),
+                            Color.msGold.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxHeight: .infinity)
+        .containerRelativeFrame(.horizontal, count: 1, spacing: 0)
+        .clipShape(RoundedRectangle(cornerRadius: 28))
+        // Stage focus: center = hero, neighbors = dimmed/scaled/blurred
+        .scrollTransition { content, phase in
+            content
+                .opacity(1.0 - abs(phase.value) * 0.6)
+                .scaleEffect(1.0 - abs(phase.value) * 0.2)
+                .blur(radius: abs(phase.value) * 15)
+        }
+        .padding(.vertical, 16)
+    }
+
+    // MARK: - Artifact
+
+    private var artifactView: some View {
+        ZStack {
+            // Outer glow ring
+            SwiftUI.Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            accentColor.opacity(0.2),
+                            accentColor.opacity(0.04),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 5,
+                        endRadius: 80
+                    )
+                )
+                .frame(width: 160, height: 160)
+
+            // Inner glow core
+            SwiftUI.Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.msGold.opacity(0.3), Color.clear],
+                        center: .center,
+                        startRadius: 5,
+                        endRadius: 50
+                    )
+                )
+                .frame(width: 100, height: 100)
+
+            // Icon
+            Image(systemName: iconName)
+                .font(.system(size: 80, weight: .light))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.msGold, accentColor],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color.msGold.opacity(0.5), radius: 16)
+                .shadow(color: accentColor.opacity(0.3), radius: 8)
+        }
+    }
+
+    // MARK: - Stats Bar
+
+    private var statsBar: some View {
+        HStack(spacing: 16) {
+            if circle.groupStreakDaysSafe > 0 {
+                HStack(spacing: 5) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.msGold)
+                    Text("\(circle.groupStreakDaysSafe) day streak")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.msTextPrimary)
+                }
+            }
+
+            HStack(spacing: 5) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.msTextMuted)
+                MemberDots(circleId: circle.id, count: 5, dotSize: 12)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 }
 
-// MARK: - SmallCircleCard
+// MARK: - Circle Color Deriver
 
-private struct SmallCircleCard: View {
-    let circle: Circle
+enum CircleColorDeriver {
+    private static func nameHash(_ name: String) -> Int {
+        abs(name.unicodeScalars.reduce(0) { $0 &+ Int($1.value) })
+    }
 
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(hex: "1E3122"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color(hex: "D4A240").opacity(0.18), lineWidth: 1.5)
-                )
+    /// Returns a 2-color gradient based on the circle name.
+    static func gradient(for name: String) -> [Color] {
+        let palettes: [[Color]] = [
+            [Color(hex: "1A2E1E"), Color(hex: "243828")],   // deep forest
+            [Color(hex: "1E2A30"), Color(hex: "1A3040")],   // midnight sapphire
+            [Color(hex: "2A1E1E"), Color(hex: "3A2828")],   // dark ruby
+            [Color(hex: "1E2420"), Color(hex: "2A3830")],   // emerald shadow
+            [Color(hex: "2A2818"), Color(hex: "3A3620")],   // dark amber
+            [Color(hex: "201E2A"), Color(hex: "2C2838")],   // twilight purple
+        ]
+        return palettes[nameHash(name) % palettes.count]
+    }
 
-            VStack(spacing: 6) {
-                Text(circle.name)
-                    .font(.system(size: 14, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color(hex: "F0EAD6"))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .padding(.horizontal, 8)
-
-                MemberDots(circleId: circle.id, count: 3, dotSize: 10)
-
-                Image(systemName: CircleIconPicker.icon(for: circle.name))
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color(hex: "D4A240"))
-                    .shadow(color: Color(hex: "D4A240").opacity(0.45), radius: 4)
-
-                if circle.groupStreakDaysSafe > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(Color(hex: "D4A240"))
-                        Text("\(circle.groupStreakDaysSafe)")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color(hex: "8FAF94"))
-                    }
-                }
-            }
-            .padding(.vertical, 14)
-        }
-        .frame(maxWidth: .infinity)
+    /// Returns a unique accent color for glow/tint per circle.
+    static func accent(for name: String) -> Color {
+        let accents: [Color] = [
+            Color(hex: "4A9E6B"),   // emerald
+            Color(hex: "5B8EC9"),   // sapphire
+            Color(hex: "C96B5B"),   // ruby
+            Color(hex: "8B6BBF"),   // amethyst
+            Color(hex: "D4A240"),   // gold
+            Color(hex: "5BBFB0"),   // teal
+        ]
+        return accents[nameHash(name) % accents.count]
     }
 }
 
 // MARK: - MemberDots
 
-private struct MemberDots: View {
+struct MemberDots: View {
     let circleId: UUID
     let count: Int
     let dotSize: CGFloat
@@ -238,7 +396,7 @@ private struct MemberDots: View {
 
 // MARK: - CircleIconPicker
 
-private enum CircleIconPicker {
+enum CircleIconPicker {
     private static let icons = [
         "moon.stars.fill", "book.fill", "hands.sparkles.fill",
         "heart.fill", "star.fill", "sun.max.fill",
@@ -262,15 +420,15 @@ struct MyCirclesEmptyView: View {
             Spacer()
             Image(systemName: "person.2.fill")
                 .font(.system(size: 52))
-                .foregroundStyle(Color(hex: "D4A240").opacity(0.65))
+                .foregroundStyle(Color.msGold.opacity(0.65))
 
             VStack(spacing: 8) {
                 Text("Your Circles")
                     .font(.system(size: 22, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color(hex: "F0EAD6"))
+                    .foregroundStyle(Color.msTextPrimary)
                 Text("Create or join a circle to begin your journey.")
                     .font(.appSubheadline)
-                    .foregroundStyle(Color(hex: "8FAF94"))
+                    .foregroundStyle(Color.msTextMuted)
                     .multilineTextAlignment(.center)
             }
 
@@ -282,16 +440,16 @@ struct MyCirclesEmptyView: View {
                     }
                     .foregroundStyle(Color(hex: "1A2E1E"))
                     .frame(maxWidth: .infinity).frame(height: 54)
-                    .background(Color(hex: "D4A240"), in: Capsule())
+                    .background(Color.msGold, in: Capsule())
                 }
                 .buttonStyle(.plain)
 
                 Button(action: onJoinCircle) {
                     Text("Join with Code")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color(hex: "D4A240"))
+                        .foregroundStyle(Color.msGold)
                         .frame(maxWidth: .infinity).frame(height: 54)
-                        .overlay(Capsule().stroke(Color(hex: "D4A240"), lineWidth: 1.5))
+                        .overlay(Capsule().stroke(Color.msGold, lineWidth: 1.5))
                 }
                 .buttonStyle(.plain)
             }

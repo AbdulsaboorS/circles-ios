@@ -1,81 +1,78 @@
-# Handoff — 2026-04-13 (Session 13 — loading, caption, preview fixes)
+# Handoff — 2026-04-13 (Session 14 — Caption fix + Circles Stage Carousel)
 
 ## Current Build State
 **BUILD SUCCEEDED — zero errors.**
-Commit: `40ff85f`
+Commit: pending
 
 ---
 
 ## What Was Done This Session
 
-### Fix 1 — Own-moment strip: BeReal-style PiP (not side-by-side)
-- `CommunityView.ownMomentStrip`: replaced 2 side-by-side thumbnails with main photo (160x213) + PiP overlay (52x69) at top-left, matching feed card style
+### Fix 1 — Caption optimistic update propagation
+- Root cause: `CommunityView` strip didn't re-render after `feedViewModel.items` was updated via `updateMomentCaption` while fullScreenCover was active
+- Fix: Added `onCaptionSaved` callback from `MomentFullScreenView` → `CommunityView`, triggers `momentStripId = UUID()` which forces strip re-render via `.id(momentStripId)`
+- Files: `MomentFullScreenView.swift` (added `onCaptionSaved` param + call), `CommunityView.swift` (added `@State momentStripId`, passes callback, `.id()` on strip)
+- **Status: Awaiting user test** (user deferred rebuild)
 
-### Fix 2 — Caption editing (3 root causes fixed)
-1. **Missing UPDATE RLS policy** — `circle_moments` had no UPDATE policy → caption silently never saved. Added via Supabase MCP: `"Users can update own moments"` policy.
-2. **Swift Codable nil omission** — `CaptionUpdate(caption: String?)` encodes nil as absent key (not JSON null). Fixed `updateCaption()` to use `["caption": AnyJSON]` with explicit `.null`.
-3. **Stale UI after save** — was calling `viewModel.refresh()` (async network). Fixed with `FeedViewModel.updateMomentCaption(momentId:caption:)` — optimistic in-memory update, instant.
+### Feature — Circles Page: "Focused Stage" Carousel Redesign
+Complete rewrite of `MyCirclesView.swift` — grid → horizontal paging carousel.
 
-### Fix 3 — Loading latency & gate flicker
-- Spinner only shows when `feedViewModel.items.isEmpty` (not on every background reload)
-- `DailyMomentService.load()` now has a daily cache (`lastLoadedDate`) — Aladhan API called once per day max
-- Gate flicker fixed: `hasPostedToday` set BEFORE `windowStart` in batched state update
-- `.task` in `CommunityView`: `loadGlobalFeed` and `DailyMomentService.load` now run concurrently with `async let`
-- `FeedViewModel.refresh()` no longer clears `items = []` before reload (shows stale data)
+**Batch A (Stage Layout + Gem Bar) — COMPLETE:**
+- `ScrollView(.horizontal)` + `LazyHStack` + `.scrollTargetBehavior(.viewAligned)` + `.scrollPosition(id:)`
+- Stage focus via `.scrollTransition`: center = 100% scale/opacity, neighbors = 80% scale, 15pt blur, 40% opacity
+- Card spacing: 24pt gaps between cards, 36pt horizontal content margins
+- Snap haptic: `.sensoryFeedback(.impact(weight: .medium), trigger: centeredId)`
+- Active-first sorting: highest streak → alphabetical
+- **Gem Bar**: horizontal row of circle icons pinned below carousel, above tab bar
+  - Active gem has gold glow ring + gold border (focused state)
+  - Tap gem → `withAnimation` snaps carousel to that circle
+  - Gold `+` gem at far right → `confirmationDialog` for create/join
+  - Bar uses `.ultraThinMaterial` capsule background
 
-### Fix 4 — Mock moments
-- Added UPDATE RLS (Supabase MCP)
-- Inserted 3 mock profiles (Omar, Yusuf, Fatima) and circle_members via replica role bypass
-- First insert was UTC April 12 → FeedService today window was April 13 UTC → invisible
-- Re-inserted for April 13 UTC (now visible in feed)
+**Prior Batches (from earlier in session, superseded by Stage model):**
+- Batch 1-3 carousel infrastructure was built then pivoted to Stage model per user design critique
+- Empty Pedestal card removed (replaced by Gem Bar `+` gem)
+- Toolbar `+` menu removed from `CommunityView` (line replaced with comment)
 
-### Fix 5 — MomentPreviewView: PiP top-left + tap-to-swap
-- `MomentDraft` struct: removed `image` (composited) field, `secondaryImage` is now `UIImage?`
-- `MomentPreviewView`: replaced single composited `Image` with SwiftUI ZStack — main photo + PiP overlay at top-left (matches feed card)
-- Added `@State var swapped = false` + `onTapGesture` on PiP
-- `onPost` signature changed from `(String?)` → `(String?, Bool)` where Bool = swapped
-- `CommunityView` and `CircleDetailView` both updated — swap Bool passed to `postMomentToAllCircles` with primary/secondary order flipped accordingly
+**Vignette Card Design (carried forward):**
+- 80pt artifact icon with dual-layer radial glow (accent + gold)
+- Icon uses `LinearGradient` (gold → per-circle accent)
+- Ghost name at 48pt/8% opacity behind artifact (depth layering)
+- Readable 28pt name below artifact
+- 6 accent colors (emerald, sapphire, ruby, amethyst, gold, teal) via `CircleColorDeriver`
+- 6 dark gradient backgrounds per circle
+- Gradient border stroke
+- Stats bar in `.ultraThinMaterial` capsule
 
 ---
 
 ## Status: Pending User QA
 
-All fixes built. User needs to test:
-- [ ] Caption edits save and show immediately on strip (no tab switch needed)
-- [ ] 3 mock moments visible in feed (Omar, Yusuf, Fatima) — pull to refresh
-- [ ] MomentPreviewView shows PiP at top-left (not bottom-left)
-- [ ] Tap PiP in preview to swap before posting
-- [ ] No gate flicker when app loads (hasPostedToday preserved)
-- [ ] No blank screen when feed reloads (stale data stays visible)
+### Deferred from Session 13
+- [ ] Caption strip updates immediately after save + dismiss (fix applied this session, not yet tested)
+
+### New — Circles Stage Carousel
+- [ ] Carousel swipes horizontally with stage focus (center hero, neighbors dimmed/blurred/scaled)
+- [ ] Snap haptic fires on each card settle
+- [ ] Gem Bar visible below carousel with circle icons
+- [ ] Active gem shows gold glow/border matching centered card
+- [ ] Tap gem snaps carousel to that circle
+- [ ] Gold `+` gem shows create/join dialog
+- [ ] Tapping a circle card navigates to CircleDetailView
 
 ---
 
-## Mock Data in Supabase
-3 mock moments in circle `07d62410-f160-4fc3-9928-dca465300c01` (April 13 UTC):
-- Omar Abdullah — dual cam, on-time, caption "Alhamdulillah for this morning"
-- Yusuf Ibrahim — single cam, late, no caption
-- Fatima Al-Rashid — dual cam, on-time, caption "Barakallahu feek"
+## Remaining Batches (Next Session)
 
-Using real photo_url from the user's own moment (images load correctly).
+### Batch B: Glass Artifact + Dynamic Shadow
+- Replace flat icon with multi-layered glass artifact (frosted `.ultraThinMaterial` shell + glowing amber core)
+- Shadow offset tied to scroll phase (shifts left/right simulating 3D light source)
+- Keep frosted shell semi-transparent so core bleeds through
 
-Cleanup SQL (run after testing):
-```sql
-DELETE FROM circle_moments WHERE user_id IN (
-  'aaaaaaaa-0001-0001-0001-000000000001',
-  'aaaaaaaa-0002-0002-0002-000000000002',
-  'cccccccc-0001-0001-0001-000000000001'
-);
-DELETE FROM circle_members WHERE user_id IN (
-  'aaaaaaaa-0001-0001-0001-000000000001',
-  'aaaaaaaa-0002-0002-0002-000000000002',
-  'cccccccc-0001-0001-0001-000000000001'
-);
-DELETE FROM profiles WHERE id IN (
-  'aaaaaaaa-0001-0001-0001-000000000001',
-  'aaaaaaaa-0002-0002-0002-000000000002',
-  'cccccccc-0001-0001-0001-000000000001'
-);
-```
+### Batch C: Background Morph + Final Polish
+- Parent background gradient morphs to match centered circle's palette
+- Crossfade animation on `.scrollPosition` change
+- Final visual QA pass
 
 ---
 
@@ -83,13 +80,14 @@ DELETE FROM profiles WHERE id IN (
 
 | File | Change |
 |------|--------|
-| `CommunityView.swift` | Strip → BeReal PiP style; parallel .task; spinner guard; new MomentDraft init |
-| `FeedViewModel.swift` | `updateMomentCaption()` added; `refresh()` no longer clears items |
-| `MomentFullScreenView.swift` | `saveCaption()` → optimistic update; error shown in UI |
-| `MomentService.swift` | `updateCaption()` → AnyJSON with `.null`; logging added |
-| `DailyMomentService.swift` | Daily cache; batched state update (hasPostedToday before windowStart) |
-| `MomentPreviewView.swift` | PiP top-left overlay + swap; `MomentDraft` simplified; `onPost(caption:swapped:)` |
-| `CircleDetailView.swift` | Updated to new MomentDraft + MomentPreviewView signatures |
+| `MyCirclesView.swift` | Complete rewrite: grid → Stage carousel + Gem Bar. `CircleColorDeriver` made `enum` (internal). `MemberDots`/`CircleIconPicker` made internal. |
+| `MomentFullScreenView.swift` | Added `onCaptionSaved` callback param, called after optimistic caption update |
+| `CommunityView.swift` | Added `@State momentStripId` + `.id()` on strip; passes `onCaptionSaved` to fullScreenCover; removed toolbar `+` menu |
+
+## Key Architecture Notes
+- `CircleColorDeriver` is now `enum` (internal access) — provides `gradient(for:)` and `accent(for:)` used by vignette card and potentially by background morph in Batch C
+- `CircleIconPicker` is now `enum` (internal access) — used by both vignette card and Gem Bar
+- Gem Bar uses `@Binding var centeredId: UUID?` to sync with carousel's `.scrollPosition`
 
 ## Simulator UDID
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)

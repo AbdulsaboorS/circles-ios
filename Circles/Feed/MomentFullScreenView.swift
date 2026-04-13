@@ -6,6 +6,7 @@ struct MomentFullScreenView: View {
     let profile: Profile?
     var viewModel: FeedViewModel?
     var scrollToComments: Bool = false
+    var onCaptionSaved: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var swapped = false
@@ -297,6 +298,7 @@ struct MomentFullScreenView: View {
             captionFocused = false
             // Optimistic in-memory update — instant, no network round-trip
             viewModel?.updateMomentCaption(momentId: item.id, caption: newCaption)
+            onCaptionSaved?()
         } catch {
             errorMessage = "Couldn't save caption. Try again."
             print("[MomentFullScreenView] saveCaption failed: \(error)")

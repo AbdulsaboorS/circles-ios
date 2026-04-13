@@ -12,6 +12,7 @@ struct CommunityView: View {
     @State private var draftMoment: MomentDraft?
     @State private var pendingFeedRefresh = false
     @State private var expandedOwnMoment: MomentFeedItem? = nil
+    @State private var momentStripId = UUID()
     private var momentService = DailyMomentService.shared
 
     var body: some View {
@@ -33,25 +34,7 @@ struct CommunityView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            viewModel.showCreateSheet = true
-                        } label: {
-                            Label("Create Circle", systemImage: "plus.circle")
-                        }
-                        Button {
-                            viewModel.showJoinSheet = true
-                        } label: {
-                            Label("Join Circle", systemImage: "person.badge.plus")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundStyle(Color.msGold)
-                    }
-                }
-            }
+            // Toolbar + removed — create/join now lives in the carousel's Empty Pedestal card
             .task {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadCircles(userId: userId)
@@ -79,7 +62,8 @@ struct CommunityView: View {
                     item: moment,
                     currentUserId: auth.session?.user.id ?? UUID(),
                     profile: feedViewModel.authorProfiles[moment.userId],
-                    viewModel: feedViewModel
+                    viewModel: feedViewModel,
+                    onCaptionSaved: { momentStripId = UUID() }
                 )
             }
             .sheet(item: $draftMoment, onDismiss: {
@@ -245,6 +229,7 @@ struct CommunityView: View {
                                 if momentService.hasPostedToday,
                                    let moment = ownMomentItem(for: userId) {
                                     ownMomentStrip(moment)
+                                        .id(momentStripId)
                                         .frame(maxWidth: .infinity)
                                         .padding(.top, 8)
                                         .padding(.bottom, 4)
