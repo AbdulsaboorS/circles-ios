@@ -1,94 +1,83 @@
-# Handoff — 2026-04-13 (Session 15 — Circles Deck + Layout Editor)
+# Handoff — 2026-04-13 (Session 16 — Circle Detail "Living Room" Redesign)
 
 ## Current Build State
-**BUILD SUCCEEDED — zero errors.**
+**NOT YET BUILD-VERIFIED** — new files created, CircleDetailView.swift not yet rewritten.
 Branch: `main`
-Latest code commits:
-- `b1cbae3` — `feat: redesign circle stage cards as story previews`
-- `b5baf70` — `feat: add peekable circles deck and layout editor`
 
 ---
 
 ## What Landed This Session
 
-### Circles Page — Story Card Redesign
-- Reworked `MyCirclesView` from the prior full-screen stage card into richer story-driven cards.
-- Card data now prefers the latest Moment as the hero signal, then falls back to latest activity, then quiet-member state.
-- Added:
-  - latest Moment preview support
-  - latest activity headline support
-  - quiet-member targeting for encouragement
-  - richer member profile bundles
-- Real push path for encouragement retained through `send-peer-nudge`, while circle-level count tracking still writes to `nudges`.
+### Phases 1–4 of Circle Detail Redesign (of 6 total)
 
-### Circles Page — Peekable Deck Navigation
-- Replaced the one-card-per-screen layout with a peekable horizontal deck that shows adjacent circles.
-- Center card is still the featured card; side cards render as compressed previews.
-- Background gradient morph and snap behavior remain.
-- Removed the dead `CIRCLE` tile from the prior design.
-- Renamed momentum copy from `N day run` → `N day streak`.
+Following an approved plan at `.claude/plans/majestic-foraging-porcupine.md`, this session built the data layer, shared utilities, view model, and all 5 UI components. **Phase 5 (assembly) and Phase 6 (polish) remain.**
 
-### Circles Page — Layout Editing
-- Added a top-right pencil icon in the Circles header.
-- Pencil opens an explicit edit sheet for circle layout management.
-- Users can:
-  - pin/unpin circles
-  - drag to reorder pinned circles
-  - drag to reorder unpinned circles
-- Layout persists locally per user via `UserDefaults`.
-- Display order now respects:
-  - pinned circles first
-  - saved manual order within pinned/unpinned groups
-  - newly joined/created circles appended cleanly
+### Phase 1: Data Layer
+- **`HabitService.fetchCircleCompletionStats()`** — queries accountable habits for a circle + today's habit_logs, returns `CircleCompletionStats` with `overallFraction`, per-habit counts, per-member completion booleans
+- **`NudgeService.sendDirectNudge()`** — single-target nudge with optional custom message text, nudgeType "habit_reminder" or "custom"
 
-### Bottom Tab Polish
-- Kept the native `TabView`.
-- Applied a light visual polish so the selected Circles tab reads more clearly.
+### Phase 2: Shared Utilities
+- **`CircleColorDeriver`** extracted from `MyCirclesView.swift` → `Circles/DesignSystem/CircleColorDeriver.swift`
+- **`BreathingGradientBackground`** — animated gradient using circle-derived colors, 4s breathing loop
+
+### Phase 3: ViewModel
+- **`CircleDetailViewModel`** — `@Observable @MainActor`, owns members/profiles/completionStats, exposes `noorIntensity` (0–1) and `noorRingStatus(for:)` (gold/pulsingGreen/dimmed)
+
+### Phase 4: UI Components (5 new files)
+- **`CelestialNoorView`** — 2D layered orb with radial gradients, intensity-driven glow, 100% "ignite" bloom, breathing animation
+- **`PulseBarView`** — horizontal avatar scroll with Noor Ring overlays (gold/green/dimmed), tap-to-nudge with confirmationDialog + custom message alert
+- **`DailyStatusShelfView`** — horizontal scroll of shared habit icons with "N of M" progress, `.ultraThinMaterial` cards
+- **`HuddleTimelineView`** — compact text+avatar timeline from FeedViewModel items, pagination
+- **`MomentGalleryView`** — 2-column LazyVGrid of moments, locked/blurred for reciprocity gate, tap opens fullscreen
 
 ---
 
-## Status: User Testing In Progress
+## What Remains (Phases 5–6)
 
-The user is actively testing this pass and plans to communicate results in the next session.
+### Phase 5: Assemble CircleDetailView ← NEXT STEP
+**File:** `Circles/Circles/CircleDetailView.swift` — full rewrite of the body.
 
-### Primary QA Targets
-- [ ] Peekable deck feels easier to browse than the prior full-screen card
-- [ ] Compact side cards are readable enough to choose circles without fully centering each one
-- [ ] Featured center card still feels premium, not overcrowded
-- [ ] Pencil edit mode is discoverable and easy to use
-- [ ] Pin/unpin + drag reorder persist after relaunch
-- [ ] Encourage CTA correctly changes to the passive status chip after the second successful circle-level encouragement
-- [ ] Bottom tab polish improves clarity without feeling over-designed
+The plan (`.claude/plans/majestic-foraging-porcupine.md`) details the exact layout:
+1. `BreathingGradientBackground` as ZStack base
+2. ScrollView containing: circle name (serif) → `CelestialNoorView` → moment banner (restyled with `.ultraThinMaterial`) → `PulseBarView` → `DailyStatusShelfView` → Huddle|Gallery tab switcher → active tab content
+3. State changes: add `@State private var detailVM: CircleDetailViewModel`, remove `members`, `memberProfiles`, `checkedInCount`, `isLoadingMembers` (now in VM). Keep `windowSecondsRemaining`, `windowTimer`, `showCamera`, `draftMoment`, `showAmirSettings`, `allUserCircleIds`.
+4. Tab switcher: `HStack(spacing: 28)` with serif text buttons, gold underline on active
+5. ReciprocityGate overlays Gallery tab only (Huddle always visible)
+6. `MembersListView` updated to use VM data + new nudge pattern
 
-### Known User Feedback To Carry Forward
-- Direction is improved overall; the user prefers the new navigation direction more than the previous full-screen card.
-- The user still wants this pushed toward a true “10/10” UI/UX feel.
-- The next agent should expect concrete taste feedback after the current test pass.
+### Phase 6: Polish
+- Moment banner → `.ultraThinMaterial` styling
+- Notifications denied note → `.ultraThinMaterial`
+- Pull-to-refresh: `async let` both `detailVM.refreshStats()` and `feedViewModel.refresh()`
+- Accessibility labels on Noor orb, ring statuses, tab switcher
+
+### Then: Build Verify
+After Phase 5+6, do a full `xcodebuild` to verify zero errors.
 
 ---
 
-## Files Changed In These Circles Passes
+## Files Created/Modified This Session
 
-| File | Change |
+| File | Status |
 |------|--------|
-| `Circles/Community/MyCirclesView.swift` | Story-card redesign, then peekable deck conversion, compact side cards, edit layout sheet UI |
-| `Circles/Circles/CirclesViewModel.swift` | Added card data map, real encouragement state, local pin/reorder persistence, edit-mode support |
-| `Circles/Community/CommunityView.swift` | Added top-right pencil + create/join controls in header; wired layout editor sheet |
-| `Circles/Models/CircleCardData.swift` | Expanded story/compact card metadata and renamed streak copy |
-| `Circles/Services/FeedService.swift` | Added latest Moment and active-user queries used by Circles cards |
-| `Circles/Services/NudgeService.swift` | Real circle encouragement path + circle-level count tracking |
-| `Circles/Navigation/MainTabView.swift` | Light native tab bar polish for the Circles tab |
-
----
+| `Circles/Services/HabitService.swift` | Modified — added `CircleCompletionStats` + `fetchCircleCompletionStats()` |
+| `Circles/Services/NudgeService.swift` | Modified — added `sendDirectNudge()` |
+| `Circles/DesignSystem/CircleColorDeriver.swift` | **New** — extracted from MyCirclesView |
+| `Circles/DesignSystem/BreathingGradientBackground.swift` | **New** |
+| `Circles/Circles/CircleDetailViewModel.swift` | **New** |
+| `Circles/Circles/CelestialNoorView.swift` | **New** |
+| `Circles/Circles/PulseBarView.swift` | **New** |
+| `Circles/Circles/DailyStatusShelfView.swift` | **New** |
+| `Circles/Circles/HuddleTimelineView.swift` | **New** |
+| `Circles/Circles/MomentGalleryView.swift` | **New** |
+| `Circles/Community/MyCirclesView.swift` | Modified — removed CircleColorDeriver (extracted) |
 
 ## Important Notes For The Next Agent
-
-- The user is testing now; do not assume the current deck is final.
-- The next agent should start by collecting the user’s direct testing notes, then refine the deck/card balance rather than reverting to the old stage model.
-- The most likely next changes are:
-  - tuning featured-vs-compact card density
-  - simplifying card information hierarchy further if the featured card still feels busy
-  - validating/fixing the encourage CTA state based on the user’s real-device test results
+- **Read the plan first:** `.claude/plans/majestic-foraging-porcupine.md` has the full approved design
+- **CircleDetailView.swift has NOT been rewritten yet** — current file is the old version
+- All new component files compile individually but have not been build-verified as a whole project
+- The `MomentFullScreenView` used in `MomentGalleryView` — check its initializer signature matches; it may need an `onCaptionSaved` parameter
+- SourceKit diagnostics during development were cross-file resolution errors (expected with `fileSystemSynchronizedGroups`), not actual bugs
 
 ## Simulator UDID
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)

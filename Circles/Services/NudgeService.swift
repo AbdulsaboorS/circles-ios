@@ -92,6 +92,31 @@ final class NudgeService {
     }
 }
 
+    /// Send a direct nudge to a single member with an optional custom message.
+    /// nudgeType: "habit_reminder" or "custom" (with message text).
+    func sendDirectNudge(
+        circleId: UUID,
+        senderId: UUID,
+        targetUserId: UUID,
+        nudgeType: String,
+        message: String? = nil
+    ) async throws {
+        guard targetUserId != senderId else { return }
+
+        var body: [String: String] = [
+            "senderId": senderId.uuidString,
+            "targetUserId": targetUserId.uuidString,
+            "circleId": circleId.uuidString,
+            "nudgeType": nudgeType
+        ]
+        if let message, !message.isEmpty {
+            body["message"] = message
+        }
+
+        try await client.functions
+            .invoke("send-peer-nudge", options: .init(body: body))
+    }
+
 enum NudgeError: LocalizedError {
     case noQuietMembers
     case allTargetsRateLimited

@@ -214,6 +214,86 @@ final class HabitService {
             .value
         return results.first
     }
+
+    // MARK: - Circle Completion Stats
+
+    /// Fetch shared-habit completion data for a specific circle today.
+    /// Member IDs are passed in to avoid re-querying circle_members.
+    func fetchCircleCompletionStats(circleId: UUID, memberIds: [UUID]) async throws -> CircleCompletionStats {
+        guard !memberIds.isEmpty else {
+            return CircleCompletionStats(habits: [], memberCompletions: [:], memberIds: [])
+        }
+
+        // 1. Fetch all accountable habits for this circle
+        let habits: [Habit] = try await client
+            .from("habits")
+            .select()
+            .eq("circle_id", value: circleId.uuidString)
+            .eq("is_active", value: true)
+            .eq("is_accountable", value: true)
+            .execute()
+            .value
+
+        guard !habits.isEmpty else {
+            return CircleCompletionStats(habits: [], memberCompletions: [:], memberIds: memberIds)
+        }
+
+        // 2. Today's date string matching habit_logs format
+        let todayString: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            f.timeZone = TimeZone(identifier: "UTC")
+            return f.string(from: Date())
+        }()
+
+        let habitIds = habits.map { $0.id.uuidString }
+
+        // 3. Fetch completed logs for these habits today
+        let logs: [HabitLog] = try await client
+            .from("habit_logs")
+            .select()
+            .in("habit_id", values: habitIds)
+            .in("user_id", values: memberIds.map { $0.uuidString })
+            .eq("date", value: todayString)
+            .eq("completed", value: true)
+            .execute()
+            .value
+
+        // 4. Aggregate: habitId → set of userIds who completed
+        var completions: [UUID: Set<UUID>] = [:]
+        for log in logs {
+            completions[log.habitId, default: []].insert(log.userId)
+        }
+
+        return CircleCompletionStats(habits: habits, memberCompletions: completions, memberIds: memberIds)
+    }
+}
+
+// MARK: - Circle Completion Stats Model
+
+struct CircleCompletionStats {
+    let habits: [Habit]
+    let memberCompletions: [UUID: Set<UUID>]  // habitId → userIds who completed
+    let memberIds: [UUID]
+
+    var overallFraction: Double {
+        guard !habits.isEmpty, !memberIds.isEmpty else { return 0 }
+        let totalPossible = habits.count * memberIds.count
+        let totalDone = memberCompletions.values.reduce(0) { $0 + $1.count }
+        return Double(totalDone) / Double(totalPossible)
+    }
+
+    func completionCount(for habitId: UUID) -> Int {
+        memberCompletions[habitId]?.count ?? 0
+    }
+
+    func memberCompletedAll(_ userId: UUID) -> Bool {
+        habits.allSatisfy { memberCompletions[$0.id]?.contains(userId) == true }
+    }
+
+    func memberCompletedAny(_ userId: UUID) -> Bool {
+        habits.contains { memberCompletions[$0.id]?.contains(userId) == true }
+    }
 }
 
 extension Notification.Name {
