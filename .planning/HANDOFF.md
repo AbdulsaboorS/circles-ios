@@ -1,87 +1,95 @@
-# Handoff — 2026-04-11 (Session 12 — Wave 3 Batches 1-4 built, pending user QA)
+# Handoff — 2026-04-13 (Session 13 — loading, caption, preview fixes)
 
 ## Current Build State
 **BUILD SUCCEEDED — zero errors.**
+Commit: `40ff85f`
 
 ---
 
 ## What Was Done This Session
 
-### Wave 3 — All 4 Batches Built
+### Fix 1 — Own-moment strip: BeReal-style PiP (not side-by-side)
+- `CommunityView.ownMomentStrip`: replaced 2 side-by-side thumbnails with main photo (160x213) + PiP overlay (52x69) at top-left, matching feed card style
 
-**Batch 1 — MomentFeedCard core redesign:**
-- `MomentFeedCard.swift` — full rewrite: removed card container, edge-to-edge 3:4 photo, PiP top-left 118x157pt with gold border, floating identity/actions, serif italic caption, gold dividers
-- `FeedIdentityHeader.swift` — added `isOnTime: Bool?`, `avatarSize: CGFloat`, `onMenuTap` params with defaults (backward compatible)
-- `FeedView.swift` — `LazyVStack(spacing: 0)`, per-card horizontal padding (0 for moments, 16 for others)
-- `FeedItem.swift` — added `isMoment` computed property
+### Fix 2 — Caption editing (3 root causes fixed)
+1. **Missing UPDATE RLS policy** — `circle_moments` had no UPDATE policy → caption silently never saved. Added via Supabase MCP: `"Users can update own moments"` policy.
+2. **Swift Codable nil omission** — `CaptionUpdate(caption: String?)` encodes nil as absent key (not JSON null). Fixed `updateCaption()` to use `["caption": AnyJSON]` with explicit `.null`.
+3. **Stale UI after save** — was calling `viewModel.refresh()` (async network). Fixed with `FeedViewModel.updateMomentCaption(momentId:caption:)` — optimistic in-memory update, instant.
 
-**Batch 2 — Full-screen view + inline comments:**
-- `MomentFullScreenView.swift` — NEW unified full-screen for all moments (own + others): photo+PiP+swap, identity, reactions, inline comments, pinned input bar, caption editing for own posts
-- `FeedView.swift` — added `fullScreenMoment` state + `.fullScreenCover` for moments; comment button opens full-screen scrolled to comments
-- `OwnMomentFullView.swift` — DELETED (replaced by MomentFullScreenView)
-- `CommunityView.swift` — updated fullScreenCover to use MomentFullScreenView
+### Fix 3 — Loading latency & gate flicker
+- Spinner only shows when `feedViewModel.items.isEmpty` (not on every background reload)
+- `DailyMomentService.load()` now has a daily cache (`lastLoadedDate`) — Aladhan API called once per day max
+- Gate flicker fixed: `hasPostedToday` set BEFORE `windowStart` in batched state update
+- `.task` in `CommunityView`: `loadGlobalFeed` and `DailyMomentService.load` now run concurrently with `async let`
+- `FeedViewModel.refresh()` no longer clears `items = []` before reload (shows stale data)
 
-**Batch 3 — Own-moment strip:**
-- `CommunityView.swift` — replaced `ownMomentCard` with `ownMomentStrip`: two side-by-side thumbnails (140x187pt), caption or placeholder, gold "Shared with X Circle(s)" pill
+### Fix 4 — Mock moments
+- Added UPDATE RLS (Supabase MCP)
+- Inserted 3 mock profiles (Omar, Yusuf, Fatima) and circle_members via replica role bypass
+- First insert was UTC April 12 → FeedService today window was April 13 UTC → invisible
+- Re-inserted for April 13 UTC (now visible in feed)
 
-**Batch 4 — Tab header:**
-- `CommunityView.swift` — "Circles" brand title (22pt serif bold) at top, tier 1 full-width below, tier 2 centered compact (13pt serif, `HStack(spacing: 24)`), no underlines/capsules/material, gold divider at bottom
-
-### Additional Fixes
-- **PiP tap-to-swap** — fixed in both MomentFeedCard (moved tap gesture onto main photo only, not parent ZStack) and MomentFullScreenView (added `.contentShape(Rectangle())` on PiP)
-- **Caption editing** — own posts in MomentFullScreenView have editable TextField + Save button; `MomentService.updateCaption()` added
-- **Mock data** — 3 test moments inserted into "test" circle (Omar dual-cam on-time, Yusuf dual-cam late, Fatima single-cam on-time)
+### Fix 5 — MomentPreviewView: PiP top-left + tap-to-swap
+- `MomentDraft` struct: removed `image` (composited) field, `secondaryImage` is now `UIImage?`
+- `MomentPreviewView`: replaced single composited `Image` with SwiftUI ZStack — main photo + PiP overlay at top-left (matches feed card)
+- Added `@State var swapped = false` + `onTapGesture` on PiP
+- `onPost` signature changed from `(String?)` → `(String?, Bool)` where Bool = swapped
+- `CommunityView` and `CircleDetailView` both updated — swap Bool passed to `postMomentToAllCircles` with primary/secondary order flipped accordingly
 
 ---
 
 ## Status: Pending User QA
 
-All batches are **built — pending user QA**. User has not yet tested:
-- Batch 1 (feed card layout, edge-to-edge, PiP, identity, dividers, locked state)
-- Batch 2 (full-screen view, inline comments, tap-to-swap — swap was broken, now fixed)
-- Batch 3 (already approved by user)
-- Batch 4 (brand title + centered tier 2 tabs)
-- PiP swap fix
-- Caption editing on own posts
+All fixes built. User needs to test:
+- [ ] Caption edits save and show immediately on strip (no tab switch needed)
+- [ ] 3 mock moments visible in feed (Omar, Yusuf, Fatima) — pull to refresh
+- [ ] MomentPreviewView shows PiP at top-left (not bottom-left)
+- [ ] Tap PiP in preview to swap before posting
+- [ ] No gate flicker when app loads (hasPostedToday preserved)
+- [ ] No blank screen when feed reloads (stale data stays visible)
 
 ---
 
 ## Mock Data in Supabase
+3 mock moments in circle `07d62410-f160-4fc3-9928-dca465300c01` (April 13 UTC):
+- Omar Abdullah — dual cam, on-time, caption "Alhamdulillah for this morning"
+- Yusuf Ibrahim — single cam, late, no caption
+- Fatima Al-Rashid — dual cam, on-time, caption "Barakallahu feek"
 
-3 mock moments in "test" circle (`6b60dad0-b847-45c2-b1a6-b3fca9fafc78`):
-- `bbbbbbbb-0001-*` — Omar, dual camera, on-time, has caption
-- `bbbbbbbb-0002-*` — Yusuf, dual camera, late, no caption
-- `bbbbbbbb-0003-*` — Fatima, single camera, on-time, has caption
+Using real photo_url from the user's own moment (images load correctly).
 
-Mock users added as circle members. Clean up after testing:
+Cleanup SQL (run after testing):
 ```sql
-DELETE FROM circle_moments WHERE id IN ('bbbbbbbb-0001-0001-0001-bbbbbbbbbbbb','bbbbbbbb-0002-0002-0002-bbbbbbbbbbbb','bbbbbbbb-0003-0003-0003-bbbbbbbbbbbb');
-DELETE FROM circle_members WHERE user_id IN ('aaaaaaaa-0001-0001-0001-000000000001','aaaaaaaa-0002-0002-0002-000000000002','cccccccc-0001-0001-0001-000000000001') AND circle_id = '6b60dad0-b847-45c2-b1a6-b3fca9fafc78';
+DELETE FROM circle_moments WHERE user_id IN (
+  'aaaaaaaa-0001-0001-0001-000000000001',
+  'aaaaaaaa-0002-0002-0002-000000000002',
+  'cccccccc-0001-0001-0001-000000000001'
+);
+DELETE FROM circle_members WHERE user_id IN (
+  'aaaaaaaa-0001-0001-0001-000000000001',
+  'aaaaaaaa-0002-0002-0002-000000000002',
+  'cccccccc-0001-0001-0001-000000000001'
+);
+DELETE FROM profiles WHERE id IN (
+  'aaaaaaaa-0001-0001-0001-000000000001',
+  'aaaaaaaa-0002-0002-0002-000000000002',
+  'cccccccc-0001-0001-0001-000000000001'
+);
 ```
-
----
-
-## What's Next
-
-1. **User QA** on all batches — iterate on feedback
-2. After approval, commit with descriptive message + push
-3. Wave 3 spec is complete after all batches approved
-4. Next: Wave 4 (Feed Cards — queued per ROADMAP)
 
 ---
 
 ## Files Changed This Session
 
-| File | Action |
+| File | Change |
 |------|--------|
-| `Circles/Feed/MomentFeedCard.swift` | Rewritten — BeReal layout |
-| `Circles/Feed/FeedIdentityHeader.swift` | Updated — new params |
-| `Circles/Feed/FeedView.swift` | Updated — edge-to-edge, fullscreen |
-| `Circles/Feed/MomentFullScreenView.swift` | NEW — unified full-screen |
-| `Circles/Feed/OwnMomentFullView.swift` | DELETED |
-| `Circles/Community/CommunityView.swift` | Updated — strip, tabs, brand title |
-| `Circles/Models/FeedItem.swift` | Updated — isMoment property |
-| `Circles/Services/MomentService.swift` | Updated — updateCaption method |
+| `CommunityView.swift` | Strip → BeReal PiP style; parallel .task; spinner guard; new MomentDraft init |
+| `FeedViewModel.swift` | `updateMomentCaption()` added; `refresh()` no longer clears items |
+| `MomentFullScreenView.swift` | `saveCaption()` → optimistic update; error shown in UI |
+| `MomentService.swift` | `updateCaption()` → AnyJSON with `.null`; logging added |
+| `DailyMomentService.swift` | Daily cache; batched state update (hasPostedToday before windowStart) |
+| `MomentPreviewView.swift` | PiP top-left overlay + swap; `MomentDraft` simplified; `onPost(caption:swapped:)` |
+| `CircleDetailView.swift` | Updated to new MomentDraft + MomentPreviewView signatures |
 
 ## Simulator UDID
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)
