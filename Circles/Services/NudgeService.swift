@@ -90,7 +90,6 @@ final class NudgeService {
         var seen = Set<UUID>()
         return ids.filter { seen.insert($0).inserted }
     }
-}
 
     /// Send a direct nudge to a single member with an optional custom message.
     /// nudgeType: "habit_reminder" or "custom" (with message text).
@@ -116,6 +115,7 @@ final class NudgeService {
         try await client.functions
             .invoke("send-peer-nudge", options: .init(body: body))
     }
+}
 
 enum NudgeError: LocalizedError {
     case noQuietMembers

@@ -3,12 +3,9 @@ import Supabase
 
 struct CircleDetailView: View {
     @State private var circle: Circle
-
+    @State private var detailVM: CircleDetailViewModel
     @State private var feedViewModel = FeedViewModel()
-    @State private var members: [CircleMember] = []
-    @State private var memberProfiles: [UUID: Profile] = [:]
-    @State private var checkedInCount = 0
-    @State private var isLoadingMembers = true
+
     @State private var showMembersSheet = false
     @State private var windowSecondsRemaining: Int = 0
     @State private var windowTimer: Timer?
@@ -21,11 +18,12 @@ struct CircleDetailView: View {
 
     init(circle: Circle) {
         _circle = State(initialValue: circle)
+        _detailVM = State(initialValue: CircleDetailViewModel(circleId: circle.id))
     }
 
     private var isAmir: Bool {
         guard let uid = auth.session?.user.id else { return false }
-        return members.contains { $0.userId == uid && $0.role == "admin" }
+        return detailVM.members.contains { $0.userId == uid && $0.role == "admin" }
     }
 
     private var inviteURL: URL {
@@ -40,69 +38,157 @@ struct CircleDetailView: View {
         return String(format: "%02d:%02d remaining", mins, secs)
     }
 
+    private var accentColor: Color {
+        CircleColorDeriver.accent(for: circle.name)
+    }
+
     var body: some View {
         ZStack {
-            Color.msBackground.ignoresSafeArea()
+            BreathingGradientBackground(circleName: circle.name)
 
-            VStack(spacing: 0) {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(spacing: 0) {
 
-                        membersStrip
-                            .padding(.top, 12)
+                    // Circle name — serif display title
+                    Text(circle.name)
+                        .font(.system(size: 28, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 20)
+                        .padding(.horizontal, 16)
+                        .accessibilityAddTraits(.isHeader)
 
-                        if isWindowActive {
-                            momentBanner
-                                .padding(.horizontal, 16)
-                                .padding(.top, 8)
-                        }
+                    // Celestial Noor Orb
+                    CelestialNoorView(
+                        intensity: detailVM.noorIntensity,
+                        accentColor: accentColor
+                    )
+                    .padding(.top, 4)
 
-                        if NotificationService.shared.permissionStatus == .denied {
-                            notificationsDeniedNote
-                                .padding(.horizontal, 16)
-                                .padding(.top, 8)
-                        }
-
-                        SectionHeader(title: "Activity")
+                    // Moment banner (window open)
+                    if isWindowActive {
+                        momentBanner
                             .padding(.horizontal, 16)
-                            .padding(.top, 16)
+                            .padding(.top, 12)
+                    }
 
-                        if feedViewModel.isLoadingInitial {
-                            HStack { Spacer(); ProgressView().tint(Color.msGold); Spacer() }
-                                .padding(.vertical, 24)
+                    // Notifications denied note
+                    if NotificationService.shared.permissionStatus == .denied {
+                        notificationsDeniedNote
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                    }
+
+                    // Members section header + Pulse Bar
+                    if !detailVM.members.isEmpty {
+                        HStack {
+                            Text("\(detailVM.members.count) Members")
+                                .font(.appCaptionMedium)
+                                .foregroundStyle(Color.msTextMuted)
+                            Spacer()
+                            Button {
+                                showMembersSheet = true
+                            } label: {
+                                Text("See All")
+                                    .font(.appCaption)
+                                    .foregroundStyle(Color.msGold)
+                            }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
 
-                        if let userId = auth.session?.user.id {
-                            ZStack {
-                                FeedView(
-                                    circleIds: [circle.id],
-                                    currentUserId: userId,
-                                    viewModel: feedViewModel
+                        PulseBarView(
+                            members: detailVM.members,
+                            viewModel: detailVM,
+                            currentUserId: auth.session?.user.id ?? UUID(),
+                            circleId: circle.id,
+                            onNudge: { targetId, nudgeType, message in
+                                guard let senderId = auth.session?.user.id else { return }
+                                Task {
+                                    try? await NudgeService.shared.sendDirectNudge(
+                                        circleId: circle.id,
+                                        senderId: senderId,
+                                        targetUserId: targetId,
+                                        nudgeType: nudgeType,
+                                        message: message
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    // Daily Status Shelf
+                    if let stats = detailVM.completionStats, !stats.habits.isEmpty {
+                        DailyStatusShelfView(
+                            stats: stats,
+                            memberCount: detailVM.members.count
+                        )
+                        .padding(.top, 16)
+                    }
+
+                    // Tab Switcher
+                    tabSwitcher
+                        .padding(.top, 20)
+
+                    Divider()
+                        .background(Color.msBorder)
+                        .padding(.top, 4)
+
+                    // Tab Content
+                    Group {
+                        switch detailVM.activeTab {
+                        case .huddle:
+                            if let userId = auth.session?.user.id {
+                                HuddleTimelineView(
+                                    feedViewModel: feedViewModel,
+                                    circleId: circle.id,
+                                    currentUserId: userId
                                 )
-                                if DailyMomentService.shared.isGateActive {
-                                    ReciprocityGateView(
-                                        prayerName: DailyMomentService.shared.prayerDisplayName
-                                    ) {
-                                        draftMoment = nil
-                                        showCamera = true
+                                .padding(.top, 4)
+                            }
+                        case .gallery:
+                            if let userId = auth.session?.user.id {
+                                ZStack(alignment: .top) {
+                                    MomentGalleryView(
+                                        feedViewModel: feedViewModel,
+                                        currentUserId: userId,
+                                        hasPostedToday: DailyMomentService.shared.hasPostedToday
+                                    )
+                                    .padding(.top, 12)
+
+                                    if DailyMomentService.shared.isGateActive {
+                                        ReciprocityGateView(
+                                            prayerName: DailyMomentService.shared.prayerDisplayName
+                                        ) {
+                                            draftMoment = nil
+                                            showCamera = true
+                                        }
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .padding(.horizontal, 16)
+                                        .padding(.top, 12)
                                     }
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
                                 }
                             }
                         }
                     }
-                    .padding(.bottom, 24)
                 }
-                .refreshable {
-                    guard let userId = auth.session?.user.id else { return }
-                    await reloadCircleFromServer()
-                    await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.bottom, 32)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .refreshable {
+                guard let userId = auth.session?.user.id else { return }
+                async let statsRefresh: () = detailVM.refreshStats()
+                async let feedRefresh: () = feedViewModel.refresh(
+                    circleIds: [circle.id],
+                    currentUserId: userId,
+                    singleCircleId: circle.id
+                )
+                _ = await (statsRefresh, feedRefresh)
+                await reloadCircleFromServer()
+            }
         }
-        .navigationTitle(circle.name)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
@@ -124,26 +210,35 @@ struct CircleDetailView: View {
             }
         }
         .sheet(isPresented: $showAmirSettings) {
+            let bindableVM = Bindable(detailVM)
             AmirCircleSettingsView(
                 circle: $circle,
-                members: $members,
-                memberProfiles: $memberProfiles
+                members: bindableVM.members,
+                memberProfiles: bindableVM.memberProfiles
+            )
+        }
+        .sheet(isPresented: $showMembersSheet) {
+            MembersListView(
+                members: detailVM.members,
+                memberProfiles: detailVM.memberProfiles,
+                currentUserId: auth.session?.user.id,
+                senderId: auth.session?.user.id,
+                circleId: circle.id
             )
         }
         .task {
             guard let userId = auth.session?.user.id else { return }
             await NotificationService.shared.refreshPermissionStatus()
             await DailyMomentService.shared.load(userId: userId)
-            async let membersFetch = CircleService.shared.fetchMembers(circleId: circle.id)
-            members = (try? await membersFetch) ?? []
-            checkedInCount = 0
-            isLoadingMembers = false
-            let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: members.map { $0.userId })) ?? []
-            memberProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+            await detailVM.load(userId: userId)
             let allCircles = try? await CircleService.shared.fetchMyCircles(userId: userId)
             allUserCircleIds = (allCircles ?? [circle]).map { $0.id }
             startWindowTimer()
-            await feedViewModel.loadInitial(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
+            await feedViewModel.loadInitial(
+                circleIds: [circle.id],
+                currentUserId: userId,
+                singleCircleId: circle.id
+            )
         }
         .onDisappear { windowTimer?.invalidate() }
         .fullScreenCover(isPresented: $showCamera) {
@@ -175,7 +270,11 @@ struct CircleDetailView: View {
                     )
                     DailyMomentService.shared.markPostedToday()
                     await reloadCircleFromServer()
-                    await feedViewModel.refresh(circleIds: [circle.id], currentUserId: userId, singleCircleId: circle.id)
+                    await feedViewModel.refresh(
+                        circleIds: [circle.id],
+                        currentUserId: userId,
+                        singleCircleId: circle.id
+                    )
                     if result.isPartialSuccess {
                         let failCount = result.failedCircleIds.count
                         let total = result.totalCount
@@ -197,54 +296,37 @@ struct CircleDetailView: View {
         }
     }
 
-    // MARK: - Members Strip
+    // MARK: - Tab Switcher
 
-    private var membersStrip: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("\(members.count) Members")
-                    .font(.appCaptionMedium)
-                    .foregroundStyle(Color.msTextMuted)
-                Spacer()
-                Button { showMembersSheet = true } label: {
-                    Text("See All")
-                        .font(.appCaption)
-                        .foregroundStyle(Color.msGold)
-                }
-                .sheet(isPresented: $showMembersSheet) {
-                    MembersListView(
-                        members: members,
-                        memberProfiles: memberProfiles,
-                        currentUserId: auth.session?.user.id,
-                        senderId: auth.session?.user.id,
-                        circleId: circle.id
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
+    private var tabSwitcher: some View {
+        HStack(spacing: 0) {
+            ForEach(CircleDetailViewModel.DetailTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        detailVM.activeTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(tab.rawValue)
+                            .font(.system(size: 15, weight: .semibold, design: .serif))
+                            .foregroundStyle(
+                                detailVM.activeTab == tab
+                                    ? Color.msTextPrimary
+                                    : Color.msTextMuted
+                            )
+                            .padding(.top, 4)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    let maxStrip = 14
-                    let stripMembers = Array(members.prefix(maxStrip))
-                    ForEach(stripMembers) { member in
-                        MemberAvatarChip(
-                            member: member,
-                            avatarUrl: memberProfiles[member.userId]?.avatarUrl,
-                            displayName: memberProfiles[member.userId]?.preferredName ?? ""
-                        )
+                        Rectangle()
+                            .fill(detailVM.activeTab == tab ? Color.msGold : Color.clear)
+                            .frame(height: 2)
                     }
-                    if members.count > maxStrip {
-                        Text("+\(members.count - maxStrip)")
-                            .font(.appCaptionMedium)
-                            .foregroundStyle(Color.msTextMuted)
-                            .frame(width: 44, height: 44)
-                            .background(Color.msGold.opacity(0.12), in: SwiftUI.Circle())
-                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 16)
+                .accessibilityLabel(tab.rawValue)
+                .accessibilityAddTraits(detailVM.activeTab == tab ? .isSelected : [])
             }
         }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Moment Banner
@@ -253,19 +335,22 @@ struct CircleDetailView: View {
         HStack {
             Image(systemName: "star.fill")
                 .font(.system(size: 16))
-                .foregroundStyle(Color.msBackground)
+                .foregroundStyle(Color.msGold)
             Text("POST YOUR MOMENT")
                 .font(.appCaptionMedium)
-                .foregroundStyle(Color.msBackground)
+                .foregroundStyle(Color.msTextPrimary)
             Spacer()
             Text(countdownText)
                 .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.msBackground)
+                .foregroundStyle(Color.msTextMuted)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(Color.msGold)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
+        )
         .onTapGesture { showCamera = true }
         .accessibilityLabel("Post your Moment, \(countdownText). Tap to open camera.")
     }
@@ -284,7 +369,7 @@ struct CircleDetailView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msBorder, lineWidth: 1))
     }
 
@@ -295,24 +380,6 @@ struct CircleDetailView: View {
             circle = try await CircleService.shared.fetchCircle(id: circle.id)
         } catch {
             print("[CircleDetailView] reloadCircle failed: \(error)")
-        }
-    }
-
-    private func sendNudge(to targetUserId: UUID, nudgeType: String) async {
-        guard let senderId = auth.session?.user.id else { return }
-        do {
-            try await SupabaseService.shared.client.functions
-                .invoke(
-                    "send-peer-nudge",
-                    options: .init(body: [
-                        "senderId": senderId.uuidString,
-                        "targetUserId": targetUserId.uuidString,
-                        "circleId": circle.id.uuidString,
-                        "nudgeType": nudgeType
-                    ])
-                )
-        } catch {
-            print("[CircleDetailView] Nudge failed: \(error)")
         }
     }
 
@@ -340,27 +407,6 @@ struct CircleDetailView: View {
                     self.windowTimer?.invalidate()
                     self.windowTimer = nil
                 }
-            }
-        }
-    }
-}
-
-// MARK: - MemberAvatarChip
-
-private struct MemberAvatarChip: View {
-    let member: CircleMember
-    var avatarUrl: String? = nil
-    var displayName: String = ""
-
-    var body: some View {
-        VStack(spacing: 4) {
-            AvatarView(avatarUrl: avatarUrl, name: displayName.isEmpty ? member.userId.uuidString : displayName, size: 44)
-                .shadow(color: .black.opacity(0.06), radius: 3)
-
-            if member.role == "admin" {
-                Text("Amir")
-                    .font(Font.system(size: 9, weight: .medium))
-                    .foregroundStyle(Color.msGold)
             }
         }
     }
@@ -410,19 +456,7 @@ private struct MembersListView: View {
                             if member.userId != currentUserId {
                                 HStack(spacing: 6) {
                                     Button {
-                                        Task { await sendNudge(to: member.userId, type: "moment", circleId: circleId) }
-                                    } label: {
-                                        Text("Moment")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(Color.msGold)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.msGold.opacity(0.15))
-                                            .clipShape(Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                    Button {
-                                        Task { await sendNudge(to: member.userId, type: "habit", circleId: circleId) }
+                                        Task { await sendNudge(to: member.userId, nudgeType: "habit_reminder") }
                                     } label: {
                                         Text("Habit")
                                             .font(.caption2.weight(.semibold))
@@ -449,21 +483,13 @@ private struct MembersListView: View {
         .presentationDetents([.medium, .large])
     }
 
-    private func sendNudge(to targetUserId: UUID, type nudgeType: String, circleId: UUID) async {
+    private func sendNudge(to targetUserId: UUID, nudgeType: String) async {
         guard let senderId else { return }
-        do {
-            try await SupabaseService.shared.client.functions
-                .invoke(
-                    "send-peer-nudge",
-                    options: .init(body: [
-                        "senderId": senderId.uuidString,
-                        "targetUserId": targetUserId.uuidString,
-                        "circleId": circleId.uuidString,
-                        "nudgeType": nudgeType
-                    ])
-                )
-        } catch {
-            print("[MembersListView] Nudge failed: \(error)")
-        }
+        try? await NudgeService.shared.sendDirectNudge(
+            circleId: circleId,
+            senderId: senderId,
+            targetUserId: targetUserId,
+            nudgeType: nudgeType
+        )
     }
 }
