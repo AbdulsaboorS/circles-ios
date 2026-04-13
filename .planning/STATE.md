@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: milestone
 status: unknown
-last_updated: "2026-04-10T00:00:00.000Z"
+last_updated: "2026-04-13T00:00:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -15,7 +15,7 @@ progress:
 
 ## Current Focus
 
-**Phase 13 — Full UI/UX Pass** — Active. Wave 3 (Community / Feed) is next.
+**Phase 13 — Full UI/UX Pass** — Active. Community / Feed is built iteratively; My Circles is now in active user QA.
 
 ### Phase 13 Wave Status
 
@@ -25,7 +25,7 @@ progress:
 | 2 | Habit Detail | ✓ Complete |
 | 3 | Community / Feed | 🔄 Built — pending user QA |
 | 4 | Feed Cards | ⬜ Queued |
-| 5 | My Circles + Circle Detail | ⬜ Queued |
+| 5 | My Circles + Circle Detail | 🔄 My Circles built — testing in progress |
 | 6 | Profile | ⬜ Queued |
 | 7 | Auth | ⬜ Queued |
 
@@ -37,6 +37,10 @@ progress:
 **Phase 13 workstyle:** Interactive iteration — Claude reads files and leads with analysis, user + collaborating AI agent give feedback, Claude refines, repeat until sign-off per screen. No plan files, no execute phase. See `13-CONTEXT.md`.
 
 **Handoff:** [`.planning/HANDOFF.md`](HANDOFF.md) for the next agent.
+
+**Latest Phase 13 commits:**
+- `b1cbae3` — story-driven Circles cards
+- `b5baf70` — peekable Circles deck + layout editor
 
 ---
 
@@ -117,6 +121,25 @@ progress:
 - `FeedViewModel` + `ReactionBar`: batch reactor profiles, overlapping face pile (max 5 + “+N”)
 - `AmirCircleSettingsView`: Amir gear on circle detail — edit core habits (≤3), gender; remove members
 - `CircleDetailView` member strip cap 14 + overflow badge; `MembersListView` avatars + Amir label
+
+### Phase 13 — Current Wave 5 Progress (My Circles) 🔄
+
+- First pass replaced the old My Circles layout with story-driven social cards:
+  - latest Moment or activity becomes the hero signal
+  - encouragement CTA uses the real `send-peer-nudge` path
+  - circle-level encouragement counts still track via `nudges`
+- Second pass changed navigation from a single full-screen stage card to a peekable deck:
+  - adjacent circles are visible at once
+  - centered card remains featured
+  - side cards compress into lighter previews
+- Added explicit layout editing for circles:
+  - top-right pencil in the Circles header
+  - pin/unpin + drag reorder
+  - local per-user persistence in `UserDefaults`
+- Current status:
+  - build succeeds
+  - user testing is in progress
+  - next agent should collect direct QA feedback before making further deck/card refinements
 
 ### Phase 11.5 — Feed Polish ✓
 
@@ -223,9 +246,9 @@ progress:
 
 - `Circle`, `CircleMember` models (with genderSetting, coreHabits, groupStreakDays)
 - `CircleService`: fetchMyCircles, fetchCircle, createCircle, createCircleForAmir, joinByInviteCode, fetchCircleByCode, fetchMembers, updateCircleSettings, removeMember
-- `CirclesViewModel`: loadCircles, createCircle, joinCircle
+- `CirclesViewModel`: loadCircles, createCircle, joinCircle, circle card data loading, local pin/reorder persistence
 - `CommunityView`: Feed|Circles swipeable TabView
-- `MyCirclesView`: organic card layout (featured + stacked), group streak, CTAs
+- `MyCirclesView`: story cards → peekable deck, featured + compact cards, header edit entry, encouragement CTA
 - `CreateCircleView`, `JoinCircleView` (gender enforcement)
 - `CircleDetailView`: member board (AvatarView), Amir settings sheet, feed, moment banner, nudge
 

@@ -1,93 +1,94 @@
-# Handoff — 2026-04-13 (Session 14 — Caption fix + Circles Stage Carousel)
+# Handoff — 2026-04-13 (Session 15 — Circles Deck + Layout Editor)
 
 ## Current Build State
 **BUILD SUCCEEDED — zero errors.**
-Commit: pending
+Branch: `main`
+Latest code commits:
+- `b1cbae3` — `feat: redesign circle stage cards as story previews`
+- `b5baf70` — `feat: add peekable circles deck and layout editor`
 
 ---
 
-## What Was Done This Session
+## What Landed This Session
 
-### Fix 1 — Caption optimistic update propagation
-- Root cause: `CommunityView` strip didn't re-render after `feedViewModel.items` was updated via `updateMomentCaption` while fullScreenCover was active
-- Fix: Added `onCaptionSaved` callback from `MomentFullScreenView` → `CommunityView`, triggers `momentStripId = UUID()` which forces strip re-render via `.id(momentStripId)`
-- Files: `MomentFullScreenView.swift` (added `onCaptionSaved` param + call), `CommunityView.swift` (added `@State momentStripId`, passes callback, `.id()` on strip)
-- **Status: Awaiting user test** (user deferred rebuild)
+### Circles Page — Story Card Redesign
+- Reworked `MyCirclesView` from the prior full-screen stage card into richer story-driven cards.
+- Card data now prefers the latest Moment as the hero signal, then falls back to latest activity, then quiet-member state.
+- Added:
+  - latest Moment preview support
+  - latest activity headline support
+  - quiet-member targeting for encouragement
+  - richer member profile bundles
+- Real push path for encouragement retained through `send-peer-nudge`, while circle-level count tracking still writes to `nudges`.
 
-### Feature — Circles Page: "Focused Stage" Carousel Redesign
-Complete rewrite of `MyCirclesView.swift` — grid → horizontal paging carousel.
+### Circles Page — Peekable Deck Navigation
+- Replaced the one-card-per-screen layout with a peekable horizontal deck that shows adjacent circles.
+- Center card is still the featured card; side cards render as compressed previews.
+- Background gradient morph and snap behavior remain.
+- Removed the dead `CIRCLE` tile from the prior design.
+- Renamed momentum copy from `N day run` → `N day streak`.
 
-**Batch A (Stage Layout + Gem Bar) — COMPLETE:**
-- `ScrollView(.horizontal)` + `LazyHStack` + `.scrollTargetBehavior(.viewAligned)` + `.scrollPosition(id:)`
-- Stage focus via `.scrollTransition`: center = 100% scale/opacity, neighbors = 80% scale, 15pt blur, 40% opacity
-- Card spacing: 24pt gaps between cards, 36pt horizontal content margins
-- Snap haptic: `.sensoryFeedback(.impact(weight: .medium), trigger: centeredId)`
-- Active-first sorting: highest streak → alphabetical
-- **Gem Bar**: horizontal row of circle icons pinned below carousel, above tab bar
-  - Active gem has gold glow ring + gold border (focused state)
-  - Tap gem → `withAnimation` snaps carousel to that circle
-  - Gold `+` gem at far right → `confirmationDialog` for create/join
-  - Bar uses `.ultraThinMaterial` capsule background
+### Circles Page — Layout Editing
+- Added a top-right pencil icon in the Circles header.
+- Pencil opens an explicit edit sheet for circle layout management.
+- Users can:
+  - pin/unpin circles
+  - drag to reorder pinned circles
+  - drag to reorder unpinned circles
+- Layout persists locally per user via `UserDefaults`.
+- Display order now respects:
+  - pinned circles first
+  - saved manual order within pinned/unpinned groups
+  - newly joined/created circles appended cleanly
 
-**Prior Batches (from earlier in session, superseded by Stage model):**
-- Batch 1-3 carousel infrastructure was built then pivoted to Stage model per user design critique
-- Empty Pedestal card removed (replaced by Gem Bar `+` gem)
-- Toolbar `+` menu removed from `CommunityView` (line replaced with comment)
-
-**Vignette Card Design (carried forward):**
-- 80pt artifact icon with dual-layer radial glow (accent + gold)
-- Icon uses `LinearGradient` (gold → per-circle accent)
-- Ghost name at 48pt/8% opacity behind artifact (depth layering)
-- Readable 28pt name below artifact
-- 6 accent colors (emerald, sapphire, ruby, amethyst, gold, teal) via `CircleColorDeriver`
-- 6 dark gradient backgrounds per circle
-- Gradient border stroke
-- Stats bar in `.ultraThinMaterial` capsule
+### Bottom Tab Polish
+- Kept the native `TabView`.
+- Applied a light visual polish so the selected Circles tab reads more clearly.
 
 ---
 
-## Status: Pending User QA
+## Status: User Testing In Progress
 
-### Deferred from Session 13
-- [ ] Caption strip updates immediately after save + dismiss (fix applied this session, not yet tested)
+The user is actively testing this pass and plans to communicate results in the next session.
 
-### New — Circles Stage Carousel
-- [ ] Carousel swipes horizontally with stage focus (center hero, neighbors dimmed/blurred/scaled)
-- [ ] Snap haptic fires on each card settle
-- [ ] Gem Bar visible below carousel with circle icons
-- [ ] Active gem shows gold glow/border matching centered card
-- [ ] Tap gem snaps carousel to that circle
-- [ ] Gold `+` gem shows create/join dialog
-- [ ] Tapping a circle card navigates to CircleDetailView
+### Primary QA Targets
+- [ ] Peekable deck feels easier to browse than the prior full-screen card
+- [ ] Compact side cards are readable enough to choose circles without fully centering each one
+- [ ] Featured center card still feels premium, not overcrowded
+- [ ] Pencil edit mode is discoverable and easy to use
+- [ ] Pin/unpin + drag reorder persist after relaunch
+- [ ] Encourage CTA correctly changes to the passive status chip after the second successful circle-level encouragement
+- [ ] Bottom tab polish improves clarity without feeling over-designed
 
----
-
-## Remaining Batches (Next Session)
-
-### Batch B: Glass Artifact + Dynamic Shadow
-- Replace flat icon with multi-layered glass artifact (frosted `.ultraThinMaterial` shell + glowing amber core)
-- Shadow offset tied to scroll phase (shifts left/right simulating 3D light source)
-- Keep frosted shell semi-transparent so core bleeds through
-
-### Batch C: Background Morph + Final Polish
-- Parent background gradient morphs to match centered circle's palette
-- Crossfade animation on `.scrollPosition` change
-- Final visual QA pass
+### Known User Feedback To Carry Forward
+- Direction is improved overall; the user prefers the new navigation direction more than the previous full-screen card.
+- The user still wants this pushed toward a true “10/10” UI/UX feel.
+- The next agent should expect concrete taste feedback after the current test pass.
 
 ---
 
-## Files Changed This Session
+## Files Changed In These Circles Passes
 
 | File | Change |
 |------|--------|
-| `MyCirclesView.swift` | Complete rewrite: grid → Stage carousel + Gem Bar. `CircleColorDeriver` made `enum` (internal). `MemberDots`/`CircleIconPicker` made internal. |
-| `MomentFullScreenView.swift` | Added `onCaptionSaved` callback param, called after optimistic caption update |
-| `CommunityView.swift` | Added `@State momentStripId` + `.id()` on strip; passes `onCaptionSaved` to fullScreenCover; removed toolbar `+` menu |
+| `Circles/Community/MyCirclesView.swift` | Story-card redesign, then peekable deck conversion, compact side cards, edit layout sheet UI |
+| `Circles/Circles/CirclesViewModel.swift` | Added card data map, real encouragement state, local pin/reorder persistence, edit-mode support |
+| `Circles/Community/CommunityView.swift` | Added top-right pencil + create/join controls in header; wired layout editor sheet |
+| `Circles/Models/CircleCardData.swift` | Expanded story/compact card metadata and renamed streak copy |
+| `Circles/Services/FeedService.swift` | Added latest Moment and active-user queries used by Circles cards |
+| `Circles/Services/NudgeService.swift` | Real circle encouragement path + circle-level count tracking |
+| `Circles/Navigation/MainTabView.swift` | Light native tab bar polish for the Circles tab |
 
-## Key Architecture Notes
-- `CircleColorDeriver` is now `enum` (internal access) — provides `gradient(for:)` and `accent(for:)` used by vignette card and potentially by background morph in Batch C
-- `CircleIconPicker` is now `enum` (internal access) — used by both vignette card and Gem Bar
-- Gem Bar uses `@Binding var centeredId: UUID?` to sync with carousel's `.scrollPosition`
+---
+
+## Important Notes For The Next Agent
+
+- The user is testing now; do not assume the current deck is final.
+- The next agent should start by collecting the user’s direct testing notes, then refine the deck/card balance rather than reverting to the old stage model.
+- The most likely next changes are:
+  - tuning featured-vs-compact card density
+  - simplifying card information hierarchy further if the featured card still feels busy
+  - validating/fixing the encourage CTA state based on the user’s real-device test results
 
 ## Simulator UDID
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)

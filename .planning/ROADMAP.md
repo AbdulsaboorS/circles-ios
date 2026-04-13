@@ -1,6 +1,6 @@
 # Circles v2.3 — Roadmap
 
-**Updated:** 2026-04-07
+**Updated:** 2026-04-13
 **Direction:** Private Islamic BeReal. 18-phase execution plan.
 
 ---
@@ -232,7 +232,11 @@ Plans:
 - **Habit Detail:** icon fix (`Image(systemName:)` not `Text`), contrast fix, roadmap layout polish
 - **Moments feed view:** `MomentFeedCard` full redesign — full-width image, late badge only, no star, clean layout
 - **Check-in view:** `HabitCheckinRow` polish — copy, layout, reactions
-- **Circles Overview (`MyCirclesView`):** card layout, group streak, CTAs
+- **Circles Overview (`MyCirclesView`):** now in active user QA
+  - story-driven card pass landed
+  - follow-up peekable deck landed so multiple circles are visible at once
+  - explicit pencil-driven layout editor landed (pin/unpin + drag reorder, local persistence)
+  - current state is intentionally still iterative; next work should be driven by user QA feedback, not by reopening the old full-screen stage layout by default
 - **Circle Detail (`CircleDetailView`):** member board, feed section, Amir settings access
 - **Community view:** tab switching, gate UX, filter tabs
 - **Onboarding flows:** visual polish on all Amir + Joiner steps (placeholder for video assets — wire empty containers)
@@ -245,6 +249,7 @@ Plans:
   - Interactive screen-by-screen iteration
   - Claude reads files first, surfaces issues, then refines based on user + collaborating agent feedback
   - No plan files and no execute phase for Phase 13
+  - Current active sub-focus after Community / Feed: My Circles navigation density + card hierarchy polish
 
 ---
 
