@@ -191,6 +191,130 @@ final class FeedService {
         return Array(all[start..<end])
     }
 
+    // MARK: - Lightweight Card Queries
+
+    /// Returns the single most recent activity as `LatestActivityInfo` per circle (today only).
+    func fetchLatestActivityPerCircle(circleIds: [UUID]) async throws -> [UUID: LatestActivityInfo] {
+        guard !circleIds.isEmpty else { return [:] }
+        let idStrings = circleIds.map { $0.uuidString }
+        let todayStart = Self.todayUTCStart()
+        let todayEnd = Self.todayUTCEnd()
+
+        let rows: [ActivityFeedRow] = try await client
+            .from("activity_feed")
+            .select()
+            .in("circle_id", values: idStrings)
+            .gte("created_at", value: todayStart)
+            .lt("created_at", value: todayEnd)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+
+        // Group by circle, take first (most recent) per circle
+        var latest: [UUID: ActivityFeedRow] = [:]
+        for row in rows {
+            if latest[row.circleId] == nil {
+                latest[row.circleId] = row
+            }
+        }
+
+        // Fetch display names for the latest-activity users
+        let userIds = Array(Set(latest.values.map { $0.userId }))
+        let nameMap = await fetchDisplayNames(userIds: userIds)
+
+        var result: [UUID: LatestActivityInfo] = [:]
+        for (circleId, row) in latest {
+            let name = nameMap[row.userId] ?? String(row.userId.uuidString.prefix(8))
+            result[circleId] = LatestActivityInfo(
+                userName: name,
+                userId: row.userId,
+                eventType: row.eventType,
+                habitName: row.habitName,
+                streakDays: row.streakDays,
+                timestamp: row.createdAt
+            )
+        }
+        return result
+    }
+
+    /// Returns the most recent Moment per circle for today.
+    func fetchLatestMomentPerCircle(circleIds: [UUID]) async throws -> [UUID: LatestMomentInfo] {
+        guard !circleIds.isEmpty else { return [:] }
+        let idStrings = circleIds.map { $0.uuidString }
+        let todayStart = Self.todayUTCStart()
+        let todayEnd = Self.todayUTCEnd()
+
+        let rows: [CircleMomentRow] = try await client
+            .from("circle_moments")
+            .select()
+            .in("circle_id", values: idStrings)
+            .gte("posted_at", value: todayStart)
+            .lt("posted_at", value: todayEnd)
+            .order("posted_at", ascending: false)
+            .execute()
+            .value
+
+        var latest: [UUID: CircleMomentRow] = [:]
+        for row in rows where latest[row.circleId] == nil {
+            latest[row.circleId] = row
+        }
+
+        let userIds = Array(Set(latest.values.map { $0.userId }))
+        let nameMap = await fetchDisplayNames(userIds: userIds)
+
+        var result: [UUID: LatestMomentInfo] = [:]
+        for (circleId, row) in latest {
+            let resolvedURL = try await MomentService.shared.resolveMomentPhotoURL(from: row.photoUrl)
+            let userName = nameMap[row.userId] ?? String(row.userId.uuidString.prefix(8))
+            result[circleId] = LatestMomentInfo(
+                id: row.id,
+                userId: row.userId,
+                userName: userName,
+                photoUrl: resolvedURL,
+                caption: row.caption,
+                postedAt: row.postedAt
+            )
+        }
+        return result
+    }
+
+    /// Count active users today per circle across both Moments and activity_feed.
+    func fetchActiveUserIdsToday(circleIds: [UUID]) async throws -> [UUID: Set<UUID>] {
+        guard !circleIds.isEmpty else { return [:] }
+        let idStrings = circleIds.map { $0.uuidString }
+        let todayStart = Self.todayUTCStart()
+        let todayEnd = Self.todayUTCEnd()
+
+        async let activityRowsTask: [ActivityFeedRow] = client
+            .from("activity_feed")
+            .select("circle_id, user_id, event_type, habit_name, streak_days, created_at, id")
+            .in("circle_id", values: idStrings)
+            .gte("created_at", value: todayStart)
+            .lt("created_at", value: todayEnd)
+            .execute()
+            .value
+
+        async let momentRowsTask: [CircleMomentRow] = client
+            .from("circle_moments")
+            .select("id, circle_id, user_id, photo_url, secondary_photo_url, caption, posted_at, is_on_time")
+            .in("circle_id", values: idStrings)
+            .gte("posted_at", value: todayStart)
+            .lt("posted_at", value: todayEnd)
+            .execute()
+            .value
+
+        let (activityRows, momentRows) = try await (activityRowsTask, momentRowsTask)
+
+        var perCircle: [UUID: Set<UUID>] = [:]
+        for row in activityRows {
+            perCircle[row.circleId, default: []].insert(row.userId)
+        }
+        for row in momentRows {
+            perCircle[row.circleId, default: []].insert(row.userId)
+        }
+        return perCircle
+    }
+
     // MARK: - Reactions
 
     /// Fetch all FeedReactions for a batch of item IDs.

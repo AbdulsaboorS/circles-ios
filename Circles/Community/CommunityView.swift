@@ -280,8 +280,13 @@ struct CommunityView: View {
             } else {
                 MyCirclesView(
                     circles: viewModel.circles,
+                    cardDataMap: viewModel.cardDataMap,
                     onCreateCircle: { viewModel.showCreateSheet = true },
-                    onJoinCircle:   { viewModel.showJoinSheet = true }
+                    onJoinCircle:   { viewModel.showJoinSheet = true },
+                    onNudge: { circleId in
+                        guard let userId = auth.session?.user.id else { return }
+                        Task { await viewModel.sendNudge(circleId: circleId, userId: userId) }
+                    }
                 )
             }
         }

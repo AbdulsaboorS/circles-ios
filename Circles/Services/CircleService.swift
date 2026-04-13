@@ -179,6 +179,23 @@ final class CircleService {
             .execute()
     }
 
+    /// Batch-fetch members for multiple circles in a single query.
+    func fetchMembersForCircles(circleIds: [UUID]) async throws -> [UUID: [CircleMember]] {
+        guard !circleIds.isEmpty else { return [:] }
+        let allMembers: [CircleMember] = try await client
+            .from("circle_members")
+            .select()
+            .in("circle_id", values: circleIds.map { $0.uuidString })
+            .execute()
+            .value
+
+        var grouped: [UUID: [CircleMember]] = [:]
+        for member in allMembers {
+            grouped[member.circleId, default: []].append(member)
+        }
+        return grouped
+    }
+
     // MARK: - Private
 
     private func generateInviteCode() -> String {
