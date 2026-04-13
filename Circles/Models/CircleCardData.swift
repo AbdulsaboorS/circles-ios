@@ -71,8 +71,8 @@ struct CircleCardData: Identifiable, Sendable {
         let streak = circle.groupStreakDaysSafe
         switch streak {
         case 0: return "New circle"
-        case 1: return "1 day run"
-        default: return "\(streak) day run"
+        case 1: return "1 day streak"
+        default: return "\(streak) day streak"
         }
     }
 
@@ -117,6 +117,25 @@ struct CircleCardData: Identifiable, Sendable {
             return "\(name) + \(quietMembers.count - 1) more could use encouragement."
         }
         return "Open the circle and get the momentum going."
+    }
+
+    var compactLine: String {
+        if let latestMoment {
+            return "\(latestMoment.userName) posted • \(Self.relativeTimestamp(latestMoment.postedAt))"
+        }
+        if let latestActivity {
+            switch latestActivity.eventType {
+            case "streak_milestone":
+                if let days = latestActivity.streakDays {
+                    return "\(latestActivity.userName) hit \(days) days"
+                }
+            case "habit_checkin":
+                return "\(latestActivity.userName) checked in"
+            default:
+                break
+            }
+        }
+        return activeSummary
     }
 
     var activeSummary: String {

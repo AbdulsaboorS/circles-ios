@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 import UserNotifications
 
 @Observable
@@ -7,18 +8,38 @@ import UserNotifications
 final class CirclesViewModel {
     var circles: [Circle] = []
     var cardDataMap: [UUID: CircleCardData] = [:]
+    var pinnedCircleIDs: Set<UUID> = []
     var isLoading = false
     var errorMessage: String?
     var showCreateSheet = false
     var showJoinSheet = false
+    var showLayoutEditor = false
     var pendingCode: String?
     var shouldShowPermissionPrompt = false
+    var sendingNudgeCircleIDs: Set<UUID> = []
+
+    private var layoutUserId: UUID?
+    private static let circleOrderKeyPrefix = "circles.layout.order"
+    private static let pinnedCircleKeyPrefix = "circles.layout.pinned"
+
+    var pinnedCircles: [Circle] {
+        circles.filter { pinnedCircleIDs.contains($0.id) }
+    }
+
+    var unpinnedCircles: [Circle] {
+        circles.filter { !pinnedCircleIDs.contains($0.id) }
+    }
 
     func loadCircles(userId: UUID) async {
+        layoutUserId = userId
         isLoading = true
         errorMessage = nil
         do {
-            circles = try await CircleService.shared.fetchMyCircles(userId: userId)
+            let fetched = try await CircleService.shared.fetchMyCircles(userId: userId)
+            let layout = loadLayout(userId: userId)
+            pinnedCircleIDs = layout.pinnedIDs
+            circles = applyLayout(to: fetched, orderedIDs: layout.orderedIDs, pinnedIDs: layout.pinnedIDs)
+            saveLayoutIfPossible()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -28,6 +49,39 @@ final class CirclesViewModel {
         if !circles.isEmpty {
             await loadCardData(userId: userId)
         }
+    }
+
+    func togglePinned(circleId: UUID) {
+        guard let index = circles.firstIndex(where: { $0.id == circleId }) else { return }
+        let circle = circles.remove(at: index)
+
+        if pinnedCircleIDs.contains(circleId) {
+            pinnedCircleIDs.remove(circleId)
+            let pinnedCount = circles.filter { pinnedCircleIDs.contains($0.id) }.count
+            circles.insert(circle, at: pinnedCount)
+        } else {
+            pinnedCircleIDs.insert(circleId)
+            let pinnedCount = circles.filter { pinnedCircleIDs.contains($0.id) }.count
+            circles.insert(circle, at: pinnedCount)
+        }
+
+        saveLayoutIfPossible()
+    }
+
+    func movePinnedCircles(from source: IndexSet, to destination: Int) {
+        var pinned = pinnedCircles
+        let unpinned = unpinnedCircles
+        pinned.move(fromOffsets: source, toOffset: destination)
+        circles = pinned + unpinned
+        saveLayoutIfPossible()
+    }
+
+    func moveUnpinnedCircles(from source: IndexSet, to destination: Int) {
+        let pinned = pinnedCircles
+        var unpinned = unpinnedCircles
+        unpinned.move(fromOffsets: source, toOffset: destination)
+        circles = pinned + unpinned
+        saveLayoutIfPossible()
     }
 
     /// Fetch member profiles, latest activity, active counts, and nudge counts
@@ -101,12 +155,16 @@ final class CirclesViewModel {
 
     /// Send an in-app nudge with optimistic UI update.
     func sendNudge(circleId: UUID, userId: UUID) async {
-        guard let data = cardDataMap[circleId], data.showEncourageCTA else { return }
+        guard let data = cardDataMap[circleId],
+              data.showEncourageCTA,
+              !sendingNudgeCircleIDs.contains(circleId)
+        else { return }
 
         // Optimistic: increment count immediately
         var optimisticData = data
         optimisticData.nudgeSentCountToday += 1
         cardDataMap[circleId] = optimisticData
+        sendingNudgeCircleIDs.insert(circleId)
 
         do {
             let sentCount = try await NudgeService.shared.sendCircleEncouragement(
@@ -121,6 +179,7 @@ final class CirclesViewModel {
             cardDataMap[circleId] = data
             errorMessage = error.localizedDescription
         }
+        sendingNudgeCircleIDs.remove(circleId)
     }
 
     func createCircle(name: String, description: String?, prayerTime: String?, userId: UUID) async -> Circle? {
@@ -129,7 +188,7 @@ final class CirclesViewModel {
                 name: name, description: description,
                 prayerTime: prayerTime, userId: userId
             )
-            circles.insert(circle, at: 0)
+            insertNewCircle(circle)
             if circles.count == 1 {
                 await NotificationService.shared.refreshPermissionStatus()
                 if NotificationService.shared.permissionStatus == .notDetermined {
@@ -146,7 +205,7 @@ final class CirclesViewModel {
     func joinCircle(code: String, userId: UUID) async -> Circle? {
         do {
             let circle = try await CircleService.shared.joinByInviteCode(code, userId: userId)
-            circles.insert(circle, at: 0)
+            insertNewCircle(circle)
             if circles.count == 1 {
                 await NotificationService.shared.refreshPermissionStatus()
                 if NotificationService.shared.permissionStatus == .notDetermined {
@@ -158,5 +217,68 @@ final class CirclesViewModel {
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    // MARK: - Layout Persistence
+
+    private func insertNewCircle(_ circle: Circle) {
+        guard !circles.contains(where: { $0.id == circle.id }) else { return }
+        circles.append(circle)
+        saveLayoutIfPossible()
+    }
+
+    private func applyLayout(to fetched: [Circle], orderedIDs: [UUID], pinnedIDs: Set<UUID>) -> [Circle] {
+        let fallback = defaultSortedCircles(fetched)
+        guard !orderedIDs.isEmpty else {
+            return normalizePinnedFirst(circles: fallback, pinnedIDs: pinnedIDs)
+        }
+
+        let fetchedByID = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
+        var ordered: [Circle] = orderedIDs.compactMap { fetchedByID[$0] }
+
+        let knownIDs = Set(ordered.map(\.id))
+        let newCircles = fallback.filter { !knownIDs.contains($0.id) }
+        ordered.append(contentsOf: newCircles)
+
+        return normalizePinnedFirst(circles: ordered, pinnedIDs: pinnedIDs)
+    }
+
+    private func normalizePinnedFirst(circles: [Circle], pinnedIDs: Set<UUID>) -> [Circle] {
+        let pinned = circles.filter { pinnedIDs.contains($0.id) }
+        let unpinned = circles.filter { !pinnedIDs.contains($0.id) }
+        return pinned + unpinned
+    }
+
+    private func defaultSortedCircles(_ circles: [Circle]) -> [Circle] {
+        circles.sorted { a, b in
+            if a.groupStreakDaysSafe != b.groupStreakDaysSafe {
+                return a.groupStreakDaysSafe > b.groupStreakDaysSafe
+            }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+    }
+
+    private func loadLayout(userId: UUID) -> (orderedIDs: [UUID], pinnedIDs: Set<UUID>) {
+        let defaults = UserDefaults.standard
+        let orderIDs = (defaults.stringArray(forKey: Self.circleOrderKey(userId: userId)) ?? [])
+            .compactMap(UUID.init(uuidString:))
+        let pinnedIDs = Set((defaults.stringArray(forKey: Self.pinnedCircleKey(userId: userId)) ?? [])
+            .compactMap(UUID.init(uuidString:)))
+        return (orderIDs, pinnedIDs)
+    }
+
+    private func saveLayoutIfPossible() {
+        guard let layoutUserId else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(circles.map(\.id.uuidString), forKey: Self.circleOrderKey(userId: layoutUserId))
+        defaults.set(Array(pinnedCircleIDs).map(\.uuidString), forKey: Self.pinnedCircleKey(userId: layoutUserId))
+    }
+
+    private static func circleOrderKey(userId: UUID) -> String {
+        "\(circleOrderKeyPrefix).\(userId.uuidString)"
+    }
+
+    private static func pinnedCircleKey(userId: UUID) -> String {
+        "\(pinnedCircleKeyPrefix).\(userId.uuidString)"
     }
 }

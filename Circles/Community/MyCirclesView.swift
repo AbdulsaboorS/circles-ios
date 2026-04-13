@@ -1,29 +1,20 @@
 import SwiftUI
 
-// MARK: - MyCirclesView (Focused Stage)
+// MARK: - MyCirclesView
 
 struct MyCirclesView: View {
     let circles: [Circle]
     let cardDataMap: [UUID: CircleCardData]
-    let onCreateCircle: () -> Void
-    let onJoinCircle: () -> Void
+    let pinnedCircleIDs: Set<UUID>
+    let sendingNudgeCircleIDs: Set<UUID>
     let onNudge: (UUID) -> Void
 
     @State private var centeredId: UUID?
     @State private var selectedCircle: Circle?
 
-    private var sortedCircles: [Circle] {
-        circles.sorted { a, b in
-            if a.groupStreakDaysSafe != b.groupStreakDaysSafe {
-                return a.groupStreakDaysSafe > b.groupStreakDaysSafe
-            }
-            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-        }
-    }
-
     private var activeGradientColors: [Color] {
         if let id = centeredId,
-           let circle = sortedCircles.first(where: { $0.id == id }) {
+           let circle = circles.first(where: { $0.id == id }) {
             return CircleColorDeriver.gradient(for: circle.name)
         }
         return [Color.msBackground, Color.msBackgroundDeep]
@@ -37,18 +28,26 @@ struct MyCirclesView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.45), value: centeredId)
+            .animation(.easeInOut(duration: 0.35), value: centeredId)
 
-            VStack(spacing: 0) {
+            GeometryReader { proxy in
+                let deckWidth = min(max(proxy.size.width * 0.76, 286), 338)
+                let horizontalInset = max(18, (proxy.size.width - deckWidth) / 2)
+
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 24) {
-                        ForEach(sortedCircles) { circle in
-                            CircleVignetteCard(
+                    LazyHStack(spacing: 16) {
+                        ForEach(circles) { circle in
+                            CircleDeckCard(
                                 circle: circle,
                                 data: cardDataMap[circle.id],
+                                isFeatured: centeredId == circle.id,
+                                isPinned: pinnedCircleIDs.contains(circle.id),
+                                isSendingEncouragement: sendingNudgeCircleIDs.contains(circle.id),
                                 onOpen: { selectedCircle = circle },
                                 onEncourage: { onNudge(circle.id) }
                             )
+                            .frame(width: deckWidth)
+                            .frame(maxHeight: .infinity)
                             .id(circle.id)
                         }
                     }
@@ -56,26 +55,18 @@ struct MyCirclesView: View {
                 }
                 .scrollTargetBehavior(.viewAligned)
                 .scrollPosition(id: $centeredId)
-                .contentMargins(.horizontal, 36, for: .scrollContent)
+                .contentMargins(.horizontal, horizontalInset, for: .scrollContent)
                 .sensoryFeedback(.impact(weight: .medium), trigger: centeredId)
-
-                Spacer(minLength: 0)
-
-                GemBar(
-                    circles: sortedCircles,
-                    centeredId: $centeredId,
-                    onCreateCircle: onCreateCircle,
-                    onJoinCircle: onJoinCircle
-                )
-                .padding(.bottom, 8)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .onAppear {
             if centeredId == nil {
-                centeredId = sortedCircles.first?.id
+                centeredId = circles.first?.id
             }
         }
-        .onChange(of: sortedCircles.map(\.id)) { _, ids in
+        .onChange(of: circles.map(\.id)) { _, ids in
             if centeredId == nil || !ids.contains(centeredId ?? UUID()) {
                 centeredId = ids.first
             }
@@ -86,96 +77,14 @@ struct MyCirclesView: View {
     }
 }
 
-// MARK: - Gem Bar
+// MARK: - Deck Card
 
-private struct GemBar: View {
-    let circles: [Circle]
-    @Binding var centeredId: UUID?
-    let onCreateCircle: () -> Void
-    let onJoinCircle: () -> Void
-
-    @State private var showActionSheet = false
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ForEach(circles) { circle in
-                let isActive = circle.id == centeredId
-                Button {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        centeredId = circle.id
-                    }
-                } label: {
-                    ZStack {
-                        if isActive {
-                            SwiftUI.Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [Color.msGold.opacity(0.25), Color.clear],
-                                        center: .center,
-                                        startRadius: 8,
-                                        endRadius: 20
-                                    )
-                                )
-                                .frame(width: 38, height: 38)
-                        }
-
-                        Image(systemName: CircleIconPicker.icon(for: circle.name))
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(isActive ? Color.msGold : Color.msTextMuted.opacity(0.6))
-                            .frame(width: 28, height: 28)
-                            .background(
-                                SwiftUI.Circle()
-                                    .fill(Color.msBackground.opacity(0.8))
-                            )
-                            .overlay(
-                                SwiftUI.Circle()
-                                    .stroke(
-                                        isActive ? Color.msGold.opacity(0.6) : Color.msGold.opacity(0.12),
-                                        lineWidth: isActive ? 1.5 : 1
-                                    )
-                            )
-                    }
-                    .frame(width: 38, height: 38)
-                }
-                .buttonStyle(.plain)
-                .animation(.easeInOut(duration: 0.25), value: isActive)
-            }
-
-            Button {
-                showActionSheet = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color(hex: "1A2E1E"))
-                    .frame(width: 28, height: 28)
-                    .background(Color.msGold, in: SwiftUI.Circle())
-                    .shadow(color: Color.msGold.opacity(0.3), radius: 6)
-            }
-            .buttonStyle(.plain)
-            .confirmationDialog("Expand the Brotherhood", isPresented: $showActionSheet) {
-                Button("Create a Circle") { onCreateCircle() }
-                Button("Join with Invite Code") { onJoinCircle() }
-                Button("Cancel", role: .cancel) {}
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .stroke(Color.msGold.opacity(0.1), lineWidth: 1)
-                )
-        )
-    }
-}
-
-// MARK: - Vignette Card
-
-private struct CircleVignetteCard: View {
+private struct CircleDeckCard: View {
     let circle: Circle
     let data: CircleCardData?
+    let isFeatured: Bool
+    let isPinned: Bool
+    let isSendingEncouragement: Bool
     let onOpen: () -> Void
     let onEncourage: () -> Void
 
@@ -207,80 +116,100 @@ private struct CircleVignetteCard: View {
                     )
                 )
 
-            if let data {
-                liveCardContent(data: data)
-            } else {
-                skeletonContent
+            Group {
+                if let data {
+                    if isFeatured {
+                        FeaturedCircleCardContent(
+                            circle: circle,
+                            data: data,
+                            accentColor: accentColor,
+                            isPinned: isPinned,
+                            isSendingEncouragement: isSendingEncouragement,
+                            onOpen: onOpen,
+                            onEncourage: onEncourage
+                        )
+                    } else {
+                        CompactCircleCardContent(
+                            circle: circle,
+                            data: data,
+                            accentColor: accentColor,
+                            isPinned: isPinned
+                        )
+                    }
+                } else {
+                    CircleCardSkeleton(isFeatured: isFeatured)
+                }
             }
+            .padding(isFeatured ? 22 : 18)
 
             RoundedRectangle(cornerRadius: 30)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            Color.msGold.opacity(0.28),
+                            Color.msGold.opacity(isFeatured ? 0.28 : 0.16),
                             Color.white.opacity(0.08),
-                            accentColor.opacity(0.18)
+                            accentColor.opacity(isFeatured ? 0.18 : 0.12)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1.2
+                    lineWidth: isFeatured ? 1.2 : 1
                 )
         }
         .frame(maxHeight: .infinity)
-        .containerRelativeFrame(.horizontal, count: 1, spacing: 0)
         .clipShape(RoundedRectangle(cornerRadius: 30))
-        .shadow(color: accentColor.opacity(0.28), radius: 20, x: 0, y: 12)
+        .shadow(color: accentColor.opacity(isFeatured ? 0.26 : 0.14), radius: isFeatured ? 22 : 12, x: 0, y: 12)
         .contentShape(RoundedRectangle(cornerRadius: 30))
         .onTapGesture(perform: onOpen)
         .scrollTransition { content, phase in
             content
-                .opacity(1.0 - abs(phase.value) * 0.6)
-                .scaleEffect(1.0 - abs(phase.value) * 0.18)
-                .blur(radius: abs(phase.value) * 14)
-                .offset(x: phase.value * -28)
+                .opacity(1.0 - abs(phase.value) * 0.28)
+                .scaleEffect(1.0 - abs(phase.value) * 0.08)
+                .blur(radius: abs(phase.value) * 3)
+                .offset(x: phase.value * -16)
         }
-        .padding(.vertical, 16)
     }
+}
 
-    private func liveCardContent(data: CircleCardData) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        PulseDotView(color: data.pulseDotColor)
-                        Text(data.statusLabel)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color.msTextMuted)
-                            .textCase(.uppercase)
+// MARK: - Featured Card
+
+private struct FeaturedCircleCardContent: View {
+    let circle: Circle
+    let data: CircleCardData
+    let accentColor: Color
+    let isPinned: Bool
+    let isSendingEncouragement: Bool
+    let onOpen: () -> Void
+    let onEncourage: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            cardHeader
+
+            HStack(alignment: .bottom, spacing: 14) {
+                StoryHeroPanel(data: data, accentColor: accentColor)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(data.supportingMembers.prefix(3)), id: \.id) { member in
+                        CompactMemberChip(member: member)
                     }
 
-                    Text(circle.name)
-                        .font(.system(size: 29, weight: .bold, design: .serif))
-                        .foregroundStyle(Color.msTextPrimary)
-                        .lineLimit(2)
+                    if data.supportingMembers.count > 3 {
+                        Text("+\(data.supportingMembers.count - 3) more")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.msTextMuted)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.08), in: Capsule())
+                    }
+
+                    Spacer(minLength: 0)
                 }
-
-                Spacer(minLength: 8)
-
-                MomentumBadge(text: data.momentumLabel, accentColor: accentColor)
+                .frame(width: 92)
             }
+            .frame(height: 220)
 
-            HStack(alignment: .bottom, spacing: 16) {
-                HeroPanel(
-                    data: data,
-                    accentColor: accentColor
-                )
-
-                SupportingMembersRail(
-                    hero: data.primaryHero,
-                    supportingMembers: data.supportingMembers,
-                    accentColor: accentColor
-                )
-                .frame(width: 94)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(data.headline)
                     .font(.system(size: 22, weight: .semibold, design: .serif))
                     .foregroundStyle(Color.msTextPrimary)
@@ -304,11 +233,9 @@ private struct CircleVignetteCard: View {
                 )
 
                 if data.showEncourageCTA {
-                    CircleActionChip(
+                    EncourageActionChip(
                         title: data.encourageTitle,
-                        systemImage: "hand.wave.fill",
-                        tint: Color.msGold,
-                        foreground: Color(hex: "1A2E1E"),
+                        isSending: isSendingEncouragement,
                         action: onEncourage
                     )
                 } else {
@@ -319,71 +246,137 @@ private struct CircleVignetteCard: View {
                 }
             }
         }
-        .padding(24)
     }
 
-    private var skeletonContent: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 72, height: 16)
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 180, height: 30)
+    private var cardHeader: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    PulseDotView(color: data.pulseDotColor)
+                    Text(data.statusLabel)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.msTextMuted)
+                        .textCase(.uppercase)
                 }
 
-                Spacer()
-
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 88, height: 34)
-            }
-
-            HStack(alignment: .bottom, spacing: 16) {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color.white.opacity(0.12))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 218)
-
-                VStack(spacing: 10) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        SwiftUI.Circle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: 44, height: 44)
+                HStack(spacing: 8) {
+                    if isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.msGold)
                     }
+
+                    Text(circle.name)
+                        .font(.system(size: 28, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
+                        .lineLimit(2)
                 }
-                .frame(width: 94)
             }
 
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.white.opacity(0.12))
-                .frame(width: 220, height: 28)
+            Spacer(minLength: 8)
 
-            RoundedRectangle(cornerRadius: 5)
-                .fill(Color.white.opacity(0.1))
-                .frame(width: 190, height: 16)
-
-            Spacer()
-
-            HStack(spacing: 10) {
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 122, height: 42)
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 132, height: 42)
-            }
+            MomentumBadge(text: data.momentumLabel, accentColor: accentColor)
         }
-        .padding(24)
-        .redacted(reason: .placeholder)
     }
 }
 
-// MARK: - Hero Panel
+// MARK: - Compact Card
 
-private struct HeroPanel: View {
+private struct CompactCircleCardContent: View {
+    let circle: Circle
+    let data: CircleCardData
+    let accentColor: Color
+    let isPinned: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        if isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.msGold)
+                        }
+
+                        Text(circle.name)
+                            .font(.system(size: 20, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color.msTextPrimary)
+                            .lineLimit(1)
+                    }
+
+                    Text(data.compactLine)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.msTextMuted)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                CompactStreakChip(text: data.momentumLabel)
+            }
+
+            if let imageURL = data.heroImageURL {
+                CachedAsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.white.opacity(0.08))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 164)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+            } else {
+                HStack(spacing: 12) {
+                    if let hero = data.primaryHero {
+                        AvatarView(
+                            avatarUrl: hero.avatarUrl,
+                            name: hero.displayName,
+                            size: 62
+                        )
+                        .overlay(
+                            SwiftUI.Circle()
+                                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                        )
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(data.primaryHero?.displayName ?? "Your circle")
+                            .font(.system(size: 19, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color.msTextPrimary)
+                            .lineLimit(2)
+
+                        Text(data.activeSummary)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.msTextMuted)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, minHeight: 164, alignment: .leading)
+                .padding(16)
+                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
+            }
+
+            HStack(spacing: 8) {
+                OverlapFaceStack(members: Array(data.members.prefix(3)))
+                Text(data.activeSummary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.msTextMuted)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - Shared Card Parts
+
+private struct StoryHeroPanel: View {
     let data: CircleCardData
     let accentColor: Color
 
@@ -427,11 +420,12 @@ private struct HeroPanel: View {
 
                     Spacer(minLength: 0)
 
-                    Text(data.primaryHero?.displayName ?? circleFallbackName)
+                    Text(data.primaryHero?.displayName ?? data.circle.name)
                         .font(.system(size: 24, weight: .semibold, design: .serif))
                         .foregroundStyle(Color.msTextPrimary)
+                        .lineLimit(2)
 
-                    Text(data.heroCaption ?? "Open the circle and bring someone back into the room.")
+                    Text(data.heroCaption ?? data.activeSummary)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.msTextMuted)
                         .lineLimit(2)
@@ -469,79 +463,65 @@ private struct HeroPanel: View {
             .padding(16)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 218)
-    }
-
-    private var circleFallbackName: String {
-        data.circle.name
+        .frame(height: 220)
     }
 }
 
-// MARK: - Supporting Rail
-
-private struct SupportingMembersRail: View {
-    let hero: CircleCardMember?
-    let supportingMembers: [CircleCardMember]
-    let accentColor: Color
+private struct OverlapFaceStack: View {
+    let members: [CircleCardMember]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(supportingMembers.prefix(3).enumerated()), id: \.element.id) { _, member in
+        HStack(spacing: -10) {
+            ForEach(Array(members.prefix(3)), id: \.id) { member in
                 AvatarView(
                     avatarUrl: member.avatarUrl,
                     name: member.displayName,
-                    size: 44
+                    size: 28
                 )
                 .overlay(
                     SwiftUI.Circle()
-                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                        .stroke(Color.msBackground, lineWidth: 1.5)
                 )
             }
-
-            if supportingMembers.count > 3 {
-                Text("+\(supportingMembers.count - 3)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.msTextMuted)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.08), in: Capsule())
-            } else if supportingMembers.isEmpty, let hero {
-                Text(hero.isCurrentUser ? "Just you" : "Lead")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.msTextMuted)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.08), in: Capsule())
-            }
-
-            Spacer(minLength: 0)
-
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color.white.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(accentColor.opacity(0.18), lineWidth: 1)
-                )
-                .frame(height: 74)
-                .overlay(
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Circle")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.msTextMuted)
-                            .textCase(.uppercase)
-
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(accentColor)
-                    }
-                    .padding(12),
-                    alignment: .topLeading
-                )
         }
     }
 }
 
-// MARK: - Chips
+private struct CompactMemberChip: View {
+    let member: CircleCardMember
+
+    var body: some View {
+        HStack(spacing: 8) {
+            AvatarView(
+                avatarUrl: member.avatarUrl,
+                name: member.displayName,
+                size: 34
+            )
+            .overlay(
+                SwiftUI.Circle()
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+
+            Text(member.shortName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.msTextMuted)
+                .lineLimit(1)
+        }
+    }
+}
+
+private struct CompactStreakChip: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Color.msTextPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.08), in: Capsule())
+    }
+}
 
 private struct MomentumBadge: View {
     let text: String
@@ -585,6 +565,35 @@ private struct CircleActionChip: View {
     }
 }
 
+private struct EncourageActionChip: View {
+    let title: String
+    let isSending: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                if isSending {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Color(hex: "1A2E1E"))
+                } else {
+                    Image(systemName: "hand.wave.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                Text(isSending ? "Sending..." : title)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(Color(hex: "1A2E1E"))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(Color.msGold, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(isSending)
+    }
+}
+
 private struct StatusChip: View {
     let text: String
     let accentColor: Color
@@ -615,6 +624,142 @@ private struct MiniPill: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(accentColor.opacity(0.28), in: Capsule())
+    }
+}
+
+private struct CircleCardSkeleton: View {
+    let isFeatured: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: isFeatured ? 172 : 132, height: isFeatured ? 30 : 24)
+                Spacer()
+                Capsule()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 90, height: 32)
+            }
+
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.12))
+                .frame(maxWidth: .infinity)
+                .frame(height: isFeatured ? 220 : 164)
+
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color.white.opacity(0.12))
+                .frame(width: isFeatured ? 220 : 180, height: isFeatured ? 24 : 18)
+
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color.white.opacity(0.10))
+                .frame(width: isFeatured ? 190 : 150, height: 14)
+
+            Spacer(minLength: 0)
+        }
+        .redacted(reason: .placeholder)
+    }
+}
+
+// MARK: - Edit Layout
+
+struct EditCirclesLayoutView: View {
+    @Bindable var viewModel: CirclesViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if !viewModel.pinnedCircles.isEmpty {
+                    Section {
+                        ForEach(viewModel.pinnedCircles) { circle in
+                            EditableCircleRow(
+                                circle: circle,
+                                isPinned: true,
+                                onTogglePin: { viewModel.togglePinned(circleId: circle.id) }
+                            )
+                        }
+                        .onMove { viewModel.movePinnedCircles(from: $0, to: $1) }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Pinned Circles")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.msTextMuted)
+                            Text("Pinned circles stay first in the deck.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.msTextMuted.opacity(0.55))
+                        }
+                        .textCase(nil)
+                    }
+                }
+
+                Section {
+                    ForEach(viewModel.unpinnedCircles) { circle in
+                        EditableCircleRow(
+                            circle: circle,
+                            isPinned: false,
+                            onTogglePin: { viewModel.togglePinned(circleId: circle.id) }
+                        )
+                    }
+                    .onMove { viewModel.moveUnpinnedCircles(from: $0, to: $1) }
+                } header: {
+                    Text("Other Circles")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.msTextMuted)
+                        .textCase(nil)
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .scrollContentBackground(.hidden)
+            .background(Color.msBackgroundDeep)
+            .listStyle(.insetGrouped)
+            .navigationTitle("Edit Circles")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(Color.msGold)
+                }
+            }
+        }
+    }
+}
+
+private struct EditableCircleRow: View {
+    let circle: Circle
+    let isPinned: Bool
+    let onTogglePin: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isPinned ? Color.msGold : Color.msTextMuted)
+                .frame(width: 22)
+                .onTapGesture(perform: onTogglePin)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(circle.name)
+                    .font(.system(size: 15, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+                Text(circle.groupStreakDaysSafe == 0 ? "New circle" : "\(circle.groupStreakDaysSafe) day streak")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.msTextMuted)
+            }
+
+            Spacer(minLength: 0)
+
+            Button(action: onTogglePin) {
+                Text(isPinned ? "Unpin" : "Pin")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isPinned ? Color.msTextMuted : Color.msGold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.06), in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -672,21 +817,6 @@ enum CircleColorDeriver {
             Color(hex: "5BBFB0")
         ]
         return accents[nameHash(name) % accents.count]
-    }
-}
-
-// MARK: - CircleIconPicker
-
-enum CircleIconPicker {
-    private static let icons = [
-        "moon.stars.fill", "book.fill", "hands.sparkles.fill",
-        "heart.fill", "star.fill", "sun.max.fill",
-        "leaf.fill", "sparkles", "checkmark.seal.fill"
-    ]
-
-    static func icon(for name: String) -> String {
-        let hash = abs(name.unicodeScalars.reduce(0) { $0 &+ Int($1.value) })
-        return icons[hash % icons.count]
     }
 }
 

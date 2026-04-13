@@ -26,7 +26,10 @@ struct MainTabView: View {
                 .tabItem { Label("Profile", systemImage: "person.circle.fill") }
                 .tag(2)
         }
-        .tint(Color.accent)
+        .tint(Color.msGold)
+        .toolbarBackground(Color.msBackgroundDeep, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarColorScheme(.dark, for: .tabBar)
         .onChange(of: pendingInviteCode) { _, code in
             if code != nil {
                 selectedTab = 1

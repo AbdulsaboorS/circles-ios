@@ -133,6 +133,9 @@ struct CommunityView: View {
                 NotificationPermissionModal(isPresented: $viewModel.shouldShowPermissionPrompt)
                     .presentationDetents([.large])
             }
+            .sheet(isPresented: $viewModel.showLayoutEditor) {
+                EditCirclesLayoutView(viewModel: viewModel)
+            }
         }
     }
 
@@ -140,12 +143,47 @@ struct CommunityView: View {
 
     private var stickyHeader: some View {
         VStack(spacing: 0) {
-            // Brand title
-            Text("Circles")
-                .font(.system(size: 22, weight: .bold, design: .serif))
-                .foregroundStyle(Color.msTextPrimary)
+            ZStack {
+                Text("Circles")
+                    .font(.system(size: 22, weight: .bold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+                    .frame(maxWidth: .infinity)
+
+                HStack(spacing: 10) {
+                    Spacer()
+
+                    if selectedPage == 1, !viewModel.circles.isEmpty {
+                        Button {
+                            viewModel.showLayoutEditor = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color.msGold)
+                                .frame(width: 34, height: 34)
+                                .background(Color.msBackgroundDeep.opacity(0.85), in: SwiftUI.Circle())
+                                .overlay(
+                                    SwiftUI.Circle()
+                                        .stroke(Color.msGold.opacity(0.18), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Menu {
+                            Button("Create a Circle") { viewModel.showCreateSheet = true }
+                            Button("Join with Invite Code") { viewModel.showJoinSheet = true }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color(hex: "1A2E1E"))
+                                .frame(width: 34, height: 34)
+                                .background(Color.msGold, in: SwiftUI.Circle())
+                        }
+                    }
+                }
                 .frame(maxWidth: .infinity)
-                .frame(height: 40)
+                .padding(.horizontal, 16)
+            }
+            .frame(height: 44)
 
             // Tier 1: Feed | Circles — full width
             HStack(spacing: 0) {
@@ -281,8 +319,8 @@ struct CommunityView: View {
                 MyCirclesView(
                     circles: viewModel.circles,
                     cardDataMap: viewModel.cardDataMap,
-                    onCreateCircle: { viewModel.showCreateSheet = true },
-                    onJoinCircle:   { viewModel.showJoinSheet = true },
+                    pinnedCircleIDs: viewModel.pinnedCircleIDs,
+                    sendingNudgeCircleIDs: viewModel.sendingNudgeCircleIDs,
                     onNudge: { circleId in
                         guard let userId = auth.session?.user.id else { return }
                         Task { await viewModel.sendNudge(circleId: circleId, userId: userId) }
