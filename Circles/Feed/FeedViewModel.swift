@@ -95,11 +95,26 @@ final class FeedViewModel {
 
     func refresh(circleIds: [UUID], currentUserId: UUID, singleCircleId: UUID? = nil) async {
         isLoadingInitial = false  // allow reload even if a prior load is in flight
-        items = []
-        reactions = [:]
-        reactionProfiles = [:]
-        authorProfiles = [:]
+        // Keep existing items visible during refresh — no blank-screen flash
         await loadInitial(circleIds: circleIds, currentUserId: currentUserId, singleCircleId: singleCircleId)
+    }
+
+    // MARK: - Optimistic Caption Update
+
+    /// Immediately updates the caption on the matching moment item in memory.
+    /// Called right after a successful DB write — no refresh needed.
+    func updateMomentCaption(momentId: UUID, caption: String?) {
+        items = items.map { item in
+            guard case .moment(let m) = item, m.id == momentId else { return item }
+            return .moment(MomentFeedItem(
+                id: m.id, circleId: m.circleId, userId: m.userId,
+                userName: m.userName, circleName: m.circleName,
+                circleIds: m.circleIds, circleNames: m.circleNames,
+                photoUrl: m.photoUrl, secondaryPhotoUrl: m.secondaryPhotoUrl,
+                caption: caption,
+                postedAt: m.postedAt, isOnTime: m.isOnTime
+            ))
+        }
     }
 
     // MARK: - Optimistic Reaction Toggle

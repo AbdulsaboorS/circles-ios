@@ -233,16 +233,24 @@ final class MomentService {
     }
 
     /// Update caption on all of today's moment rows for a user.
+    /// Uses [String: AnyJSON] so nil caption sends explicit JSON null (Swift Codable omits nil keys).
     func updateCaption(_ caption: String?, userId: UUID) async throws {
         let today = Self.todayDateString()
-        struct CaptionUpdate: Encodable { let caption: String? }
-        try await client
-            .from("circle_moments")
-            .update(CaptionUpdate(caption: caption))
-            .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: "\(today)T00:00:00Z")
-            .lt("posted_at", value: "\(today)T23:59:59Z")
-            .execute()
+        let captionValue: AnyJSON = caption.map { .string($0) } ?? .null
+        print("[MomentService] updateCaption userId=\(userId) caption=\(caption ?? "nil")")
+        do {
+            try await client
+                .from("circle_moments")
+                .update(["caption": captionValue])
+                .eq("user_id", value: userId.uuidString)
+                .gte("posted_at", value: "\(today)T00:00:00Z")
+                .lt("posted_at", value: "\(today)T23:59:59Z")
+                .execute()
+            print("[MomentService] updateCaption succeeded")
+        } catch {
+            print("[MomentService] updateCaption failed: \(error)")
+            throw error
+        }
     }
 
     static func isDuplicateMomentError(_ error: Error) -> Bool {

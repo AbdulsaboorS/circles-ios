@@ -147,26 +147,27 @@ struct CircleDetailView: View {
         }
         .onDisappear { windowTimer?.invalidate() }
         .fullScreenCover(isPresented: $showCamera) {
-            MomentCameraView(circleId: circle.id) { composited, primary, secondary in
+            MomentCameraView(circleId: circle.id) { _, primary, secondary in
                 showCamera = false
                 Task { @MainActor in
                     await Task.yield()
-                    draftMoment = MomentDraft(image: composited, primaryImage: primary, secondaryImage: secondary)
+                    draftMoment = MomentDraft(primaryImage: primary, secondaryImage: secondary)
                 }
             }
         }
         .sheet(item: $draftMoment) { draft in
             MomentPreviewView(
-                image: draft.image,
-                onPost: { caption in
+                primaryImage: draft.primaryImage,
+                secondaryImage: draft.secondaryImage,
+                onPost: { caption, swapped in
                     guard let userId = auth.session?.user.id else { return }
                     let postCircleIds = allUserCircleIds.isEmpty ? [circle.id] : allUserCircleIds
                     let windowStartStr: String? = DailyMomentService.shared.windowStart.map {
                         ISO8601DateFormatter().string(from: $0)
                     }
                     let result = try await MomentService.shared.postMomentToAllCircles(
-                        primaryImage: draft.primaryImage,
-                        secondaryImage: draft.secondaryImage,
+                        primaryImage: swapped ? (draft.secondaryImage ?? draft.primaryImage) : draft.primaryImage,
+                        secondaryImage: swapped ? draft.primaryImage : draft.secondaryImage,
                         circleIds: postCircleIds,
                         userId: userId,
                         caption: caption,

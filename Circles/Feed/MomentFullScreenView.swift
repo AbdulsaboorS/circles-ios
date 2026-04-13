@@ -202,6 +202,13 @@ struct MomentFullScreenView: View {
                     .italic()
                     .foregroundStyle(Color.msTextPrimary)
             }
+
+            // Error message (caption save or comment)
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.red.opacity(0.9))
+            }
         }
     }
 
@@ -284,8 +291,16 @@ struct MomentFullScreenView: View {
     private func saveCaption() async {
         isSavingCaption = true
         let trimmed = editableCaption.trimmingCharacters(in: .whitespaces)
-        try? await MomentService.shared.updateCaption(trimmed.isEmpty ? nil : trimmed, userId: currentUserId)
-        captionFocused = false
+        let newCaption: String? = trimmed.isEmpty ? nil : trimmed
+        do {
+            try await MomentService.shared.updateCaption(newCaption, userId: currentUserId)
+            captionFocused = false
+            // Optimistic in-memory update — instant, no network round-trip
+            viewModel?.updateMomentCaption(momentId: item.id, caption: newCaption)
+        } catch {
+            errorMessage = "Couldn't save caption. Try again."
+            print("[MomentFullScreenView] saveCaption failed: \(error)")
+        }
         isSavingCaption = false
     }
 

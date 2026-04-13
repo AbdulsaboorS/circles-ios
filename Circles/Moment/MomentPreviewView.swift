@@ -3,22 +3,26 @@ import Combine
 
 struct MomentDraft: Identifiable {
     let id = UUID()
-    let image: UIImage          // composited for preview
-    let primaryImage: UIImage   // raw primary for upload
-    let secondaryImage: UIImage // raw secondary for upload
+    let primaryImage: UIImage
+    let secondaryImage: UIImage?
 }
 
 struct MomentPreviewView: View {
-    let image: UIImage
-    let onPost: (String?) async throws -> Void
+    let primaryImage: UIImage
+    let secondaryImage: UIImage?
+    let onPost: (String?, Bool) async throws -> Void  // (caption, swapped)
     let onRetake: () -> Void
     let circleCount: Int
     @State private var caption: String = ""
     @State private var isPosting = false
+    @State private var swapped = false
     @State private var errorMessage: String?
     @State private var partialErrorMessage: String?
     @State private var windowSecondsRemaining: Int = 0
     @Environment(\.dismiss) private var dismiss
+
+    private var mainImage: UIImage { swapped ? (secondaryImage ?? primaryImage) : primaryImage }
+    private var pipImage: UIImage? { secondaryImage != nil ? (swapped ? primaryImage : secondaryImage) : nil }
 
     var body: some View {
         ZStack {
@@ -40,16 +44,35 @@ struct MomentPreviewView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-                // Composited photo preview
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(3.0 / 4.0, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.msGold.opacity(0.18), lineWidth: 1)
-                    )
-                    .padding(.horizontal, 16)
+                // Photo preview — primary with optional PiP at top-left (tap to swap)
+                ZStack(alignment: .topLeading) {
+                    Image(uiImage: mainImage)
+                        .resizable()
+                        .aspectRatio(3.0 / 4.0, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.msGold.opacity(0.18), lineWidth: 1)
+                        )
+
+                    if let pip = pipImage {
+                        Image(uiImage: pip)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 90, height: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.msGold, lineWidth: 2)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) { swapped.toggle() }
+                            }
+                            .padding(10)
+                    }
+                }
+                .padding(.horizontal, 16)
 
                 Spacer().frame(height: 16)
 
@@ -162,7 +185,7 @@ struct MomentPreviewView: View {
         isPosting = true
         errorMessage = nil
         do {
-            try await onPost(caption.isEmpty ? nil : caption)
+            try await onPost(caption.isEmpty ? nil : caption, swapped)
             dismiss()
         } catch {
             let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)

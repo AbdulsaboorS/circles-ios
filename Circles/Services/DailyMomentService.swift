@@ -17,6 +17,9 @@ final class DailyMomentService {
     var hasPostedToday: Bool = false
     var isLoading: Bool = false
 
+    /// Prevents redundant Aladhan API + DB calls when already loaded today
+    private var lastLoadedDate: String? = nil
+
     // MARK: - Computed Gate State
 
     /// Gate is active once the window opens AND user hasn't posted yet.
@@ -32,29 +35,38 @@ final class DailyMomentService {
     // MARK: - Load
 
     func load(userId: UUID) async {
+        let today = todayUTCString()
+
+        // Skip Aladhan API + DB calls if already loaded today and window is set
+        // (markPostedToday() keeps hasPostedToday accurate between loads)
+        if lastLoadedDate == today, windowStart != nil {
+            return
+        }
+
         isLoading = true
 
-        // 1. Get today's designated prayer
-        todayPrayerName = await fetchTodayPrayer()
+        // 1. Compute all values locally before touching published state —
+        //    prevents the gate from flickering on during intermediate states
 
-        // 2. Get user's location for Aladhan prayer time calculation
+        let prayer = await fetchTodayPrayer()
+
+        let newWindowStart: Date?
         if let profile = try? await AvatarService.shared.fetchProfile(userId: userId),
            let lat = profile.latitude, lat != 0,
            let lng = profile.longitude, lng != 0,
            let tz = profile.timezone, !tz.isEmpty {
-            windowStart = await fetchPrayerTime(
-                prayer: todayPrayerName,
-                lat: lat,
-                lng: lng,
-                timezone: tz
-            )
+            newWindowStart = await fetchPrayerTime(prayer: prayer, lat: lat, lng: lng, timezone: tz)
         } else {
-            // No location set — open window at start of day so gate works for testing
-            windowStart = Calendar.current.startOfDay(for: Date())
+            newWindowStart = Calendar.current.startOfDay(for: Date())
         }
 
-        // 3. Check if user has already posted a Moment today
-        await checkUserPostedToday(userId: userId)
+        let postedToday = await computeHasPostedToday(userId: userId)
+
+        // 2. Batch publish — hasPostedToday first so gate never flickers on
+        todayPrayerName = prayer
+        hasPostedToday = hasPostedToday || postedToday  // never downgrade from true within a day
+        windowStart = newWindowStart
+        lastLoadedDate = today
 
         isLoading = false
     }
@@ -133,7 +145,7 @@ final class DailyMomentService {
         return formatter.date(from: "\(todayString) \(timeString)")
     }
 
-    private func checkUserPostedToday(userId: UUID) async {
+    private func computeHasPostedToday(userId: UUID) async -> Bool {
         let today = todayUTCString()
         struct Row: Decodable { let id: UUID }
         let rows: [Row] = (try? await SupabaseService.shared.client
@@ -145,7 +157,7 @@ final class DailyMomentService {
             .limit(1)
             .execute()
             .value) ?? []
-        hasPostedToday = !rows.isEmpty
+        return !rows.isEmpty
     }
 
     private func todayUTCString() -> String {

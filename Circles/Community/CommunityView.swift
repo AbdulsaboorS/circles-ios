@@ -55,19 +55,21 @@ struct CommunityView: View {
             .task {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadCircles(userId: userId)
-                await loadGlobalFeed()
-                await DailyMomentService.shared.load(userId: userId)
+                // Feed and gate load are independent — run concurrently
+                async let feedLoad: Void = loadGlobalFeed()
+                async let gateLoad: Void = DailyMomentService.shared.load(userId: userId)
+                _ = await (feedLoad, gateLoad)
             }
             .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
                 Task { await loadGlobalFeed() }
             }
             .fullScreenCover(isPresented: $showGlobalCamera) {
                 if let circleId = viewModel.circles.first?.id {
-                    MomentCameraView(circleId: circleId) { composited, primary, secondary in
+                    MomentCameraView(circleId: circleId) { _, primary, secondary in
                         showGlobalCamera = false
                         Task { @MainActor in
                             await Task.yield()
-                            draftMoment = MomentDraft(image: composited, primaryImage: primary, secondaryImage: secondary)
+                            draftMoment = MomentDraft(primaryImage: primary, secondaryImage: secondary)
                         }
                     }
                 }
@@ -92,13 +94,14 @@ struct CommunityView: View {
                 }
             }) { draft in
                 MomentPreviewView(
-                    image: draft.image,
-                    onPost: { caption in
+                    primaryImage: draft.primaryImage,
+                    secondaryImage: draft.secondaryImage,
+                    onPost: { caption, swapped in
                         guard let userId = auth.session?.user.id else { return }
                         let circleIds = viewModel.circles.map { $0.id }
                         let result = try await MomentService.shared.postMomentToAllCircles(
-                            primaryImage: draft.primaryImage,
-                            secondaryImage: draft.secondaryImage,
+                            primaryImage: swapped ? (draft.secondaryImage ?? draft.primaryImage) : draft.primaryImage,
+                            secondaryImage: swapped ? draft.primaryImage : draft.secondaryImage,
                             circleIds: circleIds,
                             userId: userId,
                             caption: caption,
@@ -210,7 +213,8 @@ struct CommunityView: View {
 
     private var globalFeedPage: some View {
         Group {
-            if feedViewModel.isLoadingInitial {
+            if feedViewModel.isLoadingInitial && feedViewModel.items.isEmpty {
+                // Only show full-screen spinner on the very first load
                 VStack {
                     Spacer()
                     ProgressView().tint(Color.msGold)
@@ -309,17 +313,37 @@ struct CommunityView: View {
 
     private func ownMomentStrip(_ moment: MomentFeedItem) -> some View {
         VStack(spacing: 10) {
-            // Side-by-side thumbnails, centered
-            HStack(spacing: 10) {
+            // BeReal-style composited preview: main photo with PiP overlay
+            ZStack(alignment: .topLeading) {
+                CachedAsyncImage(url: moment.photoUrl) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Color(hex: "243828")
+                        .overlay(ProgressView().tint(Color.msGold))
+                }
+                .frame(width: 160, height: 213)
+                .clipped()
+
                 if let secondaryUrl = moment.secondaryPhotoUrl {
-                    // Two photos: front + back
-                    ownMomentThumbnail(url: moment.photoUrl)
-                    ownMomentThumbnail(url: secondaryUrl)
-                } else {
-                    // Single photo centered
-                    ownMomentThumbnail(url: moment.photoUrl)
+                    CachedAsyncImage(url: secondaryUrl) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color(hex: "243828")
+                    }
+                    .frame(width: 52, height: 69)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.msGold, lineWidth: 1.5)
+                    )
+                    .padding(6)
                 }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
+            )
 
             // Caption prompt
             if let caption = moment.caption, !caption.isEmpty {
@@ -343,21 +367,6 @@ struct CommunityView: View {
                 .background(Color.msGold, in: Capsule())
         }
         .padding(.vertical, 14)
-    }
-
-    private func ownMomentThumbnail(url: String) -> some View {
-        CachedAsyncImage(url: url) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Color(hex: "243828")
-                .overlay(ProgressView().tint(Color.msGold))
-        }
-        .frame(width: 140, height: 187)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
-        )
     }
 
     // MARK: - Helpers
