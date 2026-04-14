@@ -148,13 +148,16 @@ final class CircleService {
     }
 
     /// Amir: update `core_habits` and/or `gender_setting`. Pass nil to leave unchanged.
-    func updateCircleSettings(circleId: UUID, coreHabits: [String]?, genderSetting: String?) async throws -> Circle {
+    func updateCircleSettings(circleId: UUID, coreHabits: [String]?, genderSetting: String?, description: String? = nil) async throws -> Circle {
         var patch: [String: AnyJSON] = [:]
         if let coreHabits {
             patch["core_habits"] = .array(coreHabits.map { .string($0) })
         }
         if let genderSetting {
             patch["gender_setting"] = .string(genderSetting)
+        }
+        if let description {
+            patch["description"] = .string(description)
         }
         guard !patch.isEmpty else {
             return try await fetchCircle(id: circleId)

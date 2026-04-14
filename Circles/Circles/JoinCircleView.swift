@@ -47,6 +47,32 @@ struct JoinCircleView: View {
                             .multilineTextAlignment(.center)
                     }
 
+                    if let circle = pendingCircle {
+                        VStack(spacing: 8) {
+                            Text(circle.name)
+                                .font(.system(size: 18, weight: .semibold, design: .serif))
+                                .foregroundStyle(Color.msTextPrimary)
+                            if let desc = circle.description, !desc.isEmpty {
+                                Text(desc)
+                                    .font(.appSubheadline)
+                                    .foregroundStyle(Color.msTextMuted)
+                                    .multilineTextAlignment(.center)
+                            }
+                            if circle.genderSettingSafe != "mixed" {
+                                Text(circle.genderSettingSafe.capitalized)
+                                    .font(.appCaption)
+                                    .foregroundStyle(Color.msGold)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color.msGold.opacity(0.15), in: Capsule())
+                            }
+                        }
+                        .padding(16)
+                        .frame(maxWidth: .infinity)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msGold.opacity(0.2), lineWidth: 1))
+                    }
+
                     Spacer()
 
                     Button {
@@ -131,6 +157,9 @@ struct JoinCircleView: View {
             let profile = try? await AvatarService.shared.fetchProfile(userId: userId)
             let userGender = profile?.gender ?? ""
             let circleGender = circle.genderSettingSafe
+
+            // Show circle info before joining
+            pendingCircle = circle
 
             let mismatch = (circleGender == "brothers" && userGender == "sister") ||
                            (circleGender == "sisters"  && userGender == "brother")

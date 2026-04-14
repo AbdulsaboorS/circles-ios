@@ -1,65 +1,76 @@
-# Handoff — 2026-04-13 (Session 17 — Circle Detail "Living Room" Redesign COMPLETE)
+# Handoff — 2026-04-13 (Session 17 — Circle Detail Redesign + Polish)
 
 ## Current Build State
-**BUILD VERIFIED ✅** — zero errors. Commit `649c037` on `main`.
+**BUILD VERIFIED ✅** — zero errors on `main`.
 
 ---
 
-## What Landed This Session (Session 17)
+## What Landed This Session
 
-Completed Phases 5–6 of the Circle Detail "Living Room" redesign plan.
+### Circle Detail "Living Room" Redesign — Phases 5–6 (Complete)
+Full rewrite of `CircleDetailView.swift` assembling all components from session 16:
+- BreathingGradientBackground, serif title, tab switcher, PulseBar, DailyStatusShelf
+- Huddle/Gallery tabs with cross-fade transitions
+- ReciprocityGate on Gallery only
 
-### Phase 5: CircleDetailView Rewrite
-Full rewrite of `Circles/Circles/CircleDetailView.swift`:
-- **BreathingGradientBackground** as ZStack base (animated gradient)
-- **Serif circle name** as scroll-content header (empty nav title for clean look)
-- **CelestialNoorView** — intensity-driven noor orb, 2D layered with breathing animation
-- **Members header** — "N Members" label + "See All" → MembersListView sheet
-- **PulseBarView** — avatar scroll with NoorRing overlays, tap-to-nudge confirmationDialog
-- **DailyStatusShelfView** — shared habits progress (only shown when stats non-nil)
-- **Huddle/Gallery tab switcher** — serif text, gold underline, animated transition
-- **HuddleTimelineView** — compact activity timeline (Huddle tab, always visible)
-- **MomentGalleryView** — 2-col grid; ReciprocityGateView overlays Gallery tab only
-- **Pull-to-refresh** — parallel `detailVM.refreshStats()` + `feedViewModel.refresh()`
-- Removed old `members`/`memberProfiles`/`checkedInCount`/`isLoadingMembers` state; all in `CircleDetailViewModel`
+### 10/10 UI/UX Polish Pass
+- **Removed Check-ins tier-2 tab** from global feed (CommunityView) — feed is posts-only now
+- **Shimmer loading** — new `ShimmerView` component; shimmer skeletons for member avatars and huddle timeline
+- **Huddle empty state** — poetic copy: "The circle is quiet." + moon.stars icon
+- **Moment banner pulse** — star icon scales + gold border breathes during active window
+- **Haptics** — `.success` feedback on nudge send in PulseBarView
+- **Back button** — `.tint(.msGold)` for gold back chevron
+- **Share** — `SharePreview` with circle name + moon.stars icon
+- **Tab transitions** — cross-fade via `.id()` + `.transition(.opacity)`
 
-### Phase 6: Polish (applied during Phase 5)
-- Moment banner: `.ultraThinMaterial` + gold border stroke (replaces solid gold fill)
-- Notifications denied note: `.ultraThinMaterial` styling
-- Accessibility labels on orb, tab switcher buttons (`.isSelected` trait)
+### Star Constellation (Replaced Noor Orb)
+- **`StarConstellationView`** (new) — each member is a star in a circular constellation. Dim when unchecked, gold glow when all habits done, green when partial. Canvas-drawn connection lines between stars. Central radial glow pulses when all members are done.
+- **`CelestialNoorView`** still exists in codebase (not deleted) but is no longer used by `CircleDetailView`
+- Instruction text: "Stars light up as members check in habits" shown when no completion
+
+### Circle Description Field
+- **`CircleService.updateCircleSettings`** — added `description` parameter
+- **`AmirCircleSettingsView`** — added description TextField at top of settings
+- **`CircleDetailView`** — shows description below circle name (above constellation)
+- **`JoinCircleView`** — shows circle name, description, and gender badge in a material card when code is entered
+- **`Circle` model** already had `description: String?` — no model change needed
+- **DB note:** the `circles` table likely already has a `description` column (model had it). If not, run: `ALTER TABLE circles ADD COLUMN description TEXT;`
 
 ### NudgeService Fix
-`sendDirectNudge()` was accidentally placed outside the class body by the previous session. Fixed.
+`sendDirectNudge()` was outside the class body — moved inside.
 
 ---
 
-## All Redesign Files (Sessions 16+17)
+## Files Created/Modified
 
 | File | Status |
 |------|--------|
-| `Circles/Services/HabitService.swift` | Modified — `CircleCompletionStats` + `fetchCircleCompletionStats()` |
-| `Circles/Services/NudgeService.swift` | Modified — `sendDirectNudge()` fixed inside class |
-| `Circles/DesignSystem/CircleColorDeriver.swift` | New — extracted from MyCirclesView |
-| `Circles/DesignSystem/BreathingGradientBackground.swift` | New |
-| `Circles/Circles/CircleDetailViewModel.swift` | New — `@Observable @MainActor`, noor intensity, ring status |
-| `Circles/Circles/CelestialNoorView.swift` | New — 2D layered orb |
-| `Circles/Circles/PulseBarView.swift` | New — avatar scroll + NoorRing + nudge |
-| `Circles/Circles/DailyStatusShelfView.swift` | New — shared habits progress cards |
-| `Circles/Circles/HuddleTimelineView.swift` | New — compact feed timeline |
-| `Circles/Circles/MomentGalleryView.swift` | New — 2-col moment grid |
-| `Circles/Circles/CircleDetailView.swift` | Full rewrite — assembles all components |
-| `Circles/Community/MyCirclesView.swift` | Modified — removed CircleColorDeriver (extracted) |
+| `Circles/Circles/CircleDetailView.swift` | Full rewrite — constellation, description, shimmer, transitions |
+| `Circles/Circles/StarConstellationView.swift` | **New** — star constellation replacing noor orb |
+| `Circles/Circles/CelestialNoorView.swift` | Modified (ember ring added) — **no longer used**, can delete |
+| `Circles/Circles/PulseBarView.swift` | Modified — haptics on nudge send |
+| `Circles/Circles/HuddleTimelineView.swift` | Modified — shimmer + poetic empty state |
+| `Circles/Circles/AmirCircleSettingsView.swift` | Modified — description field |
+| `Circles/Circles/JoinCircleView.swift` | Modified — circle preview card on code entry |
+| `Circles/Services/CircleService.swift` | Modified — description in updateCircleSettings |
+| `Circles/Services/NudgeService.swift` | Modified — sendDirectNudge inside class |
+| `Circles/Community/CommunityView.swift` | Modified — removed tier-2 check-ins tab |
+| `Circles/DesignSystem/ShimmerView.swift` | **New** — shimmer loading component |
+| `Circles/DesignSystem/BreathingGradientBackground.swift` | Unchanged (from session 16) |
+| `Circles/DesignSystem/CircleColorDeriver.swift` | Unchanged (from session 16) |
+| `Circles/Circles/CircleDetailViewModel.swift` | Unchanged (from session 16) |
+| `Circles/Circles/DailyStatusShelfView.swift` | Unchanged (from session 16) |
+| `Circles/Circles/MomentGalleryView.swift` | Unchanged (from session 16) |
 
 ---
 
 ## What's Next
 
-The Circle Detail redesign is done and build-verified. The next task per ROADMAP.md should be checked in `.planning/ROADMAP.md` and `.planning/STATE.md`.
-
-Recommended next steps:
-1. **User QA** — test in simulator (UDID: `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92`, iPhone 17 Pro, OS 26.3.1)
-2. **STATE.md update** — mark Circle Detail redesign complete after QA passes
-3. **Next ROADMAP phase** — check `.planning/ROADMAP.md`
+1. **User QA** — test constellation, description field, join preview, removed check-ins tab
+2. **Delete `CelestialNoorView.swift`** if constellation is approved (it's unused now)
+3. **DB check** — verify `circles.description` column exists in Supabase; if not, add it
+4. **STATE.md update** after QA
+5. **Next ROADMAP phase** per `.planning/ROADMAP.md`
 
 ## Simulator UDID
 `AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92` (iPhone 17 Pro, OS 26.3.1)

@@ -11,6 +11,7 @@ struct AmirCircleSettingsView: View {
 
     @State private var selectedHabits: Set<String> = []
     @State private var genderSetting: String = "mixed"
+    @State private var descriptionText: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var memberToRemove: CircleMember?
@@ -27,6 +28,26 @@ struct AmirCircleSettingsView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 28) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Description")
+                                .font(.appCaptionMedium)
+                                .foregroundStyle(Color.textSecondary)
+                            TextField("What is this circle about?", text: $descriptionText, axis: .vertical)
+                                .font(.appSubheadline)
+                                .foregroundStyle(colors.textPrimary)
+                                .lineLimit(2...4)
+                                .padding(12)
+                                .background(
+                                    colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.8),
+                                    in: RoundedRectangle(cornerRadius: 12)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.accent.opacity(0.2), lineWidth: 1)
+                                )
+                        }
+                        .padding(.horizontal, 20)
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Circle setting")
                                 .font(.appCaptionMedium)
@@ -152,6 +173,7 @@ struct AmirCircleSettingsView: View {
             .onAppear {
                 selectedHabits = Set(circle.coreHabitsSafe)
                 genderSetting = circle.genderSettingSafe
+                descriptionText = circle.description ?? ""
             }
             .confirmationDialog(
                 "Remove this member from the circle?",
@@ -183,10 +205,12 @@ struct AmirCircleSettingsView: View {
         defer { isSaving = false }
         let habits = Array(selectedHabits).sorted()
         do {
+            let trimmedDesc = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
             let updated = try await CircleService.shared.updateCircleSettings(
                 circleId: circle.id,
                 coreHabits: habits,
-                genderSetting: genderSetting
+                genderSetting: genderSetting,
+                description: trimmedDesc.isEmpty ? nil : trimmedDesc
             )
             circle = updated
             dismiss()

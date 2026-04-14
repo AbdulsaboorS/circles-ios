@@ -60,16 +60,37 @@ struct CircleDetailView: View {
                         .padding(.horizontal, 16)
                         .accessibilityAddTraits(.isHeader)
 
-                    // Celestial Noor Orb
-                    CelestialNoorView(
-                        intensity: detailVM.noorIntensity,
-                        accentColor: accentColor
-                    )
-                    .padding(.top, 4)
+                    // Circle description
+                    if let desc = circle.description, !desc.isEmpty {
+                        Text(desc)
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                            .padding(.top, 4)
+                    }
 
-                    // Orb instruction — shown when circle has no completion yet
-                    if detailVM.noorIntensity < 0.05 {
-                        Text("Check in habits on the Home tab\nto ignite the noor")
+                    // Star Constellation — each member is a star
+                    if !detailVM.members.isEmpty {
+                        StarConstellationView(
+                            members: detailVM.members,
+                            ringStatus: { detailVM.noorRingStatus(for: $0) },
+                            displayName: { detailVM.displayName(for: $0) },
+                            avatarUrl: { detailVM.avatarUrl(for: $0) },
+                            intensity: detailVM.noorIntensity
+                        )
+                        .padding(.top, 4)
+                    } else if detailVM.isLoadingMembers {
+                        ShimmerView()
+                            .frame(height: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .padding(.horizontal, 40)
+                            .padding(.top, 4)
+                    }
+
+                    // Constellation instruction — shown when circle has no completion yet
+                    if detailVM.noorIntensity < 0.05 && !detailVM.members.isEmpty {
+                        Text("Stars light up as members check in habits")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(Color.msTextMuted.opacity(0.75))
                             .multilineTextAlignment(.center)
