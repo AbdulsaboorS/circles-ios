@@ -448,7 +448,10 @@ struct ProfileView: View {
             .buttonStyle(.plain)
 
             Button {
-                DailyMomentService.shared.forceOpenWindow()
+                Task {
+                    guard let userId = auth.session?.user.id else { return }
+                    await DailyMomentService.shared.forceOpenWindow(userId: userId)
+                }
             } label: {
                 Text("Force Open Moment Window")
                     .font(.appCaption)

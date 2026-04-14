@@ -39,6 +39,20 @@ final class NiyyahService {
             .value
     }
 
+    #if DEBUG
+    /// Delete today's niyyah for the given user (debug testing only).
+    func deleteTodayNiyyah(userId: UUID) async throws {
+        let today = MomentService.todayDateString()
+        try await client
+            .from("moment_niyyahs")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("photo_date", value: today)
+            .execute()
+        print("[NiyyahService] DEBUG: deleted today's niyyah for userId=\(userId)")
+    }
+    #endif
+
     /// Fetch the count of Niyyahs for the user (for Profile entry point).
     func fetchNiyyahCount(userId: UUID) async throws -> Int {
         let niyyahs: [MomentNiyyah] = try await client

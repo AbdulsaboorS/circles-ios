@@ -252,6 +252,10 @@ struct MomentPreviewView: View {
             )
             dismiss()
         } catch {
+            // If DB says already posted, sync client state so gate/CTA close
+            if case MomentError.alreadyPostedToday = error {
+                DailyMomentService.shared.markPostedToday()
+            }
             let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
             errorMessage = message.isEmpty ? String(describing: error) : message
             print("[MomentPreviewView] post failed: \(error)")

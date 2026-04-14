@@ -290,6 +290,21 @@ final class MomentService {
         }
     }
 
+    #if DEBUG
+    /// Delete all of today's moments for the given user (debug testing only).
+    func deleteMyTodayMoments(userId: UUID) async throws {
+        let today = Self.todayDateString()
+        try await client
+            .from("circle_moments")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .gte("posted_at", value: "\(today)T00:00:00Z")
+            .lt("posted_at", value: "\(today)T23:59:59Z")
+            .execute()
+        print("[MomentService] DEBUG: deleted today's moments for userId=\(userId)")
+    }
+    #endif
+
     static func isDuplicateMomentError(_ error: Error) -> Bool {
         let message = String(describing: error)
         return message.contains("circle_moments_one_per_day") || message.contains("duplicate key value")

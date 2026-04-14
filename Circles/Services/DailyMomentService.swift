@@ -37,8 +37,7 @@ final class DailyMomentService {
     func load(userId: UUID) async {
         let today = todayUTCString()
 
-        // Skip Aladhan API + DB calls if already loaded today and window is set
-        // (markPostedToday() keeps hasPostedToday accurate between loads)
+        // Skip DB calls if already loaded today and window is set
         if lastLoadedDate == today, windowStart != nil {
             return
         }
@@ -48,16 +47,23 @@ final class DailyMomentService {
         // 1. Compute all values locally before touching published state —
         //    prevents the gate from flickering on during intermediate states
 
-        let prayer = await fetchTodayPrayer()
+        let dailyMoment = await fetchTodayDailyMoment()
+        let prayer = dailyMoment?.prayerName ?? "asr"
 
         let newWindowStart: Date?
-        if let profile = try? await AvatarService.shared.fetchProfile(userId: userId),
-           let lat = profile.latitude, lat != 0,
-           let lng = profile.longitude, lng != 0,
-           let tz = profile.timezone, !tz.isEmpty {
-            newWindowStart = await fetchPrayerTime(prayer: prayer, lat: lat, lng: lng, timezone: tz)
+        if let timeStr = dailyMoment?.momentTime {
+            // New: BeReal-style — use server-set random UTC time directly
+            newWindowStart = utcTimeToDate(timeStr)
         } else {
-            newWindowStart = Calendar.current.startOfDay(for: Date())
+            // Legacy fallback: calculate from prayer time via Aladhan API
+            if let profile = try? await AvatarService.shared.fetchProfile(userId: userId),
+               let lat = profile.latitude, lat != 0,
+               let lng = profile.longitude, lng != 0,
+               let tz = profile.timezone, !tz.isEmpty {
+                newWindowStart = await fetchPrayerTime(prayer: prayer, lat: lat, lng: lng, timezone: tz)
+            } else {
+                newWindowStart = Calendar.current.startOfDay(for: Date())
+            }
         }
 
         let postedToday = await computeHasPostedToday(userId: userId)
@@ -77,16 +83,20 @@ final class DailyMomentService {
     }
 
     #if DEBUG
-    /// Forces the gate open immediately — sets windowStart to 1 minute ago, clears hasPostedToday.
-    func forceOpenWindow() {
+    /// Forces the gate open immediately — deletes today's DB rows, resets client state.
+    func forceOpenWindow(userId: UUID) async {
+        try? await MomentService.shared.deleteMyTodayMoments(userId: userId)
+        try? await NiyyahService.shared.deleteTodayNiyyah(userId: userId)
         windowStart = Date().addingTimeInterval(-60)
         hasPostedToday = false
+        lastLoadedDate = nil
+        print("[DailyMomentService] DEBUG: force window opened, today's moments deleted")
     }
     #endif
 
     // MARK: - Private Helpers
 
-    private func fetchTodayPrayer() async -> String {
+    private func fetchTodayDailyMoment() async -> DailyMoment? {
         let today = todayUTCString()
         let rows: [DailyMoment] = (try? await SupabaseService.shared.client
             .from("daily_moments")
@@ -95,7 +105,16 @@ final class DailyMomentService {
             .limit(1)
             .execute()
             .value) ?? []
-        return rows.first?.prayerName ?? "asr"
+        return rows.first
+    }
+
+    /// Parse "HH:MM" as a UTC time and combine with today's UTC date.
+    private func utcTimeToDate(_ timeString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        let today = todayUTCString()
+        return formatter.date(from: "\(today) \(timeString)")
     }
 
     private func fetchPrayerTime(prayer: String, lat: Double, lng: Double, timezone: String) async -> Date? {

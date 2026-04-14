@@ -17,7 +17,15 @@ extension EnvironmentValues {
 
 // MARK: - AppDelegate
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
@@ -33,6 +41,42 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         print("[AppDelegate] APNs registration failed: \(error)")
+    }
+
+    // Handle notification tap or foreground delivery
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+        if let type = userInfo["type"] as? String, type == "moment_window" {
+            Task { @MainActor in
+                guard let userId = AuthManager.sharedForAPNs?.session?.user.id else { return }
+                // Refresh gate — DailyMomentService is @Observable so all views update
+                await DailyMomentService.shared.load(userId: userId)
+            }
+        }
+        completionHandler()
+    }
+
+    // Show notification banner even when app is in foreground
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        let userInfo = notification.request.content.userInfo
+        if let type = userInfo["type"] as? String, type == "moment_window" {
+            // Refresh gate silently when we receive a moment_window push in foreground
+            Task { @MainActor in
+                guard let userId = AuthManager.sharedForAPNs?.session?.user.id else { return }
+                await DailyMomentService.shared.load(userId: userId)
+            }
+            completionHandler([.banner, .sound])
+        } else {
+            completionHandler([.banner, .sound])
+        }
     }
 }
 

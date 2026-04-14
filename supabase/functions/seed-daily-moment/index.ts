@@ -25,12 +25,22 @@ Deno.serve(async (_req) => {
     );
   }
 
-  // Pick a random prayer
+  // Pick a random prayer (kept as cosmetic label)
   const prayer = PRAYERS[Math.floor(Math.random() * PRAYERS.length)];
+
+  // Pick a random UTC time between 13:00–03:00 UTC (≈ 8am–10pm ET)
+  // We model this as: hour 13–23 OR 0–2 UTC
+  // Simple approach: pick from range [13, 23] and [0, 2]
+  const earlyHours = [0, 1, 2];
+  const lateHours = Array.from({ length: 11 }, (_, i) => i + 13); // 13–23
+  const allHours = [...lateHours, ...earlyHours];
+  const hour = allHours[Math.floor(Math.random() * allHours.length)];
+  const minute = Math.floor(Math.random() * 60);
+  const momentTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 
   const { error } = await supabase
     .from("daily_moments")
-    .insert({ moment_date: today, prayer_name: prayer });
+    .insert({ moment_date: today, prayer_name: prayer, moment_time: momentTime });
 
   if (error) {
     return new Response(
