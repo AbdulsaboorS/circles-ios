@@ -112,7 +112,8 @@ final class FeedViewModel {
                 circleIds: m.circleIds, circleNames: m.circleNames,
                 photoUrl: m.photoUrl, secondaryPhotoUrl: m.secondaryPhotoUrl,
                 caption: caption,
-                postedAt: m.postedAt, isOnTime: m.isOnTime
+                postedAt: m.postedAt, isOnTime: m.isOnTime,
+                hasNiyyah: m.hasNiyyah
             ))
         }
     }

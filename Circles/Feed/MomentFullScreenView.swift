@@ -132,7 +132,7 @@ struct MomentFullScreenView: View {
                 .padding(10)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
         .padding(.horizontal, 8)
     }
 

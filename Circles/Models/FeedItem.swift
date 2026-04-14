@@ -15,6 +15,7 @@ struct MomentFeedItem: Identifiable, Sendable {
     let caption: String?
     let postedAt: String  // ISO8601 string, per project date-as-string convention
     let isOnTime: Bool
+    let hasNiyyah: Bool
 }
 
 struct HabitCheckinFeedItem: Identifiable, Sendable {

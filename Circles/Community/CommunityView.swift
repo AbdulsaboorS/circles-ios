@@ -80,7 +80,7 @@ struct CommunityView: View {
                 MomentPreviewView(
                     primaryImage: draft.primaryImage,
                     secondaryImage: draft.secondaryImage,
-                    onPost: { caption, swapped in
+                    onPost: { caption, swapped, niyyahText in
                         guard let userId = auth.session?.user.id else { return }
                         let circleIds = viewModel.circles.map { $0.id }
                         let result = try await MomentService.shared.postMomentToAllCircles(
@@ -89,7 +89,8 @@ struct CommunityView: View {
                             circleIds: circleIds,
                             userId: userId,
                             caption: caption,
-                            windowStart: viewModel.circles.first?.momentWindowStart
+                            windowStart: viewModel.circles.first?.momentWindowStart,
+                            niyyahText: niyyahText
                         )
                         DailyMomentService.shared.markPostedToday()
                         pendingFeedRefresh = true

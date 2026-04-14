@@ -300,7 +300,7 @@ struct CircleDetailView: View {
             MomentPreviewView(
                 primaryImage: draft.primaryImage,
                 secondaryImage: draft.secondaryImage,
-                onPost: { caption, swapped in
+                onPost: { caption, swapped, niyyahText in
                     guard let userId = auth.session?.user.id else { return }
                     let postCircleIds = allUserCircleIds.isEmpty ? [circle.id] : allUserCircleIds
                     let windowStartStr: String? = DailyMomentService.shared.windowStart.map {
@@ -312,7 +312,8 @@ struct CircleDetailView: View {
                         circleIds: postCircleIds,
                         userId: userId,
                         caption: caption,
-                        windowStart: windowStartStr
+                        windowStart: windowStartStr,
+                        niyyahText: niyyahText
                     )
                     DailyMomentService.shared.markPostedToday()
                     await reloadCircleFromServer()

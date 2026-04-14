@@ -33,12 +33,27 @@ private struct CircleMomentRow: Decodable {
     let caption: String?
     let postedAt: String
     let isOnTime: Bool
+    let hasNiyyah: Bool
 
     enum CodingKeys: String, CodingKey {
         case id; case circleId = "circle_id"; case userId = "user_id"
         case photoUrl = "photo_url"; case secondaryPhotoUrl = "secondary_photo_url"
         case caption
         case postedAt = "posted_at"; case isOnTime = "is_on_time"
+        case hasNiyyah = "has_niyyah"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        circleId = try c.decode(UUID.self, forKey: .circleId)
+        userId = try c.decode(UUID.self, forKey: .userId)
+        photoUrl = try c.decode(String.self, forKey: .photoUrl)
+        secondaryPhotoUrl = try c.decodeIfPresent(String.self, forKey: .secondaryPhotoUrl)
+        caption = try c.decodeIfPresent(String.self, forKey: .caption)
+        postedAt = try c.decode(String.self, forKey: .postedAt)
+        isOnTime = try c.decode(Bool.self, forKey: .isOnTime)
+        hasNiyyah = try c.decodeIfPresent(Bool.self, forKey: .hasNiyyah) ?? false
     }
 }
 
@@ -176,7 +191,8 @@ final class FeedService {
                 secondaryPhotoUrl: resolved?.secondary,
                 caption: first.caption,
                 postedAt: first.postedAt,
-                isOnTime: first.isOnTime
+                isOnTime: first.isOnTime,
+                hasNiyyah: first.hasNiyyah
             ))
         }
 
@@ -296,7 +312,7 @@ final class FeedService {
 
         async let momentRowsTask: [CircleMomentRow] = client
             .from("circle_moments")
-            .select("id, circle_id, user_id, photo_url, secondary_photo_url, caption, posted_at, is_on_time")
+            .select("id, circle_id, user_id, photo_url, secondary_photo_url, caption, posted_at, is_on_time, has_niyyah")
             .in("circle_id", values: idStrings)
             .gte("posted_at", value: todayStart)
             .lt("posted_at", value: todayEnd)

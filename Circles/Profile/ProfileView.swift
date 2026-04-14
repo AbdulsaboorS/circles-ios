@@ -22,6 +22,8 @@ struct ProfileView: View {
     @State private var isSavingName = false
 
     @State private var showSettingsSheet = false
+    @State private var niyyahCount: Int = 0
+    @State private var showSpiritualLedger = false
 
     private var displayName: String {
         if let name = profile?.preferredName, !name.isEmpty { return name }
@@ -43,6 +45,9 @@ struct ProfileView: View {
                     VStack(spacing: 24) {
                         avatarSection
                         statsCard
+                        if niyyahCount > 0 {
+                            spiritualLedgerButton
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -81,7 +86,42 @@ struct ProfileView: View {
             } message: {
                 Text(avatarUploadError ?? "")
             }
+            .fullScreenCover(isPresented: $showSpiritualLedger) {
+                if let userId = auth.session?.user.id {
+                    SpiritualLedgerView(userId: userId)
+                }
+            }
         }
+    }
+
+    // MARK: - Spiritual Ledger
+
+    private var spiritualLedgerButton: some View {
+        Button {
+            showSpiritualLedger = true
+        } label: {
+            HStack {
+                Image(systemName: "book.closed.fill")
+                    .foregroundStyle(Color.msGold)
+                Text("Spiritual Ledger")
+                    .font(.system(size: 17, weight: .semibold, design: .serif))
+                    .foregroundStyle(Color.msTextPrimary)
+                Spacer()
+                Text("\(niyyahCount)")
+                    .font(.appCaption)
+                    .foregroundStyle(Color.msTextMuted)
+                Image(systemName: "chevron.right")
+                    .font(.appCaption)
+                    .foregroundStyle(Color.msTextMuted)
+            }
+            .padding(16)
+            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.msBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Avatar Section
@@ -438,6 +478,8 @@ struct ProfileView: View {
         bestStreak = (try? await streakFetch)?.longestStreak ?? 0
         circleCount = (try? await circlesFetch) ?? 0
         isLoadingStats = false
+        // Niyyah count for Spiritual Ledger (non-blocking)
+        niyyahCount = (try? await NiyyahService.shared.fetchNiyyahCount(userId: userId)) ?? 0
     }
 
     private func handleAvatarPick(_ item: PhotosPickerItem) async {

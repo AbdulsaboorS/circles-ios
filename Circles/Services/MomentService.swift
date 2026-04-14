@@ -28,6 +28,27 @@ final class MomentService {
         return try await resolveMomentPhotoURLs(in: moments)
     }
 
+    /// Fetch a single moment for a user on a given date (for Spiritual Ledger photo lookup).
+    func fetchMomentForDate(userId: UUID, date: String) async throws -> CircleMoment? {
+        let moments: [CircleMoment] = try await client
+            .from("circle_moments")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .gte("posted_at", value: "\(date)T00:00:00Z")
+            .lt("posted_at", value: "\(date)T23:59:59Z")
+            .limit(1)
+            .execute()
+            .value
+        guard let moment = moments.first else { return nil }
+        let resolvedUrl = try await resolveMomentPhotoURL(from: moment.photoUrl)
+        return CircleMoment(
+            id: moment.id, circleId: moment.circleId, userId: moment.userId,
+            photoUrl: resolvedUrl, secondaryPhotoUrl: moment.secondaryPhotoUrl,
+            caption: moment.caption, postedAt: moment.postedAt,
+            isOnTime: moment.isOnTime, hasNiyyah: moment.hasNiyyah
+        )
+    }
+
     // MARK: - Upload Photo
 
     /// Upload a composited UIImage to Supabase Storage bucket "circle-moments".
@@ -101,7 +122,8 @@ final class MomentService {
         circleIds: [UUID],
         userId: UUID,
         caption: String?,
-        windowStart: String?
+        windowStart: String?,
+        niyyahText: String? = nil
     ) async throws -> MomentPostResult {
         guard !circleIds.isEmpty else {
             throw MomentError.noCircles
@@ -126,7 +148,8 @@ final class MomentService {
                     "circle_id": .string(circleId.uuidString),
                     "user_id": .string(userId.uuidString),
                     "photo_url": .string(photoUrl),
-                    "is_on_time": .bool(isOnTime)
+                    "is_on_time": .bool(isOnTime),
+                    "has_niyyah": .bool(niyyahText != nil)
                 ]
                 if let caption = caption, !caption.isEmpty {
                     row["caption"] = .string(caption)
@@ -158,6 +181,19 @@ final class MomentService {
                 throw MomentError.alreadyPostedToday
             }
             throw MomentError.allInsertsFailedCircles(failedCircleIds)
+        }
+
+        // Save private Niyyah (graceful — failure does not fail the post)
+        if let text = niyyahText, !text.isEmpty {
+            do {
+                try await NiyyahService.shared.saveNiyyah(
+                    userId: userId,
+                    text: text,
+                    photoDate: Self.todayDateString()
+                )
+            } catch {
+                print("[MomentService] niyyah save failed (non-fatal): \(error)")
+            }
         }
 
         return MomentPostResult(succeeded: succeeded, failedCircleIds: failedCircleIds)
@@ -200,7 +236,8 @@ final class MomentService {
                     secondaryPhotoUrl: moment.secondaryPhotoUrl,
                     caption: moment.caption,
                     postedAt: moment.postedAt,
-                    isOnTime: moment.isOnTime
+                    isOnTime: moment.isOnTime,
+                    hasNiyyah: moment.hasNiyyah
                 )
             )
         }

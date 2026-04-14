@@ -94,7 +94,12 @@ struct MomentFeedCard: View {
                     .padding(10)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 32))
+            .overlay {
+                if item.hasNiyyah {
+                    NoorAuraOverlay(cornerRadius: 32)
+                }
+            }
 
             // Actions row — floating on msBackground
             if !isLocked {
@@ -181,7 +186,8 @@ struct MomentFeedCard: View {
         secondaryPhotoUrl: "https://picsum.photos/seed/secondary/400/533",
         caption: "Alhamdulillah, fajr done ✓",
         postedAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-720)),
-        isOnTime: true
+        isOnTime: true,
+        hasNiyyah: true
     )
     let vm = FeedViewModel()
     return ScrollView {
