@@ -49,6 +49,37 @@ final class MomentService {
         )
     }
 
+    /// Fetch unresolved moment rows for a user in a UTC date range.
+    /// The stored `photo_url` remains a storage path until a detail view needs signing.
+    func fetchMoments(
+        userId: UUID,
+        from startDate: String,
+        toExclusive endDate: String
+    ) async throws -> [CircleMoment] {
+        try await client
+            .from("circle_moments")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .gte("posted_at", value: "\(startDate)T00:00:00Z")
+            .lt("posted_at", value: "\(endDate)T00:00:00Z")
+            .order("posted_at")
+            .execute()
+            .value
+    }
+
+    /// True when the user has ever posted at least one moment.
+    func hasAnyMoments(userId: UUID) async throws -> Bool {
+        struct Row: Decodable { let id: UUID }
+        let rows: [Row] = try await client
+            .from("circle_moments")
+            .select("id")
+            .eq("user_id", value: userId.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return !rows.isEmpty
+    }
+
     // MARK: - Upload Photo
 
     /// Upload a composited UIImage to Supabase Storage bucket "circle-moments".

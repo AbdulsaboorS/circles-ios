@@ -22,9 +22,13 @@ struct MainTabView: View {
                 .badge(notifService.unreadCount > 0 ? notifService.unreadCount : 0)
                 .tag(1)
 
+            JourneyView()
+                .tabItem { Label("Journey", systemImage: "calendar") }
+                .tag(2)
+
             ProfileView()
                 .tabItem { Label("Profile", systemImage: "person.circle.fill") }
-                .tag(2)
+                .tag(3)
         }
         .tint(Color.msGold)
         .toolbarBackground(Color.msBackgroundDeep, for: .tabBar)

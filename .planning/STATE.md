@@ -15,7 +15,7 @@ progress:
 
 ## Current Focus
 
-**Next: Journey Tab** — 4th tab, private spiritual calendar archive. Vision finalized this session. Build this before Profile redesign.
+**Next: Journey QA Fixes** — Journey MVP is built, but user testing exposed detail-sheet paging, PiP parity, latency, and post-refresh correctness issues. Fix those before moving on.
 
 **Then: Profile Redesign** — 10/10 UI/UX pass. Queued after Journey.
 
@@ -32,6 +32,33 @@ progress:
 | 5 | My Circles + Circle Detail | 🔄 My Circles built — testing in progress |
 | 6 | Profile | ⬜ Queued (will be done as full redesign, not just polish) |
 | 7 | Auth | ⬜ Queued |
+
+---
+
+## What's Built — Session 20 (2026-04-14)
+
+### Journey MVP
+
+- New `Journey` tab added between Community and Profile
+- Journey calendar archive built with month navigation, locale weekday ordering, and 3 day states
+- Journey detail sheet built as read-only niyyah-first view with on-demand photo signing
+- `SpiritualLedgerView` removed from Profile entirely
+- `MomentService` extended with month-range unresolved moment fetches and archive empty-state support
+
+### Review / Verification Notes
+
+- `xcodebuild` build verified after Journey ship
+- Runtime simulator verification was not completed in-session because `simctl launch` hung after boot/install attempts
+- In-session review fixed a stale-month loader bug and improved Journey same-session niyyah refresh behavior
+
+### Current QA Follow-Ups
+
+- Journey detail needs left/right paging across days
+- Journey detail needs PiP parity and PiP swap behavior for Double Take moments
+- Journey detail open latency is too high because it signs and downloads on open, and image cache identity is tied to signed URLs
+- Journey current-day state can go stale after repost because the tab lifecycle and month cache are not yet invalidated aggressively enough
+- Same-day Journey dedupe currently risks selecting the oldest same-day moment instead of the newest
+- Mixed circle-card timestamps after a fresh post still need root-cause confirmation; likely partial-success inserts or stale refresh on some surfaces
 
 ---
 
@@ -54,7 +81,7 @@ progress:
 ### Spiritual Ledger / Journey Decisions
 
 - `SpiritualLedgerView` ledger button on Profile now **always visible** (removed `niyyahCount > 0` guard).
-- **Journey tab vision finalized** — full design, architecture, data model, and build plan documented in HANDOFF.md. Not yet built.
+- **Journey tab vision finalized** — full design, architecture, data model, and build plan documented in HANDOFF.md. This vision is now shipped as an MVP and in QA follow-up.
 
 ---
 
@@ -133,7 +160,7 @@ progress:
 - `NiyyahDissolveView` — particle dissolve animation
 - `NoorAuraOverlay` — breathing gold glow on feed cards
 - `IslamicGeometricPattern` — 8-pointed star Canvas background
-- `SpiritualLedgerView` — paging journal (to be replaced by Journey tab)
+- `SpiritualLedgerView` — paging journal (now removed; superseded by Journey tab)
 - `NiyyahService` + `MomentNiyyah` model — owner-only private storage
 - `moment_niyyahs` table + RLS; `circle_moments.has_niyyah` column
 - 32pt corner radius on all moment photos
@@ -187,12 +214,28 @@ progress:
 ### C. Habit detail icon
 - `HabitDetailView` uses `Text(habit.icon)` — should be `Image(systemName:)`.
 
+### D. Journey detail parity
+- Detail sheet is single-day only right now.
+- Missing left/right swipe paging and missing PiP/swap parity for days with a secondary photo.
+
+### E. Journey detail latency
+- Detail currently signs photo URLs on open and then downloads them.
+- Image cache is keyed by signed URL string, so cache reuse is weak if the signed URL changes.
+
+### F. Journey freshness after repost
+- Journey tab can keep stale current-month / current-day state after a fresh post because `TabView` lifecycle + month cache invalidation are not fully handled yet.
+- Same-day dedupe currently risks preferring the oldest same-day moment instead of the newest.
+
+### G. Mixed circle-card timestamps after posting
+- User reported some circles showing an older age than others after a fresh post.
+- Likely causes: partial-success inserts across circles, or stale card-data refresh on some surfaces.
+
 ---
 
 ## Blockers
 
-None. Journey tab is next and has no external dependencies.
+None. Journey follow-up fixes are local app work with no external dependency.
 
 ---
 
-*Last updated: 2026-04-14 — Session 19. Journey tab vision finalized. Moment fixes shipped. Next: build Journey tab, then Profile redesign.*
+*Last updated: 2026-04-14 — Session 20. Journey MVP shipped and build-verified. Next: Journey QA fixes, then Profile redesign.*

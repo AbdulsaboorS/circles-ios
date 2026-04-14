@@ -1,144 +1,192 @@
-# Handoff — 2026-04-14 (Session 19 — Journey Tab Vision + Moment Fixes)
+# Handoff — 2026-04-14 (Session 20 — Journey MVP Built + QA Follow-Ups)
 
 ## Current Build State
-**BUILD VERIFIED ✅** — zero errors on `main`. Commit `a6e6e56`.
+**BUILD VERIFIED ✅** — zero errors on `main` via:
+
+```bash
+xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build
+```
+
+**Runtime verification gap:** simulator boot succeeded, but `simctl launch` hung in-session, so there is no screenshot-level proof of the Journey flow yet.
 
 ---
 
 ## What Landed This Session
 
-### 1. Force Moment Window — Genuine Re-Post (DEBUG)
-- `DailyMomentService.forceOpenWindow(userId:)` now async — deletes today's `circle_moments` + `moment_niyyahs` rows from DB before reopening the window
-- `MomentService.deleteMyTodayMoments(userId:)` — new `#if DEBUG` method
-- `NiyyahService.deleteTodayNiyyah(userId:)` — new `#if DEBUG` method
-- ProfileView debug button wrapped in `Task { await ... }` with userId
+### 1. Journey Tab MVP
+- Added a new 4-tab app shell flow: `Home` → `Circles` → `Journey` → `Profile`
+- Built `JourneyView`, `JourneyCalendarGrid`, `JourneyDayDetailView`, `JourneyViewModel`, `JourneyDateSupport`, and `JourneyDay`
+- Journey uses **stored UTC day consistency** for now, not local-day reinterpretation
+- Calendar uses **device locale** weekday ordering
+- Day states:
+  - gold / niyyah-dominant
+  - neutral / moment-only
+  - empty
+- Day detail is **read-only** for MVP
+- Photo signing is **on-demand** when detail opens
 
-### 2. Moment State Machine Desync Fix
-- `MomentPreviewView.postMoment()` catch block now calls `DailyMomentService.shared.markPostedToday()` when error is `.alreadyPostedToday` — closes the gate/CTA instead of leaving them stuck open
+### 2. Profile Ledger Removal
+- Removed the old Profile entry path for Spiritual Ledger
+- Deleted `SpiritualLedgerView.swift`
+- Removed `niyyahCount`, `showSpiritualLedger`, and ledger button wiring from `ProfileView`
 
-### 3. BeReal-Style Random Daily Moment Timing
-- `daily_moments` table: new `moment_time TEXT` column ("HH:MM" UTC)
-- `seed-daily-moment` edge function: now picks a random UTC time in 13:00–03:00 range (≈ 8am–10pm ET) alongside the prayer label. Deployed v2.
-- `send-moment-window-notifications` edge function: fully rewritten — fires at `moment_time`, pushes to all device tokens, no per-user Aladhan calculation. Deployed v1.
-- `DailyMomentService.load()`: uses `moment_time` directly when available (skips Aladhan API); falls back to Aladhan for legacy rows without a time
-- `DailyMoment` model: added `momentTime: String?` field
-- pg_cron jobs live: `seed-daily-moment` at 00:05 UTC daily, `send-moment-window-notifications` every 1 minute
-- `CirclesApp.AppDelegate` now conforms to `UNUserNotificationCenterDelegate` — handles `moment_window` push to refresh gate state
-- pg_net extension enabled on the project
+### 3. Journey Data Plumbing
+- `MomentService.fetchMoments(userId:from:toExclusive:)` added for month-range unresolved moment fetches
+- `MomentService.hasAnyMoments(userId:)` added for archive empty-state detection
+- Journey month model caches deduplicated same-day moments and all niyyahs for the user
 
-### 4. Spiritual Ledger — Always Visible
-- Removed `niyyahCount > 0` condition on Profile — ledger button always shows
-- Removed `.onAppear` niyyah count refresh (was added mid-session, then made redundant)
-
-### 5. Journey Tab — Vision Finalized (NOT YET BUILT)
-Full design and architecture decisions made. See "Next Session" below.
-
----
-
-## DB State
-- `daily_moments.moment_time` column: ✅ added
-- Today's row (2026-04-14): seeded with `moment_time = '16:48'` (test value — will auto-seed correctly from tomorrow via cron)
-- `moment_niyyahs` table: ✅ exists, RLS owner-only, 1 row (user tested)
-- `circle_moments.has_niyyah`: ✅ exists
-- pg_cron jobs: ✅ both active
-- pg_net extension: ✅ enabled
+### 4. Review Fixes Applied In-Session
+- Fixed a loader-state bug where a failed month fetch could leave stale visible days
+- Refreshed the Journey niyyah summary when Journey re-enters its own load path
 
 ---
 
-## Files Modified This Session
+## Files Added / Removed
 
-| File | Change |
-|------|--------|
-| `Circles/Services/MomentService.swift` | Added `#if DEBUG deleteMyTodayMoments()` |
-| `Circles/Services/NiyyahService.swift` | Added `#if DEBUG deleteTodayNiyyah()` |
-| `Circles/Services/DailyMomentService.swift` | `forceOpenWindow(userId:)` async + DB cleanup; `load()` uses `moment_time`; new `fetchTodayDailyMoment()` + `utcTimeToDate()` helpers |
-| `Circles/Models/DailyMoment.swift` | Added `momentTime: String?` |
-| `Circles/Moment/MomentPreviewView.swift` | Sync `markPostedToday()` on `alreadyPostedToday` error |
-| `Circles/Profile/ProfileView.swift` | Force button async; ledger always visible |
-| `Circles/CirclesApp.swift` | `UNUserNotificationCenterDelegate` conformance; `moment_window` push handling |
-| `supabase/functions/seed-daily-moment/index.ts` | Random `moment_time` generation |
-| `supabase/functions/send-moment-window-notifications/index.ts` | Full rewrite — time-based, not prayer-based |
+### Added
+- `Circles/Journey/JourneyView.swift`
+- `Circles/Journey/JourneyCalendarGrid.swift`
+- `Circles/Journey/JourneyDayDetailView.swift`
+- `Circles/Journey/JourneyViewModel.swift`
+- `Circles/Journey/JourneyDateSupport.swift`
+- `Circles/Models/JourneyDay.swift`
+
+### Modified
+- `Circles/Navigation/MainTabView.swift`
+- `Circles/Profile/ProfileView.swift`
+- `Circles/Services/MomentService.swift`
+
+### Deleted
+- `Circles/Profile/SpiritualLedgerView.swift`
 
 ---
 
-## Next Session: Build Journey Tab
+## User-Tested Issues Found After Ship
 
-### Vision
-A 4th tab called **"Journey"** — a private spiritual record of the user's daily intentions across time. This is the elevated, permanent home for what `SpiritualLedgerView` was trying to be.
+### A. Journey detail should page between days
+**Observed:** once inside a day detail sheet, user wants left/right swiping to move across adjacent days without dismissing the sheet.
 
-**Core concept:** The niyyah text is the hero, not the photo. This inverts BeReal Memories and makes the archive spiritually meaningful.
+**Current cause:** `JourneyDayDetailView` is opened with a single `JourneyDay` item, not a selected index / paged dataset.
 
-### Final UI Design
-**Layer 1 — Calendar month grid (main view)**
-- Month header in serif ("April 2026") + prev/next chevrons + swipe gesture
-- 7-column grid, each day = rounded square
-- **Gold + Noor Aura glow** = has niyyah that day
-- **Neutral dim fill** = has moment, no niyyah
-- **Empty** = nothing that day
-- Today's date subtly highlighted (distinct from "has niyyah")
+**Files involved:**
+- `Circles/Journey/JourneyView.swift`
+- `Circles/Journey/JourneyDayDetailView.swift`
 
-**Layer 2 — Day detail (tap a cell → sheet)**
-- Large serif niyyah text, quoted, centered — the hero
-- Date (Gregorian) above, small + muted
-- Moment photo below as thumbnail, Noor Aura if niyyah present
-- If no niyyah: photo only, no gold
-- If no moment: niyyah text only, moon icon placeholder
+### B. Journey detail lacks PiP parity
+**Observed:** some detail views show only the main image; PiP behavior is inconsistent or absent.
 
-### Core MVP Requirements
-1. 4th tab "Journey", `calendar` SF symbol, between Community and Profile
-2. Calendar month grid with 3 day states
-3. Month navigation (swipe + chevrons)
-4. Day detail sheet on tap
-5. Photo URL signed on-demand (only when detail opens)
-6. Empty state (no entries yet) — poetic, not generic
-7. **Remove `SpiritualLedgerView.swift`** + `spiritualLedgerButton` from ProfileView
-8. **Remove `niyyahCount` state** from ProfileView entirely
+**Current cause:** Journey detail only resolves and displays `day.moment?.photoUrl`. It does **not** resolve `secondaryPhotoUrl`, and there is no `swapped` state or PiP renderer.
 
-### Files to Create
-- `Circles/Journey/JourneyView.swift` — tab root with calendar + month nav
-- `Circles/Journey/JourneyViewModel.swift` — data fetching, month caching
-- `Circles/Journey/JourneyDayDetailView.swift` — entry sheet (niyyah hero + photo)
-- `Circles/Journey/JourneyCalendarGrid.swift` — the calendar component
-- `Circles/Models/JourneyDay.swift` — combines niyyah + moment state for one day
+**Reference implementation to mirror:**
+- `Circles/Feed/MomentFeedCard.swift`
+- `Circles/Feed/MomentFullScreenView.swift`
 
-### Files to Modify
-- `Circles/Navigation/MainTabView.swift` — add Journey tab at index 2 (Home, Community, **Journey**, Profile)
-- `Circles/Profile/ProfileView.swift` — remove `spiritualLedgerButton`, `niyyahCount`, `showSpiritualLedger`, ledger `fullScreenCover`
+### C. Journey detail open latency is too high
+**Observed:** opening detail feels slow.
 
-### Files to Delete
-- `Circles/Profile/SpiritualLedgerView.swift` — fully replaced by Journey tab
+**Likely root cause:**
+1. open detail
+2. request signed URL from Storage
+3. download image
+4. cache keyed by signed URL string, not stable storage path
 
-### Reuse (no changes needed)
-- `NiyyahService.fetchMyNiyyahs()` — fetch all for user, filter by month in VM
-- `MomentService.fetchMomentForDate()` — for day detail photo lookup
-- `NoorAuraOverlay.swift` — on detail view photo
-- `IslamicGeometricPattern.swift` — background texture on detail view
+So the current cache strategy has weak reuse if signed URLs change.
 
-### Data Model
-```swift
-struct JourneyDay {
-    let date: Date
-    let niyyah: MomentNiyyah?    // nil = no niyyah that day
-    let hasPostedMoment: Bool    // true if circle_moments row exists
-    // photo URL resolved on-demand when detail opens
-}
-```
+**Files involved:**
+- `Circles/Journey/JourneyDayDetailView.swift`
+- `Circles/Feed/CachedAsyncImage.swift`
+- `Circles/Services/MomentService.swift`
 
-### Fetching Strategy (performance)
-- Fetch all `moment_niyyahs` for user at once (tiny table, ≤365/year) — primary dataset
-- Fetch `circle_moments` for displayed month only, just `user_id` + date range, no photo URLs
-- Cache both in VM — month nav is instant after first load
-- Sign photo URL only on day detail tap (one call per tap, not 30)
-- Prefetch adjacent month in background on current month render
+### D. Journey can show stale / wrong current-day detail after repost
+**Observed:** after posting again, Journey detail for today can show the wrong niyyah or wrong moment.
 
-### Key Concerns to Design Around
-1. **`circle_moments` deduplication** — same photo posted to N circles = N rows. Deduplicate by date in VM (take first row per date, same photo path)
-2. **Timezone** — `moment_niyyahs.photo_date` is DATE (UTC). `circle_moments.posted_at` is TIMESTAMPTZ. Use UTC date math consistently (same pattern as `computeHasPostedToday`)
-3. **Empty state** — show full calendar grid even with no entries; overlay gentle message *"Your journey begins with your first intention"*
-4. **Tab icon** — `calendar` SF symbol works; confirm all 4 tab icons read clearly together
+**High-confidence causes:**
+- Journey is mounted under `TabView`; simply switching back to the tab does not guarantee the `.task` reruns
+- current month cache is sticky once loaded
+- same-day moment dedupe currently chooses the **first** row seen
+- month fetch is ordered ascending by `posted_at`, so dedupe can prefer the **oldest** same-day moment instead of the newest
 
-### After Journey Tab
-Next phase after Journey is fully built and QA'd: **Profile Tab Redesign** (10/10 UI/UX pass, new visual identity treatment).
+**Possible additional cause:**
+- `saveNiyyah` is intentionally non-fatal in `MomentService.postMomentToAllCircles`; if it fails, the post can succeed while the niyyah remains stale
+
+**Files involved:**
+- `Circles/Journey/JourneyView.swift`
+- `Circles/Journey/JourneyViewModel.swift`
+- `Circles/Services/MomentService.swift`
+
+### E. Mixed circle-card timestamps after a fresh post
+**Observed:** user saw some circles showing the newest post age and some circles showing older ages after a fresh moment post.
+
+**Most likely causes to investigate next:**
+1. **Partial-success insert scenario** across circles
+   - `postMomentToAllCircles` permits succeeded + failed circles and surfaces a partial-success warning
+2. **Stale card-data refresh path** when posting from some surfaces
+   - especially if the post originated from `CircleDetailView`, which only refreshes that circle’s feed directly
+
+**Important nuance:**
+- If the post definitely came from the global `Community` camera flow, `viewModel.loadCircles(userId:)` does run afterward, so stale global card data is less likely there than a partial-success insert or stale viewing surface elsewhere.
+
+**Files involved:**
+- `Circles/Services/MomentService.swift`
+- `Circles/Community/CommunityView.swift`
+- `Circles/Circles/CircleDetailView.swift`
+- `Circles/Circles/CirclesViewModel.swift`
+- `Circles/Services/FeedService.swift`
+
+---
+
+## Recommended Fix Order
+
+### 1. Journey correctness first
+- invalidate and reload current month + niyyah state after successful post
+- make same-day dedupe prefer the newest `posted_at`, not the oldest
+- ensure Journey refreshes when returning to the tab, not only on first mount
+
+### 2. Journey detail parity
+- switch from “single day sheet” to “selected index in a day dataset”
+- add left/right paging across populated days
+- add PiP rendering and swap behavior in detail view
+
+### 3. Journey media performance
+- cache by storage path, not signed URL
+- pre-sign / prefetch selected day plus adjacent days when detail opens
+- optionally retain resolved URLs in Journey VM while the session is alive
+
+### 4. Cross-surface post consistency
+- verify whether mixed timestamps were caused by partial-success inserts
+- if not, strengthen post-success refresh so `Community` / `My Circles` / `CircleDetail` all converge on the newest moment state immediately
+
+---
+
+## Code Review Status
+Code review was performed in-session.
+
+### Findings
+- No remaining blocking findings on the shipped Journey MVP itself
+- One stale-month loader issue was found and fixed before final build
+- One same-session niyyah refresh gap was found and fixed before final build
+
+### Remaining risk areas
+- runtime behavior still needs direct simulator/device verification
+- Journey tab freshness under `TabView` lifecycle
+- signed-URL image caching strategy
+- cross-circle insert consistency after repost / debug reopen scenarios
+
+---
+
+## Recommended Next Tests After Fixes
+
+1. Open Journey, post a new moment with niyyah, return to Journey without killing the app:
+   today should show the new niyyah and newest photo.
+2. Open a day detail with Double Take:
+   PiP should always show when a secondary image exists, and swap should work.
+3. Swipe left/right between adjacent days from inside detail view.
+4. Re-open the same day detail twice:
+   second open should feel meaningfully faster.
+5. Post from global Community flow:
+   all circle cards should show the same fresh age if inserts succeeded everywhere.
+6. If a partial-post warning appears:
+   note exactly which circles remained stale.
 
 ---
 
