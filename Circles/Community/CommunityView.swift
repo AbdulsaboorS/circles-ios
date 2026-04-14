@@ -7,7 +7,7 @@ struct CommunityView: View {
     @State private var viewModel = CirclesViewModel()
     @State private var feedViewModel = FeedViewModel()
     @State private var selectedPage = 0
-    @State private var activeFilter: FeedFilter = .posts
+    @State private var activeFilter: FeedFilter = .posts  // locked to .posts — check-ins tab removed
     @State private var showGlobalCamera = false
     @State private var draftMoment: MomentDraft?
     @State private var pendingFeedRefresh = false
@@ -191,15 +191,6 @@ struct CommunityView: View {
                 tier1Button(title: "Circles", index: 1)
             }
 
-            // Tier 2: Posts | Check-ins — centered, compact
-            if selectedPage == 0 {
-                HStack(spacing: 24) {
-                    tier2Button(title: "Posts", filter: .posts)
-                    tier2Button(title: "Check-ins", filter: .checkins)
-                }
-                .frame(height: 32)
-            }
-
             // Bottom divider
             Rectangle()
                 .fill(Color.msGold.opacity(0.15))
@@ -220,16 +211,6 @@ struct CommunityView: View {
         .buttonStyle(.plain)
     }
 
-    private func tier2Button(title: String, filter: FeedFilter) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.22)) { activeFilter = filter }
-        } label: {
-            Text(title)
-                .font(.system(size: 13, weight: activeFilter == filter ? .semibold : .regular, design: .serif))
-                .foregroundStyle(activeFilter == filter ? Color.msTextPrimary : Color.msTextMuted)
-        }
-        .buttonStyle(.plain)
-    }
 
     // MARK: - Global Feed Page
 

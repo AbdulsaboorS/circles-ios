@@ -13,6 +13,7 @@ struct CircleDetailView: View {
     @State private var draftMoment: MomentDraft?
     @State private var showAmirSettings = false
     @State private var allUserCircleIds: [UUID] = []
+    @State private var bannerPulsing = false
 
     @Environment(AuthManager.self) private var auth
 
@@ -66,6 +67,17 @@ struct CircleDetailView: View {
                     )
                     .padding(.top, 4)
 
+                    // Orb instruction — shown when circle has no completion yet
+                    if detailVM.noorIntensity < 0.05 {
+                        Text("Check in habits on the Home tab\nto ignite the noor")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color.msTextMuted.opacity(0.75))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                            .padding(.top, 2)
+                            .transition(.opacity)
+                    }
+
                     // Moment banner (window open)
                     if isWindowActive {
                         momentBanner
@@ -80,8 +92,11 @@ struct CircleDetailView: View {
                             .padding(.top, 8)
                     }
 
-                    // Members section header + Pulse Bar
-                    if !detailVM.members.isEmpty {
+                    // Members section header + Pulse Bar (shimmer while loading)
+                    if detailVM.isLoadingMembers {
+                        memberShimmer
+                            .padding(.top, 20)
+                    } else if !detailVM.members.isEmpty {
                         HStack {
                             Text("\(detailVM.members.count) Members")
                                 .font(.appCaptionMedium)
@@ -117,7 +132,7 @@ struct CircleDetailView: View {
                                 }
                             }
                         )
-                    }
+                    }  // end else if !detailVM.members.isEmpty
 
                     // Daily Status Shelf
                     if let stats = detailVM.completionStats, !stats.habits.isEmpty {
@@ -136,7 +151,7 @@ struct CircleDetailView: View {
                         .background(Color.msBorder)
                         .padding(.top, 4)
 
-                    // Tab Content
+                    // Tab Content — cross-fade on switch
                     Group {
                         switch detailVM.activeTab {
                         case .huddle:
@@ -173,6 +188,9 @@ struct CircleDetailView: View {
                             }
                         }
                     }
+                    .id(detailVM.activeTab)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.22), value: detailVM.activeTab)
                 }
                 .padding(.bottom, 32)
             }
@@ -191,6 +209,7 @@ struct CircleDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(Color.msGold)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
@@ -202,7 +221,13 @@ struct CircleDetailView: View {
                                 .foregroundStyle(Color.msGold)
                         }
                     }
-                    ShareLink(item: inviteURL) {
+                    ShareLink(
+                        item: inviteURL,
+                        preview: SharePreview(
+                            "Join \(circle.name) on Circles",
+                            icon: Image(systemName: "moon.stars.fill")
+                        )
+                    ) {
                         Image(systemName: "square.and.arrow.up")
                             .foregroundStyle(Color.msGold)
                     }
@@ -336,6 +361,11 @@ struct CircleDetailView: View {
             Image(systemName: "star.fill")
                 .font(.system(size: 16))
                 .foregroundStyle(Color.msGold)
+                .scaleEffect(bannerPulsing ? 1.18 : 1.0)
+                .animation(
+                    .easeInOut(duration: 1.1).repeatForever(autoreverses: true),
+                    value: bannerPulsing
+                )
             Text("POST YOUR MOMENT")
                 .font(.appCaptionMedium)
                 .foregroundStyle(Color.msTextPrimary)
@@ -349,10 +379,32 @@ struct CircleDetailView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
+                .stroke(Color.msGold.opacity(bannerPulsing ? 0.55 : 0.3), lineWidth: 1)
+                .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: bannerPulsing)
         )
         .onTapGesture { showCamera = true }
+        .onAppear { bannerPulsing = true }
         .accessibilityLabel("Post your Moment, \(countdownText). Tap to open camera.")
+    }
+
+    // MARK: - Member Shimmer
+
+    private var memberShimmer: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                ForEach(0..<5, id: \.self) { _ in
+                    VStack(spacing: 6) {
+                        ShimmerView()
+                            .frame(width: 62, height: 62)
+                            .clipShape(SwiftUI.Circle())
+                        ShimmerView()
+                            .frame(width: 36, height: 9)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
     }
 
     // MARK: - Notifications Denied Note

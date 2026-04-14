@@ -10,6 +10,7 @@ struct PulseBarView: View {
     @State private var nudgeTargetId: UUID?
     @State private var showCustomMessage = false
     @State private var customMessageText = ""
+    @State private var nudgeSentTrigger = 0
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -57,6 +58,7 @@ struct PulseBarView: View {
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: nudgeTargetId)
+        .sensoryFeedback(.success, trigger: nudgeSentTrigger)
         .confirmationDialog(
             "Send encouragement",
             isPresented: Binding(
@@ -67,6 +69,7 @@ struct PulseBarView: View {
         ) {
             Button("Do your habits!") {
                 onNudge(member.userId, "habit_reminder", nil)
+                nudgeSentTrigger += 1
                 nudgeTargetId = nil
             }
             Button("Send a message...") {
@@ -83,6 +86,7 @@ struct PulseBarView: View {
                 let text = customMessageText.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !text.isEmpty, let target = nudgeTargetId else { return }
                 onNudge(target, "custom", text)
+                nudgeSentTrigger += 1
                 nudgeTargetId = nil
             }
             Button("Cancel", role: .cancel) {

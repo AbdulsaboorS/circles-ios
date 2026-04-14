@@ -7,7 +7,9 @@ struct HuddleTimelineView: View {
 
     var body: some View {
         LazyVStack(spacing: 0) {
-            if feedViewModel.items.isEmpty && !feedViewModel.isLoadingInitial {
+            if feedViewModel.isLoadingInitial && feedViewModel.items.isEmpty {
+                huddleShimmer
+            } else if feedViewModel.items.isEmpty {
                 emptyState
             }
 
@@ -102,16 +104,47 @@ struct HuddleTimelineView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "bubble.left.and.text.bubble.right")
-                .font(.system(size: 36))
-                .foregroundStyle(Color.msGold.opacity(0.5))
-            Text("No activity yet today")
-                .font(.system(size: 16, weight: .medium, design: .serif))
+        VStack(spacing: 14) {
+            Image(systemName: "moon.stars")
+                .font(.system(size: 34))
+                .foregroundStyle(Color.msGold.opacity(0.55))
+            Text("The circle is quiet.")
+                .font(.system(size: 17, weight: .semibold, design: .serif))
+                .foregroundStyle(Color.msTextPrimary)
+            Text("Check in a habit on the Home tab\nto be the first light today.")
+                .font(.system(size: 13))
                 .foregroundStyle(Color.msTextMuted)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.vertical, 44)
+    }
+
+    private var huddleShimmer: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<4, id: \.self) { _ in
+                HStack(spacing: 10) {
+                    ShimmerView()
+                        .frame(width: 28, height: 28)
+                        .clipShape(SwiftUI.Circle())
+                    VStack(alignment: .leading, spacing: 6) {
+                        ShimmerView()
+                            .frame(height: 12)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        ShimmerView()
+                            .frame(width: 80, height: 10)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                Rectangle()
+                    .fill(Color.msBorder)
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 16)
+            }
+        }
     }
 
     private func relativeTime(_ iso: String) -> String {
