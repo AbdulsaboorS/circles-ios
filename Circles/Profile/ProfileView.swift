@@ -45,9 +45,7 @@ struct ProfileView: View {
                     VStack(spacing: 24) {
                         avatarSection
                         statsCard
-                        if niyyahCount > 0 {
-                            spiritualLedgerButton
-                        }
+                        spiritualLedgerButton
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -76,6 +74,14 @@ struct ProfileView: View {
             }
             .task {
                 await loadAll()
+            }
+            .onAppear {
+                // Re-fetch niyyah count on every appear so ledger button shows
+                // after posting a moment with niyyah from another tab
+                guard let userId = auth.session?.user.id else { return }
+                Task {
+                    niyyahCount = (try? await NiyyahService.shared.fetchNiyyahCount(userId: userId)) ?? niyyahCount
+                }
             }
             .onChange(of: selectedPhoto) { _, item in
                 guard let item else { return }
