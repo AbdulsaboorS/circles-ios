@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-14T00:00:00.000Z"
+last_updated: "2026-04-14T22:00:00.000Z"
 progress:
   total_phases: 18
   completed_phases: 12
@@ -15,7 +15,7 @@ progress:
 
 ## Current Focus
 
-**Next: Journey QA Fixes** — Journey MVP is built, but user testing exposed detail-sheet paging, PiP parity, latency, and post-refresh correctness issues. Fix those before moving on.
+**Next: Journey Runtime QA** — the Journey follow-up fixes are now implemented and build-verified. Manual simulator/device validation is still pending because `simctl install/launch` remains unreliable from CLI.
 
 **Then: Profile Redesign** — 10/10 UI/UX pass. Queued after Journey.
 
@@ -32,6 +32,33 @@ progress:
 | 5 | My Circles + Circle Detail | 🔄 My Circles built — testing in progress |
 | 6 | Profile | ⬜ Queued (will be done as full redesign, not just polish) |
 | 7 | Auth | ⬜ Queued |
+
+---
+
+## What's Built — Session 21 (2026-04-14)
+
+### Journey QA Fixes
+
+- Journey now invalidates and reloads the current month after a successful moment post instead of trusting stale cached month data
+- Same-day Journey dedupe now prefers the newest `posted_at`
+- Journey detail now pages horizontally across populated days in the visible month
+- Journey detail now supports Double Take PiP consistently, including tap-to-swap parity with the feed/fullscreen viewer
+- Signed moment URLs are cached by storage path, and Journey detail now prefetches selected/adjacent day media
+- Community and Circle Detail now refresh from a shared post-success notification, reducing stale card/feed state after posting
+- Partial-success post warnings now name failed circles when the app has those names available
+
+### Review / Verification Notes
+
+- `xcodebuild` build verified after the Journey QA fix pass
+- Simulator boot succeeded for `iPhone 17 Pro`
+- CLI runtime verification is still incomplete because `simctl install` did not return and the app never finished installing
+
+### Remaining QA Checks
+
+- Manually verify same-day repost freshness in Journey without killing the app
+- Manually verify Journey detail paging and PiP swap behavior
+- Manually verify that reopening the same Journey day feels faster
+- Re-test cross-surface circle-card timestamps after both global and circle-detail posting flows
 
 ---
 
@@ -53,12 +80,9 @@ progress:
 
 ### Current QA Follow-Ups
 
-- Journey detail needs left/right paging across days
-- Journey detail needs PiP parity and PiP swap behavior for Double Take moments
-- Journey detail open latency is too high because it signs and downloads on open, and image cache identity is tied to signed URLs
-- Journey current-day state can go stale after repost because the tab lifecycle and month cache are not yet invalidated aggressively enough
-- Same-day Journey dedupe currently risks selecting the oldest same-day moment instead of the newest
-- Mixed circle-card timestamps after a fresh post still need root-cause confirmation; likely partial-success inserts or stale refresh on some surfaces
+- Runtime/manual Journey verification is still pending because simulator CLI install/launch is unreliable
+- Same-day repost freshness, Journey paging/PiP, and repeat-open latency still need hands-on validation
+- Cross-surface timestamp consistency still needs one explicit re-test after the new refresh wiring
 
 ---
 
@@ -214,21 +238,14 @@ progress:
 ### C. Habit detail icon
 - `HabitDetailView` uses `Text(habit.icon)` — should be `Image(systemName:)`.
 
-### D. Journey detail parity
-- Detail sheet is single-day only right now.
-- Missing left/right swipe paging and missing PiP/swap parity for days with a secondary photo.
+### D. Journey runtime verification gap
+- The Journey follow-up fixes are implemented and build-verified, but manual runtime validation is still outstanding.
 
-### E. Journey detail latency
-- Detail currently signs photo URLs on open and then downloads them.
-- Image cache is keyed by signed URL string, so cache reuse is weak if the signed URL changes.
+### E. Simulator CLI install / launch
+- `simctl boot` succeeds, but `simctl install` / `simctl launch` remain unreliable from CLI on the configured simulator.
 
-### F. Journey freshness after repost
-- Journey tab can keep stale current-month / current-day state after a fresh post because `TabView` lifecycle + month cache invalidation are not fully handled yet.
-- Same-day dedupe currently risks preferring the oldest same-day moment instead of the newest.
-
-### G. Mixed circle-card timestamps after posting
-- User reported some circles showing an older age than others after a fresh post.
-- Likely causes: partial-success inserts across circles, or stale card-data refresh on some surfaces.
+### F. Niyyah save fallback
+- `MomentService.postMomentToAllCircles` still treats `saveNiyyah` as non-fatal after a successful photo post, so a Supabase niyyah-write failure could still leave a stale private niyyah.
 
 ---
 
@@ -238,4 +255,4 @@ None. Journey follow-up fixes are local app work with no external dependency.
 
 ---
 
-*Last updated: 2026-04-14 — Session 20. Journey MVP shipped and build-verified. Next: Journey QA fixes, then Profile redesign.*
+*Last updated: 2026-04-14 — Session 21. Journey QA fixes are implemented and build-verified. Next: manual Journey runtime QA, then Profile redesign.*
