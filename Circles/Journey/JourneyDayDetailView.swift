@@ -1,46 +1,116 @@
 import SwiftUI
 
 struct JourneyDayDetailView: View {
-    let day: JourneyDay
+    private let days: [JourneyDay]
+    @State private var selectedDayKey: String
 
-    @State private var signedPhotoURL: String? = nil
-    @State private var isLoadingPhoto = false
-    @State private var photoLoadFailed = false
+    init(days: [JourneyDay], selectedDayKey: String) {
+        let detailDays = days.filter { $0.hasNiyyah || $0.hasPostedMoment }
+        self.days = detailDays
+        let initialDayKey = detailDays.contains(where: { $0.dayKey == selectedDayKey })
+            ? selectedDayKey
+            : (detailDays.first?.dayKey ?? selectedDayKey)
+        _selectedDayKey = State(initialValue: initialDayKey)
+    }
 
     var body: some View {
         ZStack {
             Color.msBackground.ignoresSafeArea()
             IslamicGeometricPattern(opacity: 0.02, tileSize: 44)
 
-            ScrollView {
-                VStack(spacing: 26) {
-                    Capsule()
-                        .fill(Color.msTextMuted.opacity(0.25))
-                        .frame(width: 44, height: 5)
-                        .padding(.top, 10)
-
-                    Text(JourneyDateSupport.formattedDate(for: day.displayDateUTC))
-                        .font(.appCaption)
-                        .foregroundStyle(Color.msTextMuted)
-
-                    if let niyyah = day.niyyah {
-                        Text("\"\(niyyah.niyyahText)\"")
-                            .font(.system(size: 30, weight: .regular, design: .serif))
-                            .foregroundStyle(Color.msTextPrimary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                            .padding(.top, 8)
+            if days.isEmpty {
+                JourneyDetailUnavailableView()
+            } else {
+                TabView(selection: $selectedDayKey) {
+                    ForEach(days) { day in
+                        JourneyDayDetailPage(day: day)
+                            .tag(day.dayKey)
                     }
-
-                    mediaSection
-                        .padding(.top, day.niyyah == nil ? 12 : 4)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 36)
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
         }
+        .task(id: selectedDayKey) {
+            await prefetchCurrentWindow()
+        }
+    }
+
+    private func prefetchCurrentWindow() async {
+        guard let selectedIndex = days.firstIndex(where: { $0.dayKey == selectedDayKey }) else { return }
+
+        let nearbyDays = [selectedIndex - 1, selectedIndex, selectedIndex + 1]
+            .filter { days.indices.contains($0) }
+            .map { days[$0] }
+
+        for day in nearbyDays {
+            guard let moment = day.moment else { continue }
+            await MomentService.shared.prefetchMomentMedia(
+                primaryStoredValue: moment.photoUrl,
+                secondaryStoredValue: moment.secondaryPhotoUrl
+            )
+        }
+    }
+}
+
+private struct JourneyDayDetailPage: View {
+    let day: JourneyDay
+
+    @State private var resolvedMedia: ResolvedMomentMedia? = nil
+    @State private var isLoadingMedia = false
+    @State private var mediaLoadFailed = false
+    @State private var swapped = false
+
+    private var mainPhotoURL: String? {
+        guard let resolvedMedia else { return nil }
+        return swapped ? (resolvedMedia.secondaryURL ?? resolvedMedia.primaryURL) : resolvedMedia.primaryURL
+    }
+
+    private var mainCacheKey: String? {
+        guard let resolvedMedia else { return nil }
+        return swapped
+            ? (resolvedMedia.secondaryCacheKey ?? resolvedMedia.primaryCacheKey)
+            : resolvedMedia.primaryCacheKey
+    }
+
+    private var pipPhotoURL: String? {
+        guard let resolvedMedia, resolvedMedia.secondaryURL != nil else { return nil }
+        return swapped ? resolvedMedia.primaryURL : resolvedMedia.secondaryURL
+    }
+
+    private var pipCacheKey: String? {
+        guard let resolvedMedia, resolvedMedia.secondaryCacheKey != nil else { return nil }
+        return swapped ? resolvedMedia.primaryCacheKey : resolvedMedia.secondaryCacheKey
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 26) {
+                Capsule()
+                    .fill(Color.msTextMuted.opacity(0.25))
+                    .frame(width: 44, height: 5)
+                    .padding(.top, 10)
+
+                Text(JourneyDateSupport.formattedDate(for: day.displayDateUTC))
+                    .font(.appCaption)
+                    .foregroundStyle(Color.msTextMuted)
+
+                if let niyyah = day.niyyah {
+                    Text("\"\(niyyah.niyyahText)\"")
+                        .font(.system(size: 30, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
+                }
+
+                mediaSection
+                    .padding(.top, day.niyyah == nil ? 12 : 4)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 36)
+        }
         .task(id: day.id) {
-            await loadPhotoIfNeeded()
+            await loadMediaIfNeeded()
         }
     }
 
@@ -54,12 +124,12 @@ struct JourneyDayDetailView: View {
     }
 
     private var momentPhotoCard: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 28)
                 .fill(Color.msCardShared)
 
-            if let signedPhotoURL {
-                CachedAsyncImage(url: signedPhotoURL) { image in
+            if let mainPhotoURL, let mainCacheKey {
+                CachedAsyncImage(url: mainPhotoURL, cacheKey: mainCacheKey) { image in
                     image
                         .resizable()
                         .scaledToFill()
@@ -69,9 +139,32 @@ struct JourneyDayDetailView: View {
             } else {
                 loadingPhotoPlaceholder
             }
+
+            if let pipPhotoURL, let pipCacheKey {
+                CachedAsyncImage(url: pipPhotoURL, cacheKey: pipCacheKey) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    Color.msCardShared
+                }
+                .frame(width: 118, height: 157)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.msGold, lineWidth: 2)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        swapped.toggle()
+                    }
+                }
+                .padding(10)
+            }
         }
         .frame(maxWidth: .infinity)
-        .aspectRatio(0.78, contentMode: .fit)
+        .aspectRatio(3.0 / 4.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 28))
         .overlay {
             RoundedRectangle(cornerRadius: 28)
@@ -88,10 +181,10 @@ struct JourneyDayDetailView: View {
         ZStack {
             Color.msCardShared
 
-            if isLoadingPhoto {
+            if isLoadingMedia {
                 ProgressView()
                     .tint(Color.msGold)
-            } else if photoLoadFailed {
+            } else if mediaLoadFailed {
                 VStack(spacing: 10) {
                     Image(systemName: "photo")
                         .font(.system(size: 28))
@@ -133,17 +226,36 @@ struct JourneyDayDetailView: View {
         }
     }
 
-    private func loadPhotoIfNeeded() async {
-        guard let storedPhotoPath = day.moment?.photoUrl else { return }
+    private func loadMediaIfNeeded() async {
+        guard let moment = day.moment else { return }
 
-        isLoadingPhoto = true
-        photoLoadFailed = false
-        defer { isLoadingPhoto = false }
+        isLoadingMedia = true
+        mediaLoadFailed = false
+        swapped = false
+        defer { isLoadingMedia = false }
 
         do {
-            signedPhotoURL = try await MomentService.shared.resolveMomentPhotoURL(from: storedPhotoPath)
+            resolvedMedia = try await MomentService.shared.resolveMomentMedia(
+                primaryStoredValue: moment.photoUrl,
+                secondaryStoredValue: moment.secondaryPhotoUrl
+            )
         } catch {
-            photoLoadFailed = true
+            resolvedMedia = nil
+            mediaLoadFailed = true
+        }
+    }
+}
+
+private struct JourneyDetailUnavailableView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 24))
+                .foregroundStyle(Color.msGold.opacity(0.8))
+
+            Text("This day is no longer available.")
+                .font(.appSubheadline)
+                .foregroundStyle(Color.msTextMuted)
         }
     }
 }

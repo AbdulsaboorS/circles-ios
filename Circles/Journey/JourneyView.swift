@@ -28,7 +28,7 @@ private struct JourneyContentView: View {
     let userId: UUID
 
     @State private var viewModel: JourneyViewModel
-    @State private var selectedDay: JourneyDay? = nil
+    @State private var selectedDayKey: String? = nil
 
     init(userId: UUID) {
         self.userId = userId
@@ -63,7 +63,7 @@ private struct JourneyContentView: View {
                         weekdaySymbols: viewModel.weekdaySymbols,
                         leadingEmptyCellCount: viewModel.leadingEmptyCellCount,
                         days: viewModel.days,
-                        onSelectDay: { selectedDay = $0 }
+                        onSelectDay: { selectedDayKey = $0.dayKey }
                     )
                     .padding(18)
 
@@ -94,11 +94,32 @@ private struct JourneyContentView: View {
         .task {
             await viewModel.loadInitial()
         }
-        .sheet(item: $selectedDay) { day in
-            JourneyDayDetailView(day: day)
+        .onAppear {
+            Task { await viewModel.refreshOnAppear() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .momentPostRefresh)) { notification in
+            guard let event = notification.object as? MomentPostRefreshEvent else { return }
+            Task { await viewModel.handleMomentPostRefresh(event) }
+        }
+        .sheet(isPresented: isShowingDetailSheet) {
+            JourneyDayDetailView(
+                days: viewModel.detailDays,
+                selectedDayKey: selectedDayKey ?? ""
+            )
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
         }
+    }
+
+    private var isShowingDetailSheet: Binding<Bool> {
+        Binding(
+            get: { selectedDayKey != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedDayKey = nil
+                }
+            }
+        )
     }
 
     private var monthSwipeGesture: some Gesture {
