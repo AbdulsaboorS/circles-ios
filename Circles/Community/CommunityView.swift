@@ -46,6 +46,10 @@ struct CommunityView: View {
             .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
                 Task { await loadGlobalFeed() }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .momentPostRefresh)) { notification in
+                guard let event = notification.object as? MomentPostRefreshEvent else { return }
+                Task { await handleMomentPostRefresh(event) }
+            }
             .fullScreenCover(isPresented: $showGlobalCamera) {
                 if let circleId = viewModel.circles.first?.id {
                     MomentCameraView(circleId: circleId) { _, primary, secondary in
@@ -98,8 +102,14 @@ struct CommunityView: View {
                         if result.isPartialSuccess {
                             let failCount = result.failedCircleIds.count
                             let total = result.totalCount
+                            let failedNames = viewModel.circles
+                                .filter { result.failedCircleIds.contains($0.id) }
+                                .map(\.name)
+                            let failureSummary = failedNames.isEmpty
+                                ? "\(failCount) circle\(failCount == 1 ? "" : "s") failed"
+                                : "Failed circles: \(failedNames.joined(separator: ", "))"
                             throw NSError(domain: "MomentPost", code: 0, userInfo: [
-                                NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failCount) failed — tap Post again to retry."
+                                NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failureSummary) — tap Post again to retry."
                             ])
                         }
                     },
@@ -384,6 +394,12 @@ struct CommunityView: View {
     private func loadGlobalFeed() async {
         guard let userId = auth.session?.user.id, !viewModel.circles.isEmpty else { return }
         await feedViewModel.loadInitial(circleIds: viewModel.circles.map { $0.id }, currentUserId: userId)
+    }
+
+    private func handleMomentPostRefresh(_ event: MomentPostRefreshEvent) async {
+        guard let userId = auth.session?.user.id, event.userId == userId else { return }
+        await viewModel.loadCircles(userId: userId)
+        await loadGlobalFeed()
     }
 }
 

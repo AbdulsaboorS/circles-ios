@@ -10,6 +10,9 @@ final class MomentService {
     private init() {}
 
     private var client: SupabaseClient { SupabaseService.shared.client }
+    private var signedURLCache: [String: SignedMomentURL] = [:]
+    private let signedURLLifetime: TimeInterval = 60 * 60
+    private let signedURLReuseLeeway: TimeInterval = 5 * 60
 
     // MARK: - Fetch
 
@@ -62,7 +65,7 @@ final class MomentService {
             .eq("user_id", value: userId.uuidString)
             .gte("posted_at", value: "\(startDate)T00:00:00Z")
             .lt("posted_at", value: "\(endDate)T00:00:00Z")
-            .order("posted_at")
+            .order("posted_at", ascending: false)
             .execute()
             .value
     }
@@ -227,6 +230,12 @@ final class MomentService {
             }
         }
 
+        publishPostRefresh(
+            userId: userId,
+            succeededCircleIds: succeeded.map(\.circleId),
+            failedCircleIds: failedCircleIds
+        )
+
         return MomentPostResult(succeeded: succeeded, failedCircleIds: failedCircleIds)
     }
 
@@ -242,14 +251,77 @@ final class MomentService {
         }
     }
 
+    private func publishPostRefresh(
+        userId: UUID,
+        succeededCircleIds: [UUID],
+        failedCircleIds: [UUID]
+    ) {
+        let event = MomentPostRefreshEvent(
+            userId: userId,
+            succeededCircleIds: succeededCircleIds,
+            failedCircleIds: failedCircleIds
+        )
+        NotificationCenter.default.post(name: .momentPostRefresh, object: event)
+    }
+
     // MARK: - Helpers
 
     func resolveMomentPhotoURL(from storedValue: String) async throws -> String {
         let path = Self.extractStoragePath(from: storedValue)
+        if let cached = signedURLCache[path],
+           cached.expiresAt.timeIntervalSinceNow > signedURLReuseLeeway {
+            return cached.url
+        }
+
         let signedURL = try await client.storage
             .from("circle-moments")
-            .createSignedURL(path: path, expiresIn: 60 * 60)
-        return signedURL.absoluteString
+            .createSignedURL(path: path, expiresIn: Int(signedURLLifetime))
+        let resolvedURL = signedURL.absoluteString
+        signedURLCache[path] = SignedMomentURL(
+            url: resolvedURL,
+            expiresAt: Date().addingTimeInterval(signedURLLifetime)
+        )
+        return resolvedURL
+    }
+
+    func resolveMomentMedia(
+        primaryStoredValue: String,
+        secondaryStoredValue: String?
+    ) async throws -> ResolvedMomentMedia {
+        let primaryCacheKey = Self.extractStoragePath(from: primaryStoredValue)
+        let primaryURL = try await resolveMomentPhotoURL(from: primaryStoredValue)
+
+        let secondaryCacheKey = secondaryStoredValue.map { Self.extractStoragePath(from: $0) }
+        let secondaryURL: String? = if let secondaryStoredValue {
+            try? await resolveMomentPhotoURL(from: secondaryStoredValue)
+        } else {
+            nil
+        }
+
+        return ResolvedMomentMedia(
+            primaryURL: primaryURL,
+            primaryCacheKey: primaryCacheKey,
+            secondaryURL: secondaryURL,
+            secondaryCacheKey: secondaryCacheKey
+        )
+    }
+
+    func prefetchMomentMedia(
+        primaryStoredValue: String,
+        secondaryStoredValue: String?
+    ) async {
+        do {
+            let media = try await resolveMomentMedia(
+                primaryStoredValue: primaryStoredValue,
+                secondaryStoredValue: secondaryStoredValue
+            )
+            await CachedImagePrefetcher.prefetch(url: media.primaryURL, cacheKey: media.primaryCacheKey)
+            if let secondaryURL = media.secondaryURL, let secondaryCacheKey = media.secondaryCacheKey {
+                await CachedImagePrefetcher.prefetch(url: secondaryURL, cacheKey: secondaryCacheKey)
+            }
+        } catch {
+            return
+        }
     }
 
     func resolveMomentPhotoURLs(in moments: [CircleMoment]) async throws -> [CircleMoment] {
@@ -373,6 +445,18 @@ struct MomentPostResult {
     var totalCount: Int { succeeded.count + failedCircleIds.count }
 }
 
+private struct SignedMomentURL {
+    let url: String
+    let expiresAt: Date
+}
+
+struct ResolvedMomentMedia: Sendable {
+    let primaryURL: String
+    let primaryCacheKey: String
+    let secondaryURL: String?
+    let secondaryCacheKey: String?
+}
+
 enum MomentError: LocalizedError {
     case imageConversionFailed
     case noCircles
@@ -391,4 +475,14 @@ enum MomentError: LocalizedError {
             return "Could not post your Moment. Please try again."
         }
     }
+}
+
+struct MomentPostRefreshEvent: Sendable {
+    let userId: UUID
+    let succeededCircleIds: [UUID]
+    let failedCircleIds: [UUID]
+}
+
+extension Notification.Name {
+    static let momentPostRefresh = Notification.Name("momentPostRefresh")
 }

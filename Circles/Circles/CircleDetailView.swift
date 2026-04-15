@@ -13,6 +13,7 @@ struct CircleDetailView: View {
     @State private var draftMoment: MomentDraft?
     @State private var showAmirSettings = false
     @State private var allUserCircleIds: [UUID] = []
+    @State private var allUserCircles: [Circle] = []
     @State private var bannerPulsing = false
 
     @Environment(AuthManager.self) private var auth
@@ -278,7 +279,8 @@ struct CircleDetailView: View {
             await DailyMomentService.shared.load(userId: userId)
             await detailVM.load(userId: userId)
             let allCircles = try? await CircleService.shared.fetchMyCircles(userId: userId)
-            allUserCircleIds = (allCircles ?? [circle]).map { $0.id }
+            allUserCircles = allCircles ?? [circle]
+            allUserCircleIds = allUserCircles.map { $0.id }
             startWindowTimer()
             await feedViewModel.loadInitial(
                 circleIds: [circle.id],
@@ -287,6 +289,10 @@ struct CircleDetailView: View {
             )
         }
         .onDisappear { windowTimer?.invalidate() }
+        .onReceive(NotificationCenter.default.publisher(for: .momentPostRefresh)) { notification in
+            guard let event = notification.object as? MomentPostRefreshEvent else { return }
+            Task { await handleMomentPostRefresh(event) }
+        }
         .fullScreenCover(isPresented: $showCamera) {
             MomentCameraView(circleId: circle.id) { _, primary, secondary in
                 showCamera = false
@@ -325,8 +331,14 @@ struct CircleDetailView: View {
                     if result.isPartialSuccess {
                         let failCount = result.failedCircleIds.count
                         let total = result.totalCount
+                        let failedNames = allUserCircles
+                            .filter { result.failedCircleIds.contains($0.id) }
+                            .map(\.name)
+                        let failureSummary = failedNames.isEmpty
+                            ? "\(failCount) circle\(failCount == 1 ? "" : "s") failed"
+                            : "Failed circles: \(failedNames.joined(separator: ", "))"
                         throw NSError(domain: "MomentPost", code: 0, userInfo: [
-                            NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failCount) failed — tap Post again to retry."
+                            NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failureSummary) — tap Post again to retry."
                         ])
                     }
                 },
@@ -455,6 +467,21 @@ struct CircleDetailView: View {
         } catch {
             print("[CircleDetailView] reloadCircle failed: \(error)")
         }
+    }
+
+    private func handleMomentPostRefresh(_ event: MomentPostRefreshEvent) async {
+        guard let userId = auth.session?.user.id,
+              event.userId == userId,
+              event.succeededCircleIds.contains(circle.id) else {
+            return
+        }
+
+        await reloadCircleFromServer()
+        await feedViewModel.refresh(
+            circleIds: [circle.id],
+            currentUserId: userId,
+            singleCircleId: circle.id
+        )
     }
 
     // MARK: - Window Timer

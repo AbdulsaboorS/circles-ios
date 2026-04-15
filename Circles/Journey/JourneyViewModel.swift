@@ -39,6 +39,10 @@ final class JourneyViewModel {
         !days.contains { $0.hasNiyyah || $0.hasPostedMoment }
     }
 
+    var detailDays: [JourneyDay] {
+        days.filter { $0.hasNiyyah || $0.hasPostedMoment }
+    }
+
     func loadInitial() async {
         guard !hasLoadedInitialData else {
             await refreshArchiveSummaryIfPossible()
@@ -91,6 +95,31 @@ final class JourneyViewModel {
         }
     }
 
+    func refreshOnAppear() async {
+        guard hasLoadedInitialData else { return }
+
+        await refreshArchiveSummaryIfPossible()
+        rebuildDays()
+
+        guard isViewingCurrentMonth else { return }
+        await reloadMonth(currentMonthAnchor)
+    }
+
+    func handleMomentPostRefresh(_ event: MomentPostRefreshEvent) async {
+        guard hasLoadedInitialData, event.userId == userId else { return }
+
+        let todayMonth = JourneyDateSupport.monthAnchor(for: Date())
+        invalidateMonth(todayMonth)
+        await refreshArchiveSummaryIfPossible()
+        rebuildDays()
+
+        guard JourneyDateSupport.monthKey(for: currentMonthAnchor) == JourneyDateSupport.monthKey(for: todayMonth) else {
+            return
+        }
+
+        await reloadMonth(currentMonthAnchor)
+    }
+
     private func refreshArchiveSummaryIfPossible() async {
         try? await refreshArchiveSummary()
     }
@@ -103,6 +132,10 @@ final class JourneyViewModel {
         let hasMoments = try await hasMomentsFetch
         niyyahsByDay = Dictionary(uniqueKeysWithValues: niyyahs.map { ($0.photoDate, $0) })
         hasAnyEntries = !niyyahs.isEmpty || hasMoments
+    }
+
+    private var isViewingCurrentMonth: Bool {
+        JourneyDateSupport.monthKey(for: currentMonthAnchor) == JourneyDateSupport.monthKey(for: Date())
     }
 
     private func showMonth(offset: Int) async {
@@ -138,7 +171,11 @@ final class JourneyViewModel {
         var result: [String: CircleMoment] = [:]
         for moment in moments {
             let dayKey = String(moment.postedAt.prefix(10))
-            if result[dayKey] == nil {
+            if let existing = result[dayKey] {
+                if moment.postedAt > existing.postedAt {
+                    result[dayKey] = moment
+                }
+            } else {
                 result[dayKey] = moment
             }
         }
@@ -173,5 +210,22 @@ final class JourneyViewModel {
 
         try? await ensureMonthLoaded(previous)
         try? await ensureMonthLoaded(next)
+    }
+
+    private func invalidateMonth(_ monthAnchor: Date) {
+        let monthKey = JourneyDateSupport.monthKey(for: monthAnchor)
+        momentCacheByMonth.removeValue(forKey: monthKey)
+    }
+
+    private func reloadMonth(_ monthAnchor: Date) async {
+        invalidateMonth(monthAnchor)
+        errorMessage = nil
+
+        do {
+            try await ensureMonthLoaded(monthAnchor, showsLoadingState: false)
+            rebuildDays()
+        } catch {
+            errorMessage = "Could not refresh Journey right now."
+        }
     }
 }
