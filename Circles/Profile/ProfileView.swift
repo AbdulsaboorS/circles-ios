@@ -51,8 +51,8 @@ struct ProfileView: View {
                             GeometryReader { geo in
                                 Color.clear
                                     .onChange(of: geo.frame(in: .named("profileScroll")).minY) { _, minY in
-                                        // Hero considered visible when its top is still within view
-                                        heroIsVisible = minY > -60
+                                        // Hero considered visible until bottom of hero scrolls past nav bar area
+                                        heroIsVisible = minY > -240
                                     }
                             }
                         )
@@ -76,6 +76,7 @@ struct ProfileView: View {
                     }
                 }
                 .coordinateSpace(name: "profileScroll")
+                .ignoresSafeArea(.container, edges: .top)
             }
             .navigationTitle(heroIsVisible ? "" : displayName)
             .navigationBarTitleDisplayMode(.inline)

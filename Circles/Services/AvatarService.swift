@@ -26,8 +26,10 @@ final class AvatarService {
         let publicURL = try client.storage
             .from("avatars")
             .getPublicURL(path: path)
-        try await updateProfileAvatarUrl(userId: userId, url: publicURL.absoluteString)
-        return publicURL.absoluteString
+        // Append a timestamp so AsyncImage bypasses its URL cache after each upload
+        let bustURL = "\(publicURL.absoluteString)?t=\(Int(Date().timeIntervalSince1970))"
+        try await updateProfileAvatarUrl(userId: userId, url: bustURL)
+        return bustURL
     }
 
     func updateProfileAvatarUrl(userId: UUID, url: String) async throws {

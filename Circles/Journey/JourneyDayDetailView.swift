@@ -3,6 +3,7 @@ import SwiftUI
 struct JourneyDayDetailView: View {
     private let days: [JourneyDay]
     @State private var selectedDayKey: String
+    @Environment(\.dismiss) private var dismiss
 
     init(days: [JourneyDay], selectedDayKey: String) {
         let detailDays = days.filter { $0.hasNiyyah || $0.hasPostedMoment }
@@ -14,7 +15,7 @@ struct JourneyDayDetailView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             Color.msBackground.ignoresSafeArea()
             IslamicGeometricPattern(opacity: 0.02, tileSize: 44)
 
@@ -29,6 +30,23 @@ struct JourneyDayDetailView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
+
+            // Close button — always visible since drag indicator is hidden
+            Button {
+                dismiss()
+            } label: {
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.msTextMuted)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 16)
+            .padding(.trailing, 20)
         }
         .task(id: selectedDayKey) {
             await prefetchCurrentWindow()
@@ -85,12 +103,8 @@ private struct JourneyDayDetailPage: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 26) {
-                Capsule()
-                    .fill(Color.msTextMuted.opacity(0.25))
-                    .frame(width: 44, height: 5)
-                    .padding(.top, 10)
-
                 Text(JourneyDateSupport.formattedDate(for: day.displayDateUTC))
+                    .padding(.top, 10)
                     .font(.appCaption)
                     .foregroundStyle(Color.msTextMuted)
 
