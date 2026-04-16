@@ -215,6 +215,43 @@ final class HabitService {
         return results.first
     }
 
+    // MARK: - Top Habits
+
+    /// Returns the user's most-practiced habits ranked by completed log count.
+    func fetchTopHabits(userId: UUID, limit: Int = 4) async throws -> [TopHabit] {
+        struct HabitIdRow: Decodable {
+            let habitId: UUID
+            enum CodingKeys: String, CodingKey { case habitId = "habit_id" }
+        }
+        async let logRows: [HabitIdRow] = client
+            .from("habit_logs")
+            .select("habit_id")
+            .eq("user_id", value: userId.uuidString)
+            .eq("completed", value: true)
+            .execute()
+            .value
+        async let habits: [Habit] = client
+            .from("habits")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .eq("is_active", value: true)
+            .execute()
+            .value
+
+        let (logs, allHabits) = try await (logRows, habits)
+        let habitMap = Dictionary(uniqueKeysWithValues: allHabits.map { ($0.id, $0) })
+        var counts: [UUID: Int] = [:]
+        for log in logs { counts[log.habitId, default: 0] += 1 }
+
+        return counts
+            .sorted { $0.value > $1.value }
+            .prefix(limit)
+            .compactMap { id, count -> TopHabit? in
+                guard let habit = habitMap[id] else { return nil }
+                return TopHabit(name: habit.name, icon: habit.icon, count: count)
+            }
+    }
+
     // MARK: - Circle Completion Stats
 
     /// Fetch shared-habit completion data for a specific circle today.
@@ -294,6 +331,14 @@ struct CircleCompletionStats {
     func memberCompletedAny(_ userId: UUID) -> Bool {
         habits.contains { memberCompletions[$0.id]?.contains(userId) == true }
     }
+}
+
+// MARK: - Top Habit Model
+
+struct TopHabit: Sendable {
+    let name: String
+    let icon: String
+    let count: Int
 }
 
 extension Notification.Name {

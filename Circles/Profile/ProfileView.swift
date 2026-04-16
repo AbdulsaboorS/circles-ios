@@ -5,26 +5,16 @@ import Supabase
 struct ProfileView: View {
     @Environment(AuthManager.self) private var auth
 
-    @State private var profile: Profile? = nil
-    @State private var totalDays: Int = 0
-    @State private var bestStreak: Int = 0
-    @State private var circleCount: Int = 0
-    @State private var isLoadingStats = true
-
+    @State private var viewModel = ProfileViewModel()
     @State private var selectedPhoto: PhotosPickerItem? = nil
-    @State private var isUploadingAvatar = false
-    @State private var avatarUrl: String? = nil
-    @State private var avatarUploadError: String? = nil
-
-    // Edit profile sheet
-    @State private var showEditProfile = false
+    @State private var showSettingsSheet = false
+    @State private var isEditingName = false
     @State private var editNameDraft: String = ""
     @State private var isSavingName = false
-
-    @State private var showSettingsSheet = false
+    @State private var heroIsVisible = true
 
     private var displayName: String {
-        if let name = profile?.preferredName, !name.isEmpty { return name }
+        if let name = viewModel.profile?.preferredName, !name.isEmpty { return name }
         return auth.session?.user.email?.components(separatedBy: "@").first ?? "Member"
     }
 
@@ -39,27 +29,75 @@ struct ProfileView: View {
         NavigationStack {
             ZStack {
                 Color.msBackground.ignoresSafeArea()
+
                 ScrollView {
-                    VStack(spacing: 24) {
-                        avatarSection
-                        statsCard
+                    VStack(spacing: 0) {
+                        // Hero — scroll offset tracker pinned here
+                        ProfileHeroSection(
+                            viewModel: viewModel,
+                            displayName: displayName,
+                            memberSince: memberSince,
+                            selectedPhoto: $selectedPhoto,
+                            isEditingName: $isEditingName,
+                            editNameDraft: $editNameDraft,
+                            onSaveName: {
+                                guard let userId = auth.session?.user.id else { return }
+                                isSavingName = true
+                                await viewModel.saveProfileName(editNameDraft, userId: userId)
+                                isSavingName = false
+                            }
+                        )
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear
+                                    .onChange(of: geo.frame(in: .named("profileScroll")).minY) { _, minY in
+                                        // Hero considered visible when its top is still within view
+                                        heroIsVisible = minY > -60
+                                    }
+                            }
+                        )
+
+                        VStack(spacing: 28) {
+                            SpiritualPulseCard(
+                                totalDays: viewModel.totalDays,
+                                bestStreak: viewModel.bestStreak,
+                                circleCount: viewModel.circleCount,
+                                ameensGiven: viewModel.ameensGiven,
+                                isLoading: viewModel.isLoadingStats
+                            )
+
+                            CommonIntentionsSection(topHabits: viewModel.topHabits)
+
+                            SacredMilestonesSection(milestones: viewModel.milestones)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 24)
+                        .padding(.bottom, 40)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 40)
                 }
+                .coordinateSpace(name: "profileScroll")
             }
-            .navigationTitle("Profile")
+            .navigationTitle(heroIsVisible ? "" : displayName)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(
+                heroIsVisible ? AnyShapeStyle(Color.clear) : AnyShapeStyle(.ultraThinMaterial),
+                for: .navigationBar
+            )
+            .toolbarBackground(heroIsVisible ? .hidden : .visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showSettingsSheet = true
                     } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundStyle(Color.msGold)
-                            .font(.system(size: 17))
+                        ZStack {
+                            SwiftUI.Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 34, height: 34)
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 15))
+                                .foregroundStyle(Color.msGold)
+                        }
                     }
                     .accessibilityLabel("Settings")
                 }
@@ -70,103 +108,41 @@ struct ProfileView: View {
                     .presentationDragIndicator(.visible)
             }
             .task {
-                await loadAll()
+                guard let userId = auth.session?.user.id else { return }
+                await viewModel.loadAll(userId: userId)
             }
             .onChange(of: selectedPhoto) { _, item in
-                guard let item else { return }
-                Task { await handleAvatarPick(item) }
+                guard let item, let userId = auth.session?.user.id else { return }
+                Task { await viewModel.handleAvatarPick(item, userId: userId) }
             }
-            .alert("Upload Failed", isPresented: .constant(avatarUploadError != nil)) {
-                Button("OK") { avatarUploadError = nil }
+            .alert("Upload Failed", isPresented: .constant(viewModel.avatarUploadError != nil)) {
+                Button("OK") { viewModel.avatarUploadError = nil }
             } message: {
-                Text(avatarUploadError ?? "")
+                Text(viewModel.avatarUploadError ?? "")
             }
         }
     }
 
-    // MARK: - Avatar Section
+    // MARK: - Settings Sheet Content
 
-    private var avatarSection: some View {
-        VStack(spacing: 10) {
-            ZStack(alignment: .bottomTrailing) {
-                PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                    AvatarView(avatarUrl: avatarUrl, name: displayName, size: 96)
-                        .overlay(
-                            SwiftUI.Circle()
-                                .stroke(Color.msGold.opacity(0.35), lineWidth: 2)
-                        )
-                }
-                .buttonStyle(.plain)
-                .overlay(alignment: .bottomTrailing) {
-                    ZStack {
-                        SwiftUI.Circle()
-                            .fill(Color.msGold)
-                            .frame(width: 28, height: 28)
-                        if isUploadingAvatar {
-                            ProgressView().tint(Color.msBackground).scaleEffect(0.6)
-                        } else {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Color.msBackground)
-                        }
-                    }
-                    .offset(x: 2, y: 2)
+    private var settingsSheetContent: some View {
+        NavigationStack {
+            ZStack {
+                Color.msBackground.ignoresSafeArea()
+                ScrollView {
+                    settingsSection
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 40)
                 }
             }
-
-            Text(displayName)
-                .font(.appTitle)
-                .foregroundStyle(Color.msTextPrimary)
-
-            if !memberSince.isEmpty {
-                Text(memberSince)
-                    .font(.appCaption)
-                    .foregroundStyle(Color.msTextMuted)
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .sheet(isPresented: $isEditingName) {
+                editProfileSheet
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
-    }
-
-    // MARK: - Stats Card
-
-    private var statsCard: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16).fill(Color.msCardShared)
-            HStack(spacing: 0) {
-                statItem(value: "\(totalDays)", label: "Total Days", icon: "flame.fill")
-                Divider().frame(height: 40).foregroundStyle(Color.msBorder)
-                statItem(value: "\(bestStreak)", label: "Best Streak", icon: "bolt.fill")
-                Divider().frame(height: 40).foregroundStyle(Color.msBorder)
-                statItem(value: "\(circleCount)", label: "Circles", icon: "person.2.fill")
-            }
-            .padding(.vertical, 16)
-        }
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
-        .overlay(
-            isLoadingStats
-                ? AnyView(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.msBackground.opacity(0.6))
-                        .overlay(ProgressView().tint(Color.msGold))
-                )
-                : AnyView(EmptyView())
-        )
-    }
-
-    private func statItem(value: String, label: String, icon: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundStyle(Color.msGold)
-            Text(value)
-                .font(.appHeadline)
-                .foregroundStyle(Color.msTextPrimary)
-            Text(label)
-                .font(.appCaption)
-                .foregroundStyle(Color.msTextMuted)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Settings Section
@@ -177,8 +153,8 @@ struct ProfileView: View {
                 RoundedRectangle(cornerRadius: 16).fill(Color.msCardShared)
                 VStack(spacing: 0) {
                     settingsRow(icon: "person.fill", label: "Edit Profile") {
-                        editNameDraft = profile?.preferredName ?? displayName
-                        showEditProfile = true
+                        editNameDraft = viewModel.profile?.preferredName ?? displayName
+                        isEditingName = true
                     }
 
                     Divider().foregroundStyle(Color.msBorder).padding(.leading, 48)
@@ -245,28 +221,6 @@ struct ProfileView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Settings Sheet Content
-
-    private var settingsSheetContent: some View {
-        NavigationStack {
-            ZStack {
-                Color.msBackground.ignoresSafeArea()
-                ScrollView {
-                    settingsSection
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 40)
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .sheet(isPresented: $showEditProfile) {
-                editProfileSheet
-            }
-        }
-    }
-
     // MARK: - Edit Profile Sheet
 
     private var editProfileSheet: some View {
@@ -275,7 +229,6 @@ struct ProfileView: View {
                 Color.msBackground.ignoresSafeArea()
                 VStack(spacing: 28) {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Name field
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Display Name")
                                 .font(.appCaption)
@@ -292,7 +245,6 @@ struct ProfileView: View {
                                 .tint(Color.msGold)
                         }
 
-                        // Email (read-only)
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Email")
                                 .font(.appCaption)
@@ -314,7 +266,13 @@ struct ProfileView: View {
                     Spacer()
 
                     Button {
-                        Task { await saveProfileName() }
+                        Task {
+                            guard let userId = auth.session?.user.id else { return }
+                            isSavingName = true
+                            await viewModel.saveProfileName(editNameDraft, userId: userId)
+                            isSavingName = false
+                            isEditingName = false
+                        }
                     } label: {
                         Group {
                             if isSavingName {
@@ -341,31 +299,11 @@ struct ProfileView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { showEditProfile = false }
+                    Button("Cancel") { isEditingName = false }
                         .foregroundStyle(Color.msGold)
                 }
             }
         }
-    }
-
-    private func saveProfileName() async {
-        guard let userId = auth.session?.user.id else { return }
-        let trimmed = editNameDraft.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        isSavingName = true
-        do {
-            let updates: [String: AnyJSON] = ["preferred_name": .string(trimmed)]
-            try await SupabaseService.shared.client
-                .from("profiles")
-                .update(updates)
-                .eq("id", value: userId.uuidString)
-                .execute()
-            profile?.preferredName = trimmed
-        } catch {
-            print("[ProfileView] Save name failed: \(error)")
-        }
-        isSavingName = false
-        showEditProfile = false
     }
 
     // MARK: - Debug Tools
@@ -423,43 +361,6 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    // MARK: - Data Loading
-
-    private func loadAll() async {
-        guard let userId = auth.session?.user.id else { return }
-        isLoadingStats = true
-        async let profileFetch = AvatarService.shared.fetchProfile(userId: userId)
-        async let daysFetch = AvatarService.shared.fetchTotalCompletedDays(userId: userId)
-        async let streakFetch = HabitService.shared.fetchStreak(userId: userId)
-        async let circlesFetch = AvatarService.shared.fetchCircleCount(userId: userId)
-
-        profile = try? await profileFetch
-        avatarUrl = profile?.avatarUrl
-        totalDays = (try? await daysFetch) ?? 0
-        bestStreak = (try? await streakFetch)?.longestStreak ?? 0
-        circleCount = (try? await circlesFetch) ?? 0
-        isLoadingStats = false
-    }
-
-    private func handleAvatarPick(_ item: PhotosPickerItem) async {
-        guard let userId = auth.session?.user.id else { return }
-        isUploadingAvatar = true
-        avatarUploadError = nil
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self) else {
-                throw AvatarError.imageConversionFailed
-            }
-            guard let image = UIImage(data: data) else {
-                throw AvatarError.imageConversionFailed
-            }
-            avatarUrl = try await AvatarService.shared.uploadAvatar(userId: userId, image: image)
-        } catch {
-            print("[ProfileView] Avatar upload failed: \(error)")
-            avatarUploadError = error.localizedDescription
-        }
-        isUploadingAvatar = false
     }
 }
 

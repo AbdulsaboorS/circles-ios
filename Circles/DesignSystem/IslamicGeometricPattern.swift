@@ -7,6 +7,7 @@ import Foundation
 struct IslamicGeometricPattern: View {
     var opacity: Double = 0.025
     var tileSize: CGFloat = 40
+    var color: Color = .white
 
     var body: some View {
         Canvas { context, size in
@@ -22,7 +23,7 @@ struct IslamicGeometricPattern: View {
                     let starPath = starPath(center: center, size: tileSize * 0.42)
                     context.stroke(
                         starPath,
-                        with: .color(.white.opacity(opacity)),
+                        with: .color(color.opacity(opacity)),
                         lineWidth: 0.5
                     )
                 }

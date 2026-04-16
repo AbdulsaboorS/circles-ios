@@ -88,6 +88,29 @@ final class AvatarService {
             .value
         return rows.count
     }
+
+    func fetchReactionsGivenCount(userId: UUID) async throws -> Int {
+        struct ReactionId: Decodable { let id: UUID }
+        let rows: [ReactionId] = try await client
+            .from("habit_reactions")
+            .select("id")
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+        return rows.count
+    }
+
+    func fetchIsCircleFounder(userId: UUID) async throws -> Bool {
+        struct MemberId: Decodable { let id: UUID }
+        let rows: [MemberId] = try await client
+            .from("circle_members")
+            .select("id")
+            .eq("user_id", value: userId.uuidString)
+            .eq("role", value: "admin")
+            .execute()
+            .value
+        return !rows.isEmpty
+    }
 }
 
 enum AvatarError: LocalizedError {

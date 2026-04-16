@@ -1,131 +1,78 @@
-# Handoff — 2026-04-14 (Session 21 — Journey QA Fixes Implemented)
+# Handoff — 2026-04-15 (Session 22 — Profile "Gallery of the Soul" Redesign)
 
 ## Current Build State
-**BUILD VERIFIED ✅** via:
-
+**BUILD SUCCEEDED ✅**
 ```bash
-xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build
+xcodebuild -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build
 ```
 
-### Runtime verification gap
-- Simulator boot succeeded for `iPhone 17 Pro` (`AAD4DE32-6D0C-4C10-BCF1-1A4612DD9D92`).
-- `open -a Simulator` succeeded.
-- `simctl install` still did not return promptly.
-- A follow-up `xcrun simctl get_app_container ... app.joinlegacy` returned `No such file or directory`, so the app never finished installing.
-- Result: there is still no screenshot-level/manual runtime proof for the new Journey fixes.
+---
+
+## What Was Done This Session
+
+### Journey QA (PAUSED — not tested)
+Session 21 Journey fixes (paging, PiP, cache, cross-surface refresh) are in code but runtime QA was intentionally deferred by the user. Resume after Profile work.
+
+### Profile Page — "Gallery of the Soul" Redesign
+
+Full redesign of the Profile tab. All new files build with zero errors.
+
+#### New Files Created
+- `Circles/DesignSystem/NoorRingView.swift` — streak-driven layered gold glow ring (was used in first hero iteration, now unused since hero went full-bleed — keep for potential future use)
+- `Circles/Profile/ProfileViewModel.swift` — `@Observable @MainActor` VM; loads 7 stats concurrently; computes `milestones: [Milestone]`
+- `Circles/Profile/ProfileHeroSection.swift` — **Full-bleed BeReal-style cover photo** (320pt tall, edge-to-edge), gold gradient fade at bottom, name + member since overlaid, inline pencil name edit, camera badge top-right, Islamic geometric pattern overlay
+- `Circles/Profile/SpiritualPulseCard.swift` — glassmorphism 4-stat card: Total Days, Best Streak, Circles, Ameens Given
+- `Circles/Profile/CommonIntentionsSection.swift` — top habits ranked by log frequency, shown as gold pills (name only — no icon), empty state
+- `Circles/Profile/SacredMilestonesSection.swift` — horizontal scroll of 5 milestone badges (lock/unlock based on real data)
+
+#### Modified Files
+- `Circles/Profile/ProfileView.swift` — rewritten; composes all sections; scroll-collapsing nav bar (transparent hero → frosted title on scroll); glassmorphism gear button; settings sheet unchanged
+- `Circles/DesignSystem/IslamicGeometricPattern.swift` — added `color: Color = .white` param; gold used in hero
+- `Circles/Services/AvatarService.swift` — added `fetchReactionsGivenCount(userId:)` and `fetchIsCircleFounder(userId:)`
+- `Circles/Services/HabitService.swift` — added `fetchTopHabits(userId:limit:)` + `TopHabit` struct
+
+#### Design Decisions Locked
+- Hero: full-bleed photo (BeReal style), NOT confined circle avatar
+- Common Intentions: habit name only (no SF Symbol icon — `habit.icon` is a symbol name string, renders as text if used in `Text()`)
+- Settings: gear icon stays, opens existing sheet — settings NOT inline on page
+- Brotherhood stat renamed to "Ameens Given"
+- Common Intentions data source: top habits by completed log count
 
 ---
 
-## What Landed This Session
+## What Needs Runtime QA (Next Session)
 
-### 1. Journey correctness after posting
-- `JourneyViewModel` now invalidates today’s month cache on a successful moment post instead of trusting the previously loaded month snapshot.
-- Journey now refreshes its archive summary on re-entry and reloads the current month when returning to the tab.
-- Same-day dedupe now prefers the newest `posted_at`, not the oldest.
-- `MomentService.fetchMoments(userId:from:toExclusive:)` now fetches newest-first to match that newest-wins behavior.
-
-### 2. Journey detail paging + PiP parity
-- Journey detail is no longer a single-day sheet.
-- `JourneyDayDetailView` now pages horizontally across the populated days in the visible month via `TabView` page style.
-- Double Take moments now resolve both primary and secondary photos.
-- PiP now renders consistently in Journey detail and swaps main/PiP on tap, matching feed/fullscreen behavior.
-
-### 3. Journey media latency improvements
-- Signed moment URLs are now cached in-memory by stable storage path inside `MomentService`.
-- `CachedAsyncImage` now accepts a caller-supplied `cacheKey`, so Journey detail can cache images by storage path instead of volatile signed URL.
-- Journey detail now prefetches media for the selected day plus adjacent days when the sheet opens/pages.
-
-### 4. Cross-surface post refresh
-- `MomentService.postMomentToAllCircles` now publishes a `momentPostRefresh` notification after any successful post.
-- `JourneyView`, `CommunityView`, and `CircleDetailView` now listen for that notification and refresh their relevant state.
-- This closes the stale-UI gap where posting from `CircleDetailView` could leave Community circle cards behind until a manual refresh.
-- Partial-success post errors now name the failed circles when those names are available, making backend partial success easier to distinguish from stale UI.
+1. **Hero photo renders correctly** — full-bleed, fills top third, gradient fade visible
+2. **Common Intentions pills show real habit names** (not symbol strings)
+3. **Ameens Given** loads correctly (may be 0 for most users — verify it shows 0 cleanly)
+4. **Sacred Milestones** — verify lock/unlock against real user data
+5. **Scroll-collapsing nav** — transparent on hero, frosted+name when scrolled past hero
+6. **Inline name edit** — pencil icon → TextField → checkmark → saves to Supabase
+7. **Gear icon** opens settings sheet as before
+8. **Avatar photo upload** still works (PhotosPicker → camera badge → upload)
+9. **Placeholder cover** shows when no avatar set ("Tap to add a photo")
 
 ---
 
-## Files Modified
+## Open Issues / Known Items
 
-- `Circles/Journey/JourneyView.swift`
-- `Circles/Journey/JourneyDayDetailView.swift`
-- `Circles/Journey/JourneyViewModel.swift`
-- `Circles/Services/MomentService.swift`
-- `Circles/Feed/CachedAsyncImage.swift`
-- `Circles/Community/CommunityView.swift`
-- `Circles/Circles/CircleDetailView.swift`
+### A. NoorRingView — currently unused
+`NoorRingView.swift` was created for the original circular avatar hero. After switching to full-bleed BeReal-style hero the ring is no longer rendered. The file is kept (it builds fine) but could be deleted or repurposed later (e.g., small avatar shown in nav bar on scroll).
 
----
+### B. Journey QA still pending
+All 7 Journey runtime tests from Session 21 HANDOFF are still outstanding. Do these after Profile QA passes.
 
-## Root-Cause Status vs Prior Handoff
-
-### A. Journey detail should page between days
-**Status:** fixed in code.
-
-- The detail sheet now takes a day dataset plus selected day key.
-- Horizontal paging is handled in the sheet itself, not by dismiss/reopen.
-
-### B. Journey detail lacked PiP parity
-**Status:** fixed in code.
-
-- Secondary photo signing/loading now exists in Journey detail.
-- PiP visibility and tap-to-swap now mirror feed/fullscreen behavior.
-
-### C. Journey detail open latency was too high
-**Status:** mitigated in code; still needs runtime feel-check.
-
-- Stable cache identity is now the storage path.
-- Signed URLs are reused in-memory until near expiry.
-- Selected + adjacent days prefetch on open/page change.
-
-### D. Journey could show stale / wrong current-day detail after repost
-**Status:** fixed in code for the traced high-confidence causes.
-
-- Current month cache is explicitly invalidated after post.
-- Journey refreshes on tab re-entry.
-- Same-day dedupe now prefers the newest moment.
-
-**Residual risk:**
-- `saveNiyyah` is still intentionally non-fatal if Supabase fails to save the private niyyah row. That path was not reproduced this session.
-
-### E. Mixed circle-card timestamps after a fresh post
-**Status:** stale-UI cause addressed in code; backend partial success remains the likely explanation if it still reproduces.
-
-- Community now refreshes after any successful post event, even when the post originated from Circle Detail.
-- Partial-success errors now identify failed circles when the app has their names.
+### C. `toolbarBackground` on iOS 26
+The scroll-collapsing nav uses `.toolbarBackground(AnyShapeStyle(Color.clear), for: .navigationBar)` toggled with `.toolbarBackground(.hidden/.visible)`. Verify this produces the expected transparent→frosted transition on iOS 26 simulator — behavior may differ from iOS 17/18.
 
 ---
 
-## Recommended Next Tests
+## Recommended Next Steps
 
-1. Post a fresh moment from the global Community flow, then open Journey:
-   today should show the newest photo and newest niyyah without killing the app.
-2. Repost on the same UTC day after forcing the window:
-   Journey should prefer the newest same-day post, not the older one.
-3. Open a Double Take day in Journey detail:
-   PiP should always appear when a secondary image exists, and tap-to-swap should work.
-4. Swipe left/right inside Journey detail:
-   paging should move between populated days without dismissing the sheet.
-5. Open the same Journey day twice in a row:
-   the second open should be meaningfully faster because the signed URL and image cache are reused.
-6. Post from `CircleDetailView`, then return to Community:
-   circle cards should refresh without requiring manual pull-to-refresh.
-7. If a post partially succeeds:
-   confirm the failure banner names the circles that stayed stale.
-
----
-
-## Code Review Status
-Code review was performed on the final diff before handoff.
-
-### Findings
-- No new blocking findings were found in the Journey fix set after build verification.
-
-### Remaining risks
-- Manual runtime verification is still missing because `simctl install/launch` remains unreliable from CLI on this simulator.
-- The non-fatal `saveNiyyah` fallback still exists, so a Supabase niyyah-write failure could still leave a post with a stale private niyyah.
-
----
-
-## Recommended Next Work
-
-1. Finish manual runtime QA for the Journey fixes on simulator/device.
-2. If runtime QA passes, close the Journey follow-up and move on to the Profile redesign.
+1. Run the app in simulator, go to Profile tab
+2. QA all 9 items above
+3. If anything looks off, describe exactly what's wrong — common issues:
+   - Nav bar not going transparent → may need `navigationBarTitleDisplayMode(.large)` or a different scroll detection approach
+   - Stats card not showing glassmorphism → `.ultraThinMaterial` requires content behind it; may need a background layer
+4. After Profile QA passes → resume Journey QA (Session 21 tests)
+5. Then move to next roadmap phase per STATE.md
