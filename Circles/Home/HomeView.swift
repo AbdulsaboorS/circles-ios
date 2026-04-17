@@ -199,14 +199,17 @@ struct HomeView: View {
     private static let fallbackPresence: [HomeViewModel.MemberPresence] = [
         HomeViewModel.MemberPresence(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            circleId: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!,
             name: "Member", initials: "M1",
             avatarColor: Color(hex: "4A7C59"), checkedInToday: false),
         HomeViewModel.MemberPresence(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            circleId: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!,
             name: "Member", initials: "M2",
             avatarColor: Color(hex: "5E9E72"), checkedInToday: false),
         HomeViewModel.MemberPresence(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            circleId: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!,
             name: "Member", initials: "M3",
             avatarColor: Color(hex: "3D6B4F"), checkedInToday: false),
     ]
@@ -371,7 +374,11 @@ struct HomeView: View {
             .sheet(isPresented: $showMembersSheet) {
                 let presenceData = viewModel.circlePresence.isEmpty
                     ? Self.fallbackPresence : viewModel.circlePresence
-                MembersSheet(presence: presenceData, nudgedIds: $nudgedIds)
+                MembersSheet(
+                    presence: presenceData,
+                    nudgedIds: $nudgedIds,
+                    onNudge: sendPresenceNudge
+                )
             }
             .sheet(isPresented: $showEditLayout) {
                 EditLayoutSheet(
@@ -572,6 +579,7 @@ struct HomeView: View {
                 presence: presenceData,
                 checkedInCount: checkedIn,
                 nudgedIds: $nudgedIds,
+                onNudge: sendPresenceNudge,
                 onOpenSheet: { showMembersSheet = true }
             )
 
@@ -742,6 +750,28 @@ struct HomeView: View {
         }
     }
 
+    private func sendPresenceNudge(_ member: HomeViewModel.MemberPresence) {
+        guard let senderId = auth.session?.user.id else { return }
+        guard !nudgedIds.contains(member.id) else { return }
+
+        Task {
+            do {
+                let sentCount = try await NudgeService.shared.sendDirectNudge(
+                    circleId: member.circleId,
+                    senderId: senderId,
+                    targetUserId: member.id,
+                    nudgeType: "habit_reminder"
+                )
+                guard sentCount > 0 else { return }
+                _ = withAnimation(.easeInOut(duration: 0.2)) {
+                    nudgedIds.insert(member.id)
+                }
+            } catch {
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     // MARK: - Invite Nudge Banner
 
     private var inviteNudgeBanner: some View {
@@ -824,6 +854,7 @@ private struct CirclePresenceRow: View {
     let presence: [HomeViewModel.MemberPresence]
     let checkedInCount: Int
     @Binding var nudgedIds: Set<UUID>
+    let onNudge: (HomeViewModel.MemberPresence) -> Void
     let onOpenSheet: () -> Void
 
     private var usesSheet: Bool { presence.count >= 4 }
@@ -839,9 +870,7 @@ private struct CirclePresenceRow: View {
                         guard !usesSheet else { return }
                         guard !nudgedIds.contains(member.id) else { return }
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            nudgedIds.insert(member.id)
-                        }
+                        onNudge(member)
                     } label: {
                         VStack(spacing: 5) {
                             ZStack {
@@ -1415,6 +1444,7 @@ private struct EditLayoutSheet: View {
 private struct MembersSheet: View {
     let presence: [HomeViewModel.MemberPresence]
     @Binding var nudgedIds: Set<UUID>
+    let onNudge: (HomeViewModel.MemberPresence) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -1456,9 +1486,7 @@ private struct MembersSheet: View {
                                 Button {
                                     guard !nudgedIds.contains(member.id) else { return }
                                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        nudgedIds.insert(member.id)
-                                    }
+                                    onNudge(member)
                                 } label: {
                                     Text(nudgedIds.contains(member.id) ? "Sent ✓" : "Nudge")
                                         .font(.system(size: 12, weight: .semibold))

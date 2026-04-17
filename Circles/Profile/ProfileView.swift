@@ -120,6 +120,10 @@ struct ProfileView: View {
                     guard let userId = auth.session?.user.id else { return }
                     await viewModel.loadAll(userId: userId)
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .nudgeSent)) { notification in
+                    guard let event = notification.object as? NudgeService.SentCountEvent else { return }
+                    viewModel.applyNudgeSentIncrement(event.sentCount)
+                }
                 .alert("Upload Failed", isPresented: .constant(viewModel.avatarUploadError != nil)) {
                     Button("OK") { viewModel.avatarUploadError = nil }
                 } message: {

@@ -11,6 +11,19 @@ final class DailyMomentService {
     static let shared = DailyMomentService()
     private init() {}
 
+    struct ActiveMomentRange: Sendable {
+        let start: Date
+        let endExclusive: Date
+
+        var startISO8601: String {
+            DailyMomentService.iso8601String(from: start)
+        }
+
+        var endExclusiveISO8601: String {
+            DailyMomentService.iso8601String(from: endExclusive)
+        }
+    }
+
     // MARK: - Published State
     var todayPrayerName: String = "asr"
     var windowStart: Date? = nil              // nil = couldn't determine prayer time
@@ -70,7 +83,7 @@ final class DailyMomentService {
 
         // 2. Batch publish — hasPostedToday first so gate never flickers on
         todayPrayerName = prayer
-        hasPostedToday = hasPostedToday || postedToday  // never downgrade from true within a day
+        hasPostedToday = postedToday
         windowStart = newWindowStart
         lastLoadedDate = today
 
@@ -111,6 +124,34 @@ final class DailyMomentService {
             .execute()
             .value) ?? []
         return rows.first
+    }
+
+    func fetchActiveMomentRange(referenceDate: Date = Date()) async -> ActiveMomentRange {
+        let calendar = Calendar(identifier: .gregorian)
+        let fallbackStart = calendar.startOfDay(for: referenceDate)
+        let fallbackEnd = calendar.date(byAdding: .day, value: 1, to: fallbackStart) ?? fallbackStart.addingTimeInterval(24 * 60 * 60)
+
+        let nearby = await fetchNearbyDailyMoments(referenceDate: referenceDate)
+        let triggers = nearby.compactMap { dailyMoment -> (date: Date, row: DailyMoment)? in
+            guard let triggerDate = triggerDate(for: dailyMoment) else { return nil }
+            return (date: triggerDate, row: dailyMoment)
+        }
+        .sorted { $0.date < $1.date }
+
+        guard !triggers.isEmpty else {
+            return ActiveMomentRange(start: fallbackStart, endExclusive: fallbackEnd)
+        }
+
+        let now = referenceDate
+        let activeStart = triggers.last(where: { $0.date <= now })?.date ?? triggers.first?.date ?? fallbackStart
+        let nextStart = triggers.first(where: { $0.date > now })?.date
+        let endExclusive = nextStart ?? calendar.date(byAdding: .day, value: 1, to: activeStart) ?? activeStart.addingTimeInterval(24 * 60 * 60)
+
+        guard endExclusive > activeStart else {
+            return ActiveMomentRange(start: fallbackStart, endExclusive: fallbackEnd)
+        }
+
+        return ActiveMomentRange(start: activeStart, endExclusive: endExclusive)
     }
 
     /// Parse "HH:MM" as a UTC time and combine with today's UTC date.
@@ -170,25 +211,58 @@ final class DailyMomentService {
     }
 
     private func computeHasPostedToday(userId: UUID) async -> Bool {
-        let today = todayUTCString()
+        let range = await fetchActiveMomentRange()
         struct Row: Decodable { let id: UUID }
         let rows: [Row] = (try? await SupabaseService.shared.client
             .from("circle_moments")
             .select("id")
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: "\(today)T00:00:00Z")
-            .lt("posted_at", value: "\(today)T23:59:59Z")
+            .gte("posted_at", value: range.startISO8601)
+            .lt("posted_at", value: range.endExclusiveISO8601)
             .limit(1)
             .execute()
             .value) ?? []
         return !rows.isEmpty
     }
 
+    private func fetchNearbyDailyMoments(referenceDate: Date) async -> [DailyMoment] {
+        let calendar = Calendar(identifier: .gregorian)
+        guard
+            let previousDate = calendar.date(byAdding: .day, value: -1, to: referenceDate),
+            let nextDate = calendar.date(byAdding: .day, value: 1, to: referenceDate)
+        else {
+            return []
+        }
+
+        let startDate = Self.utcDateString(from: previousDate)
+        let endDate = Self.utcDateString(from: nextDate)
+
+        return (try? await SupabaseService.shared.client
+            .from("daily_moments")
+            .select()
+            .gte("moment_date", value: startDate)
+            .lte("moment_date", value: endDate)
+            .order("moment_date", ascending: true)
+            .execute()
+            .value) ?? []
+    }
+
+    private func triggerDate(for dailyMoment: DailyMoment) -> Date? {
+        if let momentTime = dailyMoment.momentTime, !momentTime.isEmpty {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm"
+            formatter.timeZone = TimeZone(identifier: "UTC")
+            return formatter.date(from: "\(dailyMoment.momentDate) \(momentTime)")
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.date(from: dailyMoment.momentDate)
+    }
+
     private func todayUTCString() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone(identifier: "UTC")
-        return f.string(from: Date())
+        Self.utcDateString(from: Date())
     }
 
     private func localDateString(timezone: String) -> String {
@@ -196,5 +270,18 @@ final class DailyMomentService {
         f.dateFormat = "yyyy-MM-dd"
         f.timeZone = TimeZone(identifier: timezone) ?? .current
         return f.string(from: Date())
+    }
+
+    private static func utcDateString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.string(from: date)
+    }
+
+    private static func iso8601String(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 }

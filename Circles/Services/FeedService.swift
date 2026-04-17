@@ -89,7 +89,7 @@ final class FeedService {
         guard !circleIds.isEmpty else { return [] }
         let idStrings = circleIds.map { $0.uuidString }
 
-        // Today's UTC date window — only show today's content
+        let momentRange = await DailyMomentService.shared.fetchActiveMomentRange()
         let todayStart = Self.todayUTCStart()
         let todayEnd   = Self.todayUTCEnd()
 
@@ -108,8 +108,8 @@ final class FeedService {
             .from("circle_moments")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("posted_at", value: todayStart)
-            .lt("posted_at", value: todayEnd)
+            .gte("posted_at", value: momentRange.startISO8601)
+            .lt("posted_at", value: momentRange.endExclusiveISO8601)
             .order("posted_at", ascending: false)
             .execute()
             .value
@@ -257,15 +257,14 @@ final class FeedService {
     func fetchLatestMomentPerCircle(circleIds: [UUID]) async throws -> [UUID: LatestMomentInfo] {
         guard !circleIds.isEmpty else { return [:] }
         let idStrings = circleIds.map { $0.uuidString }
-        let todayStart = Self.todayUTCStart()
-        let todayEnd = Self.todayUTCEnd()
+        let momentRange = await DailyMomentService.shared.fetchActiveMomentRange()
 
         let rows: [CircleMomentRow] = try await client
             .from("circle_moments")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("posted_at", value: todayStart)
-            .lt("posted_at", value: todayEnd)
+            .gte("posted_at", value: momentRange.startISO8601)
+            .lt("posted_at", value: momentRange.endExclusiveISO8601)
             .order("posted_at", ascending: false)
             .execute()
             .value
@@ -300,6 +299,7 @@ final class FeedService {
         let idStrings = circleIds.map { $0.uuidString }
         let todayStart = Self.todayUTCStart()
         let todayEnd = Self.todayUTCEnd()
+        let momentRange = await DailyMomentService.shared.fetchActiveMomentRange()
 
         async let activityRowsTask: [ActivityFeedRow] = client
             .from("activity_feed")
@@ -314,8 +314,8 @@ final class FeedService {
             .from("circle_moments")
             .select("id, circle_id, user_id, photo_url, secondary_photo_url, caption, posted_at, is_on_time, has_niyyah")
             .in("circle_id", values: idStrings)
-            .gte("posted_at", value: todayStart)
-            .lt("posted_at", value: todayEnd)
+            .gte("posted_at", value: momentRange.startISO8601)
+            .lt("posted_at", value: momentRange.endExclusiveISO8601)
             .execute()
             .value
 

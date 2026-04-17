@@ -16,15 +16,15 @@ final class MomentService {
 
     // MARK: - Fetch
 
-    /// Fetch all Moments for a circle posted today (UTC date).
+    /// Fetch all Moments for a circle in the currently active daily-moment cycle.
     func fetchTodayMoments(circleId: UUID) async throws -> [CircleMoment] {
-        let today = Self.todayDateString()
+        let activeRange = await DailyMomentService.shared.fetchActiveMomentRange()
         let moments: [CircleMoment] = try await client
             .from("circle_moments")
             .select()
             .eq("circle_id", value: circleId.uuidString)
-            .gte("posted_at", value: "\(today)T00:00:00Z")
-            .lt("posted_at", value: "\(today)T23:59:59Z")
+            .gte("posted_at", value: activeRange.startISO8601)
+            .lt("posted_at", value: activeRange.endExclusiveISO8601)
             .order("posted_at")
             .execute()
             .value
@@ -375,7 +375,7 @@ final class MomentService {
     /// Update caption on all of today's moment rows for a user.
     /// Uses [String: AnyJSON] so nil caption sends explicit JSON null (Swift Codable omits nil keys).
     func updateCaption(_ caption: String?, userId: UUID) async throws {
-        let today = Self.todayDateString()
+        let activeRange = await DailyMomentService.shared.fetchActiveMomentRange()
         let captionValue: AnyJSON = caption.map { .string($0) } ?? .null
         print("[MomentService] updateCaption userId=\(userId) caption=\(caption ?? "nil")")
         do {
@@ -383,8 +383,8 @@ final class MomentService {
                 .from("circle_moments")
                 .update(["caption": captionValue])
                 .eq("user_id", value: userId.uuidString)
-                .gte("posted_at", value: "\(today)T00:00:00Z")
-                .lt("posted_at", value: "\(today)T23:59:59Z")
+                .gte("posted_at", value: activeRange.startISO8601)
+                .lt("posted_at", value: activeRange.endExclusiveISO8601)
                 .execute()
             print("[MomentService] updateCaption succeeded")
         } catch {
@@ -396,13 +396,13 @@ final class MomentService {
     #if DEBUG
     /// Delete all of today's moments for the given user (debug testing only).
     func deleteMyTodayMoments(userId: UUID) async throws {
-        let today = Self.todayDateString()
+        let activeRange = await DailyMomentService.shared.fetchActiveMomentRange()
         try await client
             .from("circle_moments")
             .delete()
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: "\(today)T00:00:00Z")
-            .lt("posted_at", value: "\(today)T23:59:59Z")
+            .gte("posted_at", value: activeRange.startISO8601)
+            .lt("posted_at", value: activeRange.endExclusiveISO8601)
             .execute()
         print("[MomentService] DEBUG: deleted today's moments for userId=\(userId)")
     }

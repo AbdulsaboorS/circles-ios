@@ -24,6 +24,7 @@ final class HomeViewModel {
 
     struct MemberPresence: Identifiable, Sendable {
         let id: UUID
+        let circleId: UUID
         let name: String
         let initials: String
         let avatarColor: Color
@@ -161,6 +162,7 @@ final class HomeViewModel {
                 let name = nameMap[member.userId] ?? nil
                 return MemberPresence(
                     id: member.userId,
+                    circleId: circle.id,
                     name: name ?? "Member",
                     initials: makeInitials(from: name),
                     avatarColor: palette[idx % palette.count],

@@ -145,7 +145,7 @@ struct CircleDetailView: View {
                             onNudge: { targetId, nudgeType, message in
                                 guard let senderId = auth.session?.user.id else { return }
                                 Task {
-                                    try? await NudgeService.shared.sendDirectNudge(
+                                    _ = try? await NudgeService.shared.sendDirectNudge(
                                         circleId: circle.id,
                                         senderId: senderId,
                                         targetUserId: targetId,
@@ -704,7 +704,7 @@ private struct MembersListView: View {
 
     private func sendNudge(to targetUserId: UUID, nudgeType: String) async {
         guard let senderId else { return }
-        try? await NudgeService.shared.sendDirectNudge(
+        _ = try? await NudgeService.shared.sendDirectNudge(
             circleId: circleId,
             senderId: senderId,
             targetUserId: targetUserId,

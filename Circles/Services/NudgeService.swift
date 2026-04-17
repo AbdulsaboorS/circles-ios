@@ -10,6 +10,10 @@ final class NudgeService {
 
     private var client: SupabaseClient { SupabaseService.shared.client }
 
+    struct SentCountEvent {
+        let sentCount: Int
+    }
+
     /// Sends encouragement to up to two quiet members in a circle, then records
     /// the circle-level nudge event in `nudges` for local card state / analytics.
     @discardableResult
@@ -55,6 +59,11 @@ final class NudgeService {
             .insert(row)
             .execute()
 
+        NotificationCenter.default.post(
+            name: .nudgeSent,
+            object: SentCountEvent(sentCount: successfulTargetCount)
+        )
+
         return successfulTargetCount
     }
 
@@ -91,16 +100,49 @@ final class NudgeService {
         return ids.filter { seen.insert($0).inserted }
     }
 
+    func fetchLifetimeSentCount(userId: UUID) async throws -> Int {
+        let params: [String: AnyJSON] = [
+            "p_user_id": .string(userId.uuidString)
+        ]
+
+        do {
+            struct SentCountRow: Decodable {
+                let sentCount: Int
+
+                enum CodingKeys: String, CodingKey {
+                    case sentCount = "sent_count"
+                }
+            }
+
+            let row: SentCountRow = try await client
+                .rpc("fetch_nudges_sent_count", params: params)
+                .single()
+                .execute()
+                .value
+            return row.sentCount
+        } catch {
+            struct NudgeLogRow: Decodable { let id: UUID }
+            let rows: [NudgeLogRow] = try await client
+                .from("nudge_log")
+                .select("id")
+                .eq("sender_id", value: userId.uuidString)
+                .execute()
+                .value
+            return rows.count
+        }
+    }
+
     /// Send a direct nudge to a single member with an optional custom message.
     /// nudgeType: "habit_reminder" or "custom" (with message text).
+    @discardableResult
     func sendDirectNudge(
         circleId: UUID,
         senderId: UUID,
         targetUserId: UUID,
         nudgeType: String,
         message: String? = nil
-    ) async throws {
-        guard targetUserId != senderId else { return }
+    ) async throws -> Int {
+        guard targetUserId != senderId else { return 0 }
 
         var body: [String: String] = [
             "senderId": senderId.uuidString,
@@ -114,6 +156,13 @@ final class NudgeService {
 
         try await client.functions
             .invoke("send-peer-nudge", options: .init(body: body))
+
+        NotificationCenter.default.post(
+            name: .nudgeSent,
+            object: SentCountEvent(sentCount: 1)
+        )
+
+        return 1
     }
 }
 
@@ -129,4 +178,8 @@ enum NudgeError: LocalizedError {
             return "You've already nudged the available members today."
         }
     }
+}
+
+extension Notification.Name {
+    static let nudgeSent = Notification.Name("nudgeSent")
 }

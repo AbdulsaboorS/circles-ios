@@ -62,7 +62,7 @@ final class ProfileViewModel {
         async let daysFetch      = AvatarService.shared.fetchTotalCompletedDays(userId: userId)
         async let streakFetch    = HabitService.shared.fetchStreak(userId: userId)
         async let circlesFetch   = AvatarService.shared.fetchCircleCount(userId: userId)
-        async let nudgesFetch    = AvatarService.shared.fetchNudgesSentCount(userId: userId)
+        async let nudgesFetch    = NudgeService.shared.fetchLifetimeSentCount(userId: userId)
         async let topHabitsFetch = HabitService.shared.fetchTopHabits(userId: userId)
         async let founderFetch   = AvatarService.shared.fetchIsCircleFounder(userId: userId)
 
@@ -77,6 +77,11 @@ final class ProfileViewModel {
         topHabits = (try? await topHabitsFetch) ?? []
         isCircleFounder = (try? await founderFetch) ?? false
         isLoadingStats = false
+    }
+
+    func applyNudgeSentIncrement(_ sentCount: Int) {
+        guard sentCount > 0 else { return }
+        nudgesSent += sentCount
     }
 
     func makeEditDraft(fallbackName: String) -> ProfileEditDraft {

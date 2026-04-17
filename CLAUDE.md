@@ -90,8 +90,10 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 - Feature demonstrable in Simulator before marking done
 
 ### 4. Commits
-- One commit per build session (phase group)
-- Push to `origin main` after each commit
+- Commit at meaningful, self-contained checkpoints
+- Prefer one commit per bug fix, feature slice, or focused refactor
+- Do not batch unrelated changes into one commit
+- Push to `origin main` after stable checkpoints, or at minimum at the end of each work session
 
 ### 5. SQL
 - Migrations run via Supabase Dashboard → SQL Editor

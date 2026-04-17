@@ -1,4 +1,4 @@
-# Handoff — Session 2026-04-16 (Profile / Settings Redesign)
+# Handoff — Session 2026-04-16 (Final-Pass Bug Fixes)
 
 Use [`.planning/HANDOFF.md`](/Users/abdulsaboorshaikh/Desktop/Circles/.planning/HANDOFF.md) as the source of truth for the next session.
 
@@ -6,25 +6,29 @@ Use [`.planning/HANDOFF.md`](/Users/abdulsaboorshaikh/Desktop/Circles/.planning/
 
 - Phase 13 remains in final-pass mode.
 - The BeReal-inspired `Profile / Settings` redesign is now implemented.
-- Profile editing now lives inside Settings and supports name, avatar, gender, and prayer location.
-- Gender save was failing due to live Supabase schema drift; the DB was manually aligned and save now works.
+- Two follow-up bug fixes are now implemented locally:
+  - `Nudges Sent` now uses the real nudge source of truth and refreshes in-session
+  - posted Moments now stay visible across Feed / Circles for the active daily-moment cycle instead of disappearing at UTC midnight
 - Build is verified locally with `xcodebuild`.
-- Next-session work should focus on the remaining final-pass UI/UX bugs and runtime QA, not another broad redesign.
+- The user has not runtime-tested these latest two bug fixes yet and plans to test them after the next bug is fixed.
+- Next-session work should continue the remaining final-pass bug list and then do runtime QA.
 
 ## Latest relevant work
 
-- `ProfileView.swift`, `ProfileViewModel.swift`, `ProfileHeroSection.swift`
-  - settings/account-card redesign implemented
-  - dedicated edit flow added
-  - hero editing removed
-  - hero image treatment updated again to remove blur and show more of the uploaded photo
-- `.planning/phases/01-schema-foundations/profiles_gender_align_app.sql`
-  - added as the repo-side reference for the live `profiles.gender` alignment that was needed
+- `NudgeService.swift`, `ProfileView.swift`, `ProfileViewModel.swift`, `HomeView.swift`, `HomeViewModel.swift`
+  - `Nudges Sent` no longer reads `habit_reactions`
+  - canonical count now comes from `nudge_log` / RPC helper path
+  - successful nudge sends now publish an in-session refresh event
+  - Home presence-sheet nudges now hit the backend instead of only toggling local UI state
+- `DailyMomentService.swift`, `FeedService.swift`, `MomentService.swift`
+  - social moment visibility now follows the active daily-moment cycle
+  - Feed / circle cards / circle detail / `hasPostedToday` no longer drop posts at UTC midnight
+- `.planning/phases/01-schema-foundations/nudge_log_count_rpc.sql`
+  - added as the repo-side helper SQL for sender-scoped `Nudges Sent` counting
 
 ## Next-session focus
 
 1. Read [`.planning/HANDOFF.md`](/Users/abdulsaboorshaikh/Desktop/Circles/.planning/HANDOFF.md) first.
-2. Reproduce and fix the remaining UI/UX bugs the user wants to address in the final pass.
-3. Runtime-test the redesigned Settings/Profile flow on simulator/device.
-4. Confirm the current hero image behavior matches the user’s intended full-photo presentation.
-5. Continue final Phase 13 polish and QA from there.
+2. Continue with the next remaining bug from the user’s final-pass list.
+3. After that bug is fixed, runtime-test the newly implemented nudge-count and moment-visibility fixes.
+4. Continue final Phase 13 polish and QA from there.
