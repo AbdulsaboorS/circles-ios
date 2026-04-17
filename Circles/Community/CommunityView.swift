@@ -10,7 +10,7 @@ struct CommunityView: View {
     @State private var activeFilter: FeedFilter = .posts  // locked to .posts — check-ins tab removed
     @State private var showGlobalCamera = false
     @State private var draftMoment: MomentDraft?
-    @State private var pendingFeedRefresh = false
+    @State private var postAlertMessage: String?
     @State private var expandedOwnMoment: MomentFeedItem? = nil
     @State private var momentStripId = UUID()
     private var momentService = DailyMomentService.shared
@@ -70,48 +70,22 @@ struct CommunityView: View {
                     onCaptionSaved: { momentStripId = UUID() }
                 )
             }
-            .sheet(item: $draftMoment, onDismiss: {
-                guard pendingFeedRefresh else { return }
-                pendingFeedRefresh = false
-                Task {
-                    guard let userId = auth.session?.user.id else { return }
-                    await feedViewModel.refresh(
-                        circleIds: viewModel.circles.map { $0.id },
-                        currentUserId: userId
-                    )
-                }
-            }) { draft in
+            .sheet(item: $draftMoment) { draft in
                 MomentPreviewView(
                     primaryImage: draft.primaryImage,
                     secondaryImage: draft.secondaryImage,
                     onPost: { caption, swapped, niyyahText in
                         guard let userId = auth.session?.user.id else { return }
-                        let circleIds = viewModel.circles.map { $0.id }
-                        let result = try await MomentService.shared.postMomentToAllCircles(
-                            primaryImage: swapped ? (draft.secondaryImage ?? draft.primaryImage) : draft.primaryImage,
-                            secondaryImage: swapped ? draft.primaryImage : draft.secondaryImage,
-                            circleIds: circleIds,
-                            userId: userId,
+                        let circles = viewModel.circles
+                        guard !circles.isEmpty else { throw MomentError.noCircles }
+                        submitOptimisticMoment(
+                            draft: draft,
                             caption: caption,
-                            windowStart: viewModel.circles.first?.momentWindowStart,
-                            niyyahText: niyyahText
+                            swapped: swapped,
+                            niyyahText: niyyahText,
+                            userId: userId,
+                            circles: circles
                         )
-                        DailyMomentService.shared.markPostedToday()
-                        pendingFeedRefresh = true
-                        await viewModel.loadCircles(userId: userId)
-                        if result.isPartialSuccess {
-                            let failCount = result.failedCircleIds.count
-                            let total = result.totalCount
-                            let failedNames = viewModel.circles
-                                .filter { result.failedCircleIds.contains($0.id) }
-                                .map(\.name)
-                            let failureSummary = failedNames.isEmpty
-                                ? "\(failCount) circle\(failCount == 1 ? "" : "s") failed"
-                                : "Failed circles: \(failedNames.joined(separator: ", "))"
-                            throw NSError(domain: "MomentPost", code: 0, userInfo: [
-                                NSLocalizedDescriptionKey: "Posted to \(result.succeeded.count) of \(total) circles. \(failureSummary) — tap Post again to retry."
-                            ])
-                        }
                     },
                     onRetake: {
                         draftMoment = nil
@@ -146,6 +120,11 @@ struct CommunityView: View {
             }
             .sheet(isPresented: $viewModel.showLayoutEditor) {
                 EditCirclesLayoutView(viewModel: viewModel)
+            }
+            .alert("Moment Update", isPresented: isShowingPostAlert) {
+                Button("OK") { postAlertMessage = nil }
+            } message: {
+                Text(postAlertMessage ?? "")
             }
         }
     }
@@ -400,6 +379,135 @@ struct CommunityView: View {
         guard let userId = auth.session?.user.id, event.userId == userId else { return }
         await viewModel.loadCircles(userId: userId)
         await loadGlobalFeed()
+    }
+
+    private var isShowingPostAlert: Binding<Bool> {
+        Binding(
+            get: { postAlertMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    postAlertMessage = nil
+                }
+            }
+        )
+    }
+
+    private func submitOptimisticMoment(
+        draft: MomentDraft,
+        caption: String?,
+        swapped: Bool,
+        niyyahText: String?,
+        userId: UUID,
+        circles: [Circle]
+    ) {
+        let primaryImage = swapped ? (draft.secondaryImage ?? draft.primaryImage) : draft.primaryImage
+        let secondaryImage = swapped ? draft.primaryImage : draft.secondaryImage
+        let optimisticMoment = makeOptimisticMoment(
+            primaryImage: primaryImage,
+            secondaryImage: secondaryImage,
+            caption: caption,
+            niyyahText: niyyahText,
+            userId: userId,
+            circles: circles
+        )
+
+        feedViewModel.insertOptimisticMoment(optimisticMoment)
+        DailyMomentService.shared.markPostedToday()
+
+        Task {
+            do {
+                let result = try await MomentService.shared.postMomentToAllCircles(
+                    primaryImage: primaryImage,
+                    secondaryImage: secondaryImage,
+                    circleIds: circles.map(\.id),
+                    userId: userId,
+                    caption: caption,
+                    windowStart: circles.first?.momentWindowStart,
+                    niyyahText: niyyahText
+                )
+
+                if result.isPartialSuccess {
+                    let message = partialFailureMessage(result: result, circles: circles)
+                    await MainActor.run { postAlertMessage = message }
+                }
+            } catch {
+                await MainActor.run {
+                    feedViewModel.removeItem(id: optimisticMoment.id)
+                    postAlertMessage = error.localizedDescription
+                }
+
+                if case MomentError.alreadyPostedToday = error {
+                    DailyMomentService.shared.markPostedToday()
+                    await viewModel.loadCircles(userId: userId)
+                    await loadGlobalFeed()
+                } else {
+                    await MainActor.run {
+                        DailyMomentService.shared.setPostedToday(false)
+                    }
+                }
+            }
+        }
+    }
+
+    private func makeOptimisticMoment(
+        primaryImage: UIImage,
+        secondaryImage: UIImage?,
+        caption: String?,
+        niyyahText: String?,
+        userId: UUID,
+        circles: [Circle]
+    ) -> MomentFeedItem {
+        let optimisticID = UUID()
+        let primaryKey = "optimistic://moment/\(optimisticID.uuidString.lowercased())/primary"
+        ImageCache.shared[primaryKey] = primaryImage
+
+        let secondaryKey: String?
+        if let secondaryImage {
+            let key = "optimistic://moment/\(optimisticID.uuidString.lowercased())/secondary"
+            ImageCache.shared[key] = secondaryImage
+            secondaryKey = key
+        } else {
+            secondaryKey = nil
+        }
+
+        let postedAt = ISO8601DateFormatter().string(from: Date())
+        let displayName = currentUserDisplayName(for: userId)
+        return MomentFeedItem(
+            id: optimisticID,
+            circleId: circles.first?.id ?? UUID(),
+            userId: userId,
+            userName: displayName,
+            circleName: circles.first?.name ?? "",
+            circleIds: circles.map(\.id),
+            circleNames: circles.map(\.name),
+            photoUrl: primaryKey,
+            secondaryPhotoUrl: secondaryKey,
+            caption: caption,
+            postedAt: postedAt,
+            isOnTime: true,
+            hasNiyyah: !(niyyahText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        )
+    }
+
+    private func currentUserDisplayName(for userId: UUID) -> String {
+        let preferred = feedViewModel.authorProfiles[userId]?.preferredName?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !preferred.isEmpty {
+            return preferred
+        }
+        return auth.session?.user.email?.components(separatedBy: "@").first ?? "You"
+    }
+
+    private func partialFailureMessage(result: MomentPostResult, circles: [Circle]) -> String {
+        let failCount = result.failedCircleIds.count
+        let total = result.totalCount
+        let failedNames = circles
+            .filter { result.failedCircleIds.contains($0.id) }
+            .map(\.name)
+        let failureSummary = failedNames.isEmpty
+            ? "\(failCount) circle\(failCount == 1 ? "" : "s") failed."
+            : "Failed circles: \(failedNames.joined(separator: ", "))."
+        return "Posted to \(result.succeeded.count) of \(total) circles. \(failureSummary)"
     }
 }
 

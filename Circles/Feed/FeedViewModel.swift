@@ -99,6 +99,21 @@ final class FeedViewModel {
         await loadInitial(circleIds: circleIds, currentUserId: currentUserId, singleCircleId: singleCircleId)
     }
 
+    func insertOptimisticMoment(_ item: MomentFeedItem) {
+        let dayKey = String(item.postedAt.prefix(10))
+        items.removeAll { existing in
+            guard case .moment(let moment) = existing else { return false }
+            return moment.userId == item.userId && String(moment.postedAt.prefix(10)) == dayKey
+        }
+        items.insert(.moment(item), at: 0)
+        hasPostedToday = true
+    }
+
+    func removeItem(id: UUID) {
+        items.removeAll { $0.id == id }
+        reactions.removeValue(forKey: id)
+    }
+
     // MARK: - Optimistic Caption Update
 
     /// Immediately updates the caption on the matching moment item in memory.

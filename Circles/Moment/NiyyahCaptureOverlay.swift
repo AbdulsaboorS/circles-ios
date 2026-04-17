@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Post-capture ritual overlay where the user privately writes their Niyyah (intention).
+/// Post-capture ritual overlay where the user privately writes their Niyyah or day reflection.
 /// Appears over the photo preview with .ultraThinMaterial frosted glass.
 struct NiyyahCaptureOverlay: View {
     @Binding var niyyahText: String
@@ -8,7 +8,6 @@ struct NiyyahCaptureOverlay: View {
     let onSkip: () -> Void
 
     @FocusState private var isTextFocused: Bool
-    @State private var appeared = false
 
     var body: some View {
         ZStack {
@@ -25,16 +24,14 @@ struct NiyyahCaptureOverlay: View {
                 Spacer().frame(height: 48)
 
                 // Prompt
-                Text("Align your Niyyah")
+                Text("What's on your heart today?")
                     .font(.system(size: 26, weight: .regular, design: .serif))
                     .foregroundStyle(Color.msTextPrimary)
-
-                Text("for this act.")
-                    .font(.system(size: 26, weight: .regular, design: .serif))
-                    .foregroundStyle(Color.msGold)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
                     .padding(.bottom, 8)
 
-                Text("Your intention is private — only you will ever see it.")
+                Text("A private reflection for your day — only you will ever see it.")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.msTextMuted)
                     .multilineTextAlignment(.center)
@@ -60,7 +57,7 @@ struct NiyyahCaptureOverlay: View {
                     )
                     .overlay(alignment: .topLeading) {
                         if niyyahText.isEmpty {
-                            Text("e.g. \"To provide for my family\" or \"Seeking peace\"")
+                            Text("e.g. \"Grateful for small blessings\" or \"Seeking patience today\"")
                                 .font(.system(size: 16, weight: .regular, design: .serif))
                                 .foregroundStyle(Color.msTextMuted.opacity(0.6))
                                 .padding(.horizontal, 20)
@@ -105,10 +102,8 @@ struct NiyyahCaptureOverlay: View {
                 .padding(.bottom, 24)
             }
         }
-        .opacity(appeared ? 1 : 0)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.5)) { appeared = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isTextFocused = true
             }
         }

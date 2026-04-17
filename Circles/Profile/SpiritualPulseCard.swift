@@ -4,7 +4,7 @@ struct SpiritualPulseCard: View {
     let totalDays: Int
     let bestStreak: Int
     let circleCount: Int
-    let ameensGiven: Int
+    let nudgesSent: Int
     let isLoading: Bool
 
     var body: some View {
@@ -23,7 +23,7 @@ struct SpiritualPulseCard: View {
                 divider
                 statItem(icon: "person.2.fill",      value: "\(circleCount)", label: "Circles")
                 divider
-                statItem(icon: "hands.sparkles.fill",value: "\(ameensGiven)", label: "Ameens Given")
+                statItem(icon: "hands.sparkles.fill", value: "\(nudgesSent)", label: "Nudges Sent")
             }
             .padding(.vertical, 18)
 

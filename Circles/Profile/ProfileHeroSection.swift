@@ -1,76 +1,34 @@
 import SwiftUI
-import PhotosUI
 
 struct ProfileHeroSection: View {
     let viewModel: ProfileViewModel
     let displayName: String
     let memberSince: String
-    @Binding var selectedPhoto: PhotosPickerItem?
-    @Binding var isEditingName: Bool
-    @Binding var editNameDraft: String
-    let onSaveName: () async -> Void
+    let heroHeight: CGFloat
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Full-bleed cover photo
-            PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                coverPhoto
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 320)
-                    .clipped()
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+        let avatarUrl = viewModel.avatarUrl
 
-            // Islamic pattern overlay on photo
-            IslamicGeometricPattern(opacity: 0.035, tileSize: 48, color: Color.msGold)
-                .frame(height: 320)
+        ZStack(alignment: .bottom) {
+            // Full-height profile image treatment with no blur so the uploaded photo reads clearly.
+            ProfileHeroImageView(avatarUrl: avatarUrl)
+                .frame(maxWidth: .infinity)
+                .frame(height: heroHeight)
                 .clipped()
 
             // Bottom gradient — fades photo into the page background
             LinearGradient(
-                colors: [.clear, Color.msBackground.opacity(0.5), Color.msBackground],
-                startPoint: .init(x: 0.5, y: 0.3),
+                colors: [.clear, Color.clear, Color.msBackground.opacity(0.72), Color.msBackground],
+                startPoint: .init(x: 0.5, y: 0.2),
                 endPoint: .bottom
             )
-            .frame(height: 320)
+            .frame(height: heroHeight)
 
             // Name + member since overlaid at bottom-left
             VStack(alignment: .leading, spacing: 5) {
-                if isEditingName {
-                    HStack(spacing: 8) {
-                        TextField("Your name", text: $editNameDraft)
-                            .font(.appTitle)
-                            .foregroundStyle(Color.msTextPrimary)
-                            .textInputAutocapitalization(.words)
-                            .tint(Color.msGold)
-                            .frame(maxWidth: 220)
-                        Button {
-                            Task {
-                                await onSaveName()
-                                isEditingName = false
-                            }
-                        } label: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(Color.msGold)
-                        }
-                    }
-                } else {
-                    HStack(spacing: 6) {
-                        Text(displayName)
-                            .font(.appTitle)
-                            .foregroundStyle(Color.msTextPrimary)
-                        Button {
-                            editNameDraft = displayName
-                            isEditingName = true
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Color.msGold.opacity(0.7))
-                        }
-                    }
-                }
+                Text(displayName)
+                    .font(.appTitle)
+                    .foregroundStyle(Color.msTextPrimary)
 
                 if !memberSince.isEmpty {
                     HStack(spacing: 5) {
@@ -84,42 +42,24 @@ struct ProfileHeroSection: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 20)
+            .padding(.bottom, 22)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Upload spinner / camera badge — top-right
-            VStack {
-                HStack {
-                    Spacer()
-                    ZStack {
-                        SwiftUI.Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 34, height: 34)
-                        if viewModel.isUploadingAvatar {
-                            ProgressView().tint(Color.msTextPrimary).scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color.msTextPrimary)
-                        }
-                    }
-                    .padding(.top, 16)
-                    .padding(.trailing, 16)
-                }
-                Spacer()
-            }
-            .frame(height: 320)
         }
+        .frame(height: heroHeight)
         .frame(maxWidth: .infinity)
     }
+}
 
-    @ViewBuilder
-    private var coverPhoto: some View {
-        if let urlString = viewModel.avatarUrl, let url = URL(string: urlString) {
+private struct ProfileHeroImageView: View {
+    let avatarUrl: String?
+
+    var body: some View {
+        if let urlString = avatarUrl, let url = URL(string: urlString) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
-                    image.resizable().scaledToFill()
+                    loadedImage(image)
                 default:
                     placeholderCover
                 }
@@ -129,6 +69,17 @@ struct ProfileHeroSection: View {
         }
     }
 
+    @ViewBuilder
+    private func loadedImage(_ image: Image) -> some View {
+        ZStack {
+            image
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(Color.black)
+    }
+
     private var placeholderCover: some View {
         ZStack {
             Color.msCardShared
@@ -136,7 +87,7 @@ struct ProfileHeroSection: View {
                 Image(systemName: "person.fill")
                     .font(.system(size: 60))
                     .foregroundStyle(Color.msTextMuted.opacity(0.4))
-                Text("Tap to add a photo")
+                Text("Add a profile photo in Settings")
                     .font(.appCaption)
                     .foregroundStyle(Color.msTextMuted.opacity(0.6))
             }

@@ -91,7 +91,7 @@ final class AvatarService {
         return rows.count
     }
 
-    func fetchReactionsGivenCount(userId: UUID) async throws -> Int {
+    func fetchNudgesSentCount(userId: UUID) async throws -> Int {
         struct ReactionId: Decodable { let id: UUID }
         let rows: [ReactionId] = try await client
             .from("habit_reactions")

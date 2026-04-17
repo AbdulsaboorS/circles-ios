@@ -1,6 +1,6 @@
 # Circles v2.4 — Roadmap
 
-**Updated:** 2026-04-14
+**Updated:** 2026-04-16
 **Direction:** Private Islamic BeReal. 18-phase execution plan + 2 new feature phases.
 
 ---
@@ -118,23 +118,23 @@
 
 ---
 
-## Phase 13 — Full UI/UX Pass 🔄 Partially Active (lower priority)
+## Phase 13 — Full UI/UX Pass 🔄 Final Pass / Final Touches
 
-Paused mid-phase. Waves 1+2 done. Remaining waves (3-7) will be picked up after Journey tab and Profile redesign are shipped.
+Phase 13 is now substantially built. The remaining work is no longer broad construction; it is the final redesign/polish/QA pass across the remaining surfaces.
 
 | Wave | Screen | Status |
 |------|--------|--------|
 | 1 | Home | ✓ Complete |
 | 2 | Habit Detail | ✓ Complete |
-| 3 | Community / Feed | 🔄 Built, pending QA |
-| 4 | Feed Cards | ⬜ Queued |
-| 5 | My Circles + Circle Detail | 🔄 Built, testing |
-| 6 | Profile | ⬜ Superseded by Phase 13B |
-| 7 | Auth | ⬜ Queued |
+| 3 | Community / Feed | 🔄 Built, final latency/polish pass remaining |
+| 4 | Feed Cards | 🔄 Built, final pass remaining |
+| 5 | My Circles + Circle Detail | 🔄 Built, final polish/testing remaining |
+| 6 | Profile | 🔄 Active via settings/profile redesign |
+| 7 | Auth | ⬜ Deferred unless final pass exposes gaps |
 
 ---
 
-## Phase 13A — Journey Tab 🔄 NEXT
+## Phase 13A — Journey Tab ✓ Built, In QA / Polish
 **Scope:** New 4th tab — private spiritual calendar archive. The elevated, permanent home for the user's daily intentions across time.
 
 **Vision:** Calendar month grid where each day shows the user's niyyah + moment state. Niyyah text is the hero, not the photo. Replaces `SpiritualLedgerView`.
@@ -154,6 +154,12 @@ Paused mid-phase. Waves 1+2 done. Remaining waves (3-7) will be picked up after 
 - Date above (small, muted)
 - Moment photo thumbnail below with Noor Aura if niyyah present
 - No niyyah: photo only. No moment: niyyah + moon placeholder.
+
+### Status Update
+- Core Journey build is shipped
+- Follow-up QA fixes are implemented
+- Persistent metadata cache is implemented
+- Remaining work is runtime validation and final latency feel
 
 ### Files to Create
 - `Circles/Journey/JourneyView.swift`
@@ -188,7 +194,7 @@ struct JourneyDay {
 
 ---
 
-## Phase 13B — Profile Redesign ⬜ Queued (after 13A)
+## Phase 13B — Profile / Settings Redesign 🔄 Active Final-Touches Work
 **Scope:** Full 10/10 redesign of the Profile tab.
 
 Key gaps in current profile:
@@ -203,6 +209,14 @@ Design direction:
 - Stats as spiritual snapshot, not dashboard
 - Moment archive entry point (Journey tab handles the full view)
 - Settings de-emphasized
+
+Latest direction locked with user:
+- Settings should move toward a BeReal-style structure, translated into Circles branding
+- Top account/profile card becomes the main entry point for editing profile details
+- Profile editing should include name, username, bio, location, and profile photo where supported
+- The settings list should follow the BeReal-style information architecture, minus Audio
+- A joined-date footer should sit beneath Log Out
+- Dev tools remain beneath Log Out for now
 
 ---
 
@@ -242,4 +256,4 @@ Design direction:
 
 ---
 
-*Phases are executed in order. Phase 13A (Journey tab) is the immediate next build.*
+*Phase 13 is now in final-pass mode. Immediate next major UX build: Profile / Settings redesign, followed by final runtime QA and polish.*

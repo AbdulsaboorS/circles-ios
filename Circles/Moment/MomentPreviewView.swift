@@ -20,12 +20,12 @@ struct MomentPreviewView: View {
     @State private var partialErrorMessage: String?
     @State private var windowSecondsRemaining: Int = 0
     @State private var niyyahText: String = ""
-    @State private var niyyahPhase: NiyyahPhase = .overlay
+    @State private var niyyahPhase: NiyyahPhase = .photoReveal
     @State private var showNoorAura = false
     @Environment(\.dismiss) private var dismiss
 
     private enum NiyyahPhase {
-        case overlay, dissolving, settled, skipped
+        case photoReveal, overlay, dissolving, settled, skipped
     }
 
     private var mainImage: UIImage { swapped ? (secondaryImage ?? primaryImage) : primaryImage }
@@ -117,7 +117,7 @@ struct MomentPreviewView: View {
                         }
                     }
                 )
-                .transition(.opacity)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // Dissolve animation phase
@@ -134,6 +134,14 @@ struct MomentPreviewView: View {
         }
         .interactiveDismissDisabled(isPosting)
         .onAppear { updateWindowCountdown() }
+        .task {
+            guard niyyahPhase == .photoReveal else { return }
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, niyyahPhase == .photoReveal else { return }
+            withAnimation(.easeOut(duration: 0.4)) {
+                niyyahPhase = .overlay
+            }
+        }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             updateWindowCountdown()
         }

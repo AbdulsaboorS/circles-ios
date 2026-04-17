@@ -4,6 +4,13 @@ import Observation
 @Observable
 @MainActor
 final class JourneyViewModel {
+    private struct CachedRestoreState {
+        let restoredNiyyahs: Bool
+        let restoredMonth: Bool
+
+        var restoredAnyData: Bool { restoredNiyyahs || restoredMonth }
+    }
+
     let userId: UUID
 
     var currentMonthAnchor: Date
@@ -52,19 +59,36 @@ final class JourneyViewModel {
 
         isLoadingInitial = true
         errorMessage = nil
+        let restoreState = restoreInitialCache()
+
+        if restoreState.restoredAnyData {
+            hasLoadedInitialData = true
+            rebuildDays()
+            isLoadingInitial = false
+        }
 
         do {
             try await refreshArchiveSummary()
+            JourneyCache.saveNiyyahs(niyyahsByDay, userId: userId)
             hasLoadedInitialData = true
             rebuildDays()
 
-            try await ensureMonthLoaded(currentMonthAnchor)
+            if restoreState.restoredMonth {
+                await reloadMonth(currentMonthAnchor, showsError: false)
+            } else {
+                try await ensureMonthLoaded(
+                    currentMonthAnchor,
+                    showsLoadingState: !restoreState.restoredAnyData
+                )
+            }
             rebuildDays()
 
             Task { await prefetchAdjacentMonths(around: currentMonthAnchor) }
         } catch {
             rebuildDays()
-            errorMessage = "Could not load Journey right now."
+            if !restoreState.restoredAnyData {
+                errorMessage = "Could not load Journey right now."
+            }
         }
 
         isLoadingInitial = false
@@ -85,9 +109,19 @@ final class JourneyViewModel {
         }
 
         errorMessage = nil
+        let restoredFromDisk = restoreMonthFromDiskIfNeeded(currentMonthAnchor)
         rebuildDays()
         do {
-            try await ensureMonthLoaded(currentMonthAnchor, showsLoadingState: true)
+            if restoredFromDisk {
+                await reloadMonth(currentMonthAnchor, showsError: false)
+            } else {
+                let monthKey = JourneyDateSupport.monthKey(for: currentMonthAnchor)
+                let alreadyLoaded = momentCacheByMonth[monthKey] != nil
+                try await ensureMonthLoaded(
+                    currentMonthAnchor,
+                    showsLoadingState: !alreadyLoaded
+                )
+            }
             rebuildDays()
             Task { await prefetchAdjacentMonths(around: currentMonthAnchor) }
         } catch {
@@ -132,6 +166,7 @@ final class JourneyViewModel {
         let hasMoments = try await hasMomentsFetch
         niyyahsByDay = Dictionary(uniqueKeysWithValues: niyyahs.map { ($0.photoDate, $0) })
         hasAnyEntries = !niyyahs.isEmpty || hasMoments
+        JourneyCache.saveNiyyahs(niyyahsByDay, userId: userId)
     }
 
     private var isViewingCurrentMonth: Bool {
@@ -150,6 +185,14 @@ final class JourneyViewModel {
         let monthKey = JourneyDateSupport.monthKey(for: monthAnchor)
         if momentCacheByMonth[monthKey] != nil { return }
         if loadingMonthKeys.contains(monthKey) { return }
+        if restoreMonthFromDiskIfNeeded(monthAnchor) { return }
+
+        try await fetchMonthFromNetwork(monthAnchor, showsLoadingState: showsLoadingState)
+    }
+
+    private func fetchMonthFromNetwork(_ monthAnchor: Date, showsLoadingState: Bool) async throws {
+        let monthKey = JourneyDateSupport.monthKey(for: monthAnchor)
+        if loadingMonthKeys.contains(monthKey) { return }
 
         loadingMonthKeys.insert(monthKey)
         if showsLoadingState { isLoadingMonth = true }
@@ -164,7 +207,9 @@ final class JourneyViewModel {
             from: bounds.start,
             toExclusive: bounds.endExclusive
         )
-        momentCacheByMonth[monthKey] = deduplicateMomentsByDay(moments)
+        let deduplicated = deduplicateMomentsByDay(moments)
+        momentCacheByMonth[monthKey] = deduplicated
+        JourneyCache.saveMoments(deduplicated, monthKey: monthKey, userId: userId)
     }
 
     private func deduplicateMomentsByDay(_ moments: [CircleMoment]) -> [String: CircleMoment] {
@@ -217,15 +262,52 @@ final class JourneyViewModel {
         momentCacheByMonth.removeValue(forKey: monthKey)
     }
 
-    private func reloadMonth(_ monthAnchor: Date) async {
+    private func reloadMonth(_ monthAnchor: Date, showsError: Bool = true) async {
         invalidateMonth(monthAnchor)
-        errorMessage = nil
+        if showsError {
+            errorMessage = nil
+        }
 
         do {
-            try await ensureMonthLoaded(monthAnchor, showsLoadingState: false)
+            try await fetchMonthFromNetwork(monthAnchor, showsLoadingState: false)
             rebuildDays()
         } catch {
-            errorMessage = "Could not refresh Journey right now."
+            if showsError {
+                errorMessage = "Could not refresh Journey right now."
+            }
         }
+    }
+
+    private func restoreInitialCache() -> CachedRestoreState {
+        let restoredNiyyahs = restoreNiyyahsFromDiskIfNeeded()
+        let restoredMonth = restoreMonthFromDiskIfNeeded(currentMonthAnchor)
+        if restoredNiyyahs || restoredMonth {
+            let monthKey = JourneyDateSupport.monthKey(for: currentMonthAnchor)
+            let hasCachedMoments = !(momentCacheByMonth[monthKey] ?? [:]).isEmpty
+            hasAnyEntries = !niyyahsByDay.isEmpty || hasCachedMoments
+        }
+        return CachedRestoreState(
+            restoredNiyyahs: restoredNiyyahs,
+            restoredMonth: restoredMonth
+        )
+    }
+
+    private func restoreNiyyahsFromDiskIfNeeded() -> Bool {
+        guard niyyahsByDay.isEmpty,
+              let cachedNiyyahs = JourneyCache.loadNiyyahs(userId: userId) else {
+            return false
+        }
+        niyyahsByDay = cachedNiyyahs
+        return true
+    }
+
+    private func restoreMonthFromDiskIfNeeded(_ monthAnchor: Date) -> Bool {
+        let monthKey = JourneyDateSupport.monthKey(for: monthAnchor)
+        guard momentCacheByMonth[monthKey] == nil,
+              let cachedMoments = JourneyCache.loadMoments(monthKey: monthKey, userId: userId) else {
+            return false
+        }
+        momentCacheByMonth[monthKey] = cachedMoments
+        return true
     }
 }

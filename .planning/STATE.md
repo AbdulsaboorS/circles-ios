@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-14T22:00:00.000Z"
+last_updated: "2026-04-16T22:00:00.000Z"
 progress:
   total_phases: 18
   completed_phases: 12
@@ -15,11 +15,11 @@ progress:
 
 ## Current Focus
 
-**Next: Journey Runtime QA** — the Journey follow-up fixes are now implemented and build-verified. Manual simulator/device validation is still pending because `simctl install/launch` remains unreliable from CLI.
+**Next: Profile / Settings Redesign** — BeReal-inspired settings architecture in Circles branding, with profile editing consolidated into the settings flow.
 
-**Then: Profile Redesign** — 10/10 UI/UX pass. Queued after Journey.
+**Then: Final Phase 13 Polish + QA Pass** — latency re-checks, Journey runtime validation, and final UX cleanup.
 
-**Phase 13 (UI/UX Pass)** — paused mid-wave to prioritize Journey Tab and Profile redesign as higher-value work.
+**Phase 13 (UI/UX Pass)** — now in final-pass mode. Major surfaces are built; remaining work is polish, redesign completion, and runtime validation.
 
 ### Phase 13 Wave Status
 
@@ -27,11 +27,34 @@ progress:
 |------|--------|--------|
 | 1 | Home (Dashboard) | ✓ Complete |
 | 2 | Habit Detail | ✓ Complete |
-| 3 | Community / Feed | 🔄 Built — pending user QA |
-| 4 | Feed Cards | ⬜ Queued |
-| 5 | My Circles + Circle Detail | 🔄 My Circles built — testing in progress |
-| 6 | Profile | ⬜ Queued (will be done as full redesign, not just polish) |
-| 7 | Auth | ⬜ Queued |
+| 3 | Community / Feed | 🔄 Built — final latency/polish pass remaining |
+| 4 | Feed Cards | 🔄 Built — bundled into final pass |
+| 5 | My Circles + Circle Detail | 🔄 Built — final polish/testing remaining |
+| 6 | Profile | 🔄 Active — final redesign/settings architecture remaining |
+| 7 | Auth | ⬜ Deferred unless final pass uncovers gaps |
+
+---
+
+## What's Built — Session 24 (2026-04-16)
+
+### Phase 13 Final-Polish Progress
+
+- "Ameens Given" renamed to **"Nudges Sent"**
+- Inline hero-name pencil edit path removed
+- Niyyah overlay timing/copy improved so the flow feels intentional instead of network-blocked
+- Community and Circle Detail now optimistically insert new moments before the upload finishes
+- Journey now restores metadata from a persistent disk cache before refreshing from network
+- Profile hero/photo presentation bug fixed:
+  - change-photo affordance no longer collides with the settings gear
+  - hero image treatment now shows uploaded photos more fully
+
+### Product Direction Locked In
+
+- Phase 13 is no longer best described as paused or mid-wave
+- It is now **substantially complete**, with the remaining work concentrated in:
+  - profile/settings redesign
+  - runtime QA
+  - final latency/polish pass
 
 ---
 
@@ -251,8 +274,8 @@ progress:
 
 ## Blockers
 
-None. Journey follow-up fixes are local app work with no external dependency.
+None. Remaining Phase 13 work is local app polish / UX work with no external dependency.
 
 ---
 
-*Last updated: 2026-04-14 — Session 21. Journey QA fixes are implemented and build-verified. Next: manual Journey runtime QA, then Profile redesign.*
+*Last updated: 2026-04-16 — Session 24. Phase 13 is substantially complete and in final-pass mode. Next: Profile / Settings redesign, then final runtime QA + polish sweep.*

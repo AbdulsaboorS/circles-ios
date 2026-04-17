@@ -82,6 +82,11 @@ final class DailyMomentService {
         hasPostedToday = true
     }
 
+    /// Used by optimistic posting to roll back local state if the background post fails.
+    func setPostedToday(_ posted: Bool) {
+        hasPostedToday = posted
+    }
+
     #if DEBUG
     /// Forces the gate open immediately — deletes today's DB rows, resets client state.
     func forceOpenWindow(userId: UUID) async {
