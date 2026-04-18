@@ -172,6 +172,17 @@ final class CircleService {
             .value
     }
 
+    /// Checks if all circle members have completed all accountable habits today.
+    /// If so, increments group_streak_days atomically via RPC.
+    /// Returns the new (or unchanged) streak value. Safe to call fire-and-forget.
+    @discardableResult
+    func checkAndUpdateGroupStreak(circleId: UUID) async throws -> Int {
+        try await SupabaseService.shared.client
+            .rpc("check_and_update_group_streak", params: ["p_circle_id": circleId.uuidString])
+            .execute()
+            .value
+    }
+
     /// Amir removes another member from the circle (RLS: admin only, not self).
     func removeMember(circleId: UUID, userId: UUID) async throws {
         try await client

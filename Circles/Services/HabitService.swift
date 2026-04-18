@@ -173,6 +173,28 @@ final class HabitService {
         NotificationCenter.default.post(name: .habitCheckinBroadcast, object: nil)
     }
 
+    /// Inserts a streak_milestone event into activity_feed.
+    /// Idempotency is guaranteed by the caller — only triggered when computedStreak
+    /// crosses a threshold for the first time (previousStreak < threshold, newStreak >= threshold).
+    func broadcastStreakMilestone(
+        habitId: UUID, habitName: String,
+        circleId: UUID, userId: UUID,
+        streakDays: Int
+    ) async throws {
+        let row: [String: AnyJSON] = [
+            "circle_id":   .string(circleId.uuidString),
+            "user_id":     .string(userId.uuidString),
+            "event_type":  .string("streak_milestone"),
+            "habit_name":  .string(habitName),
+            "streak_days": .integer(streakDays)
+        ]
+        try await client
+            .from("activity_feed")
+            .insert(row)
+            .execute()
+        NotificationCenter.default.post(name: .habitCheckinBroadcast, object: nil)
+    }
+
     /// Delete today's activity_feed entry for an accountable habit (called on undo check-in).
     func removeHabitCompletion(habitName: String, circleId: UUID, userId: UUID) async throws {
         let todayStart: String = {
@@ -343,4 +365,5 @@ struct TopHabit: Sendable {
 
 extension Notification.Name {
     static let habitCheckinBroadcast = Notification.Name("habitCheckinBroadcast")
+    static let groupStreakUpdated    = Notification.Name("groupStreakUpdated")
 }

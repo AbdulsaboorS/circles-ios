@@ -106,6 +106,8 @@ final class HomeViewModel {
             }
             if allDone {
                 streak += 1
+            } else if dayOffset == 0 {
+                continue   // today not done yet — skip, don't break
             } else {
                 break
             }
@@ -254,6 +256,7 @@ final class HomeViewModel {
                 toastMessage = "Locked in. No more undos — we trust you this time. 🤝"
             }
 
+            let previousStreak = computedStreak
             do {
                 try await HabitService.shared.toggleHabitLog(
                     habitId: habit.id, userId: userId, date: todayString, completed: true
@@ -265,6 +268,17 @@ final class HomeViewModel {
                         habitId: habit.id, habitName: habit.name,
                         circleId: circleId, userId: userId
                     )
+                    // Streak milestone — fire when crossing 7, 14, 30, or 100 days
+                    let milestones = [7, 14, 30, 100]
+                    if let milestone = milestones.first(where: { previousStreak < $0 && computedStreak >= $0 }) {
+                        try? await HabitService.shared.broadcastStreakMilestone(
+                            habitId: habit.id, habitName: habit.name,
+                            circleId: circleId, userId: userId, streakDays: milestone
+                        )
+                    }
+                    // Group streak — check if all members are now done (non-fatal)
+                    try? await CircleService.shared.checkAndUpdateGroupStreak(circleId: circleId)
+                    NotificationCenter.default.post(name: .groupStreakUpdated, object: circleId)
                 }
             } catch {
                 if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
