@@ -79,7 +79,12 @@ final class DailyMomentService {
             }
         }
 
-        let postedToday = await computeHasPostedToday(userId: userId)
+        let postedToday: Bool
+        if let ws = newWindowStart {
+            postedToday = await computeHasPostedToday(userId: userId, since: ws)
+        } else {
+            postedToday = false
+        }
 
         // 2. Batch publish — hasPostedToday first so gate never flickers on
         todayPrayerName = prayer
@@ -210,15 +215,16 @@ final class DailyMomentService {
         return formatter.date(from: "\(todayString) \(timeString)")
     }
 
-    private func computeHasPostedToday(userId: UUID) async -> Bool {
-        let range = await fetchActiveMomentRange()
+    private func computeHasPostedToday(userId: UUID, since windowStart: Date) async -> Bool {
+        let startISO = Self.iso8601String(from: windowStart)
+        let endISO = Self.iso8601String(from: windowStart.addingTimeInterval(25 * 60 * 60))
         struct Row: Decodable { let id: UUID }
         let rows: [Row] = (try? await SupabaseService.shared.client
             .from("circle_moments")
             .select("id")
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: range.startISO8601)
-            .lt("posted_at", value: range.endExclusiveISO8601)
+            .gte("posted_at", value: startISO)
+            .lt("posted_at", value: endISO)
             .limit(1)
             .execute()
             .value) ?? []
@@ -279,7 +285,7 @@ final class DailyMomentService {
         return formatter.string(from: date)
     }
 
-    private static func iso8601String(from date: Date) -> String {
+    static func iso8601String(from date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)

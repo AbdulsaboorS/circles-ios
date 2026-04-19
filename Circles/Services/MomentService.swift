@@ -18,13 +18,16 @@ final class MomentService {
 
     /// Fetch all Moments for a circle in the currently active daily-moment cycle.
     func fetchTodayMoments(circleId: UUID) async throws -> [CircleMoment] {
-        let activeRange = await DailyMomentService.shared.fetchActiveMomentRange()
+        let windowStart = DailyMomentService.shared.windowStart
+            ?? Calendar(identifier: .gregorian).startOfDay(for: Date())
+        let startISO = DailyMomentService.iso8601String(from: windowStart)
+        let endISO = DailyMomentService.iso8601String(from: windowStart.addingTimeInterval(25 * 60 * 60))
         let moments: [CircleMoment] = try await client
             .from("circle_moments")
             .select()
             .eq("circle_id", value: circleId.uuidString)
-            .gte("posted_at", value: activeRange.startISO8601)
-            .lt("posted_at", value: activeRange.endExclusiveISO8601)
+            .gte("posted_at", value: startISO)
+            .lt("posted_at", value: endISO)
             .order("posted_at")
             .execute()
             .value
