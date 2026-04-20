@@ -190,27 +190,40 @@ private struct ProfileSettingsSheet: View {
                         }
                         .buttonStyle(.plain)
 
-                        VStack(spacing: 0) {
-                            settingsRow(icon: "bell.fill", label: "Notifications") {
-                                if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    UIApplication.shared.open(url)
-                                }
-                            }
-
-                            Divider()
-                                .foregroundStyle(Color.msBorder)
-                                .padding(.leading, 52)
-
-                            NavigationLink(value: Route.location) {
-                                SettingsRowLabel(
-                                    icon: "location.fill",
-                                    label: "Location & Prayer Times",
-                                    detail: draft.cityName.isEmpty ? "Choose your prayer city" : draft.cityName
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.msCardShared, Color.msBackgroundDeep],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
+
+                            IslamicGeometricPattern(opacity: 0.03, tileSize: 42, color: Color.msGold)
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+
+                            VStack(spacing: 0) {
+                                settingsRow(icon: "bell.fill", label: "Notifications") {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+
+                                Divider()
+                                    .foregroundStyle(Color.msBorder)
+                                    .padding(.leading, 52)
+
+                                NavigationLink(value: Route.location) {
+                                    SettingsRowLabel(
+                                        icon: "location.fill",
+                                        label: "Location & Prayer Times",
+                                        detail: draft.cityName.isEmpty ? "Choose your prayer city" : draft.cityName
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
-                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 20))
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(Color.msBorder, lineWidth: 1)

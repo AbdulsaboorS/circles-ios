@@ -71,13 +71,11 @@ private struct ProfileHeroImageView: View {
 
     @ViewBuilder
     private func loadedImage(_ image: Image) -> some View {
-        ZStack {
-            image
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .background(Color.black)
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
     }
 
     private var placeholderCover: some View {

@@ -21,20 +21,25 @@ Use branch-specific notes under `.planning/notes/` for session continuity within
 - `main`
 
 ### Merged To Main
-- Phase 13 core UI/UX pass is substantially complete
-- Profile / Settings redesign is in place
-- Nudge-count fix is implemented
-- Daily Moment active-cycle visibility fix is implemented
+- Phase 13 fully complete — all waves (1–6) signed off
+- Journey tab (Phase 13A) shipped and QA'd
+- Profile hero + settings card polish shipped (2026-04-20)
+- Bugs C (habit icon) and F (niyyah save) resolved
+- Moment gate tests 1–5 all verified
 
 ### Active Workstreams
-- `phase-13-followup-testing`
-  - purpose: final-pass bug fixes and post-Phase-13 runtime validation
-  - worktree: set locally by active agent
-  - branch note: `.planning/notes/phase-13-followup-testing.md`
 - `phase-14-notifications`
   - purpose: notification architecture and implementation
-  - worktree: set locally by active agent
+  - worktree: `/Users/abdulsaboorshaikh/Desktop/Circles/.claude/worktrees/phase-14-notifications`
   - branch note: `.planning/notes/phase-14-notifications.md`
+  - status: Phase 14.1 built + build-verified; needs SQL migration run + manual QA
+
+### Next Workstream (not yet started)
+- **Functionality fixes** — streak glow behaviour, habit choosing options, and other miscellaneous in-app behaviour bugs
+- This is the next thing the user will work on after the current session
+- Start by asking the user which specific bugs they want to tackle first; they mentioned streak glow and habit choice UX as the main ones
+- No new features — fix and polish existing flows only
+- Work directly on `main` unless a fix is large enough to warrant its own branch
 
 ### Recommended Merge Order
 1. Merge the lower-risk branch first

@@ -3,23 +3,21 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-16T22:00:00.000Z"
+last_updated: "2026-04-20T00:00:00.000Z"
 progress:
   total_phases: 18
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Circles iOS — State (v2.4)
 
 ## Current Focus
 
-**Next: Profile / Settings Redesign** — BeReal-inspired settings architecture in Circles branding, with profile editing consolidated into the settings flow.
+**Next: Functionality fixes** — streak glow, habit choosing options, and other miscellaneous app behaviour bugs. No new features; polish and correct existing flows.
 
-**Then: Final Phase 13 Polish + QA Pass** — latency re-checks, Journey runtime validation, and final UX cleanup.
-
-**Phase 13 (UI/UX Pass)** — now in final-pass mode. Major surfaces are built; remaining work is polish, redesign completion, and runtime validation.
+**Phase 13 (UI/UX Pass)** — ✓ Complete. All waves signed off. Profile redesign shipped. Journey tab shipped and QA'd.
 
 ### Phase 13 Wave Status
 
@@ -27,11 +25,25 @@ progress:
 |------|--------|--------|
 | 1 | Home (Dashboard) | ✓ Complete |
 | 2 | Habit Detail | ✓ Complete |
-| 3 | Community / Feed | 🔄 Built — final latency/polish pass remaining |
-| 4 | Feed Cards | 🔄 Built — bundled into final pass |
-| 5 | My Circles + Circle Detail | 🔄 Built — final polish/testing remaining |
-| 6 | Profile | 🔄 Active — final redesign/settings architecture remaining |
+| 3 | Community / Feed | ✓ Complete |
+| 4 | Feed Cards | ✓ Complete |
+| 5 | My Circles + Circle Detail | ✓ Complete |
+| 6 | Profile | ✓ Complete |
 | 7 | Auth | ⬜ Deferred unless final pass uncovers gaps |
+
+---
+
+## What's Built — Session 25 (2026-04-20)
+
+### Phase 13 Complete
+
+- All Phase 13 waves (1–6) signed off via manual QA on device
+- Journey tab (Phase 13A) QA'd — calendar, day detail, paging, PiP all verified
+- Moment gate tests 1–5 all verified (gate open, post closes gate, persist on relaunch, no false-positive, circle detail gate)
+- Profile hero photo fix: `scaledToFit` → `scaledToFill` + `.clipped()` — no more black bars on portrait photos
+- Settings card (Notifications + Location) upgraded to match Account card premium treatment — gradient + Islamic geometric pattern
+- Bug C (habit icon as raw text) resolved
+- Bug F (niyyah save fallback) resolved
 
 ---
 
@@ -256,19 +268,12 @@ progress:
 
 ### B. Habit check-in feed deduplication
 - `broadcastHabitCompletion` inserts unconditionally → duplicate feed cards if habit toggled multiple times/day.
-- Fix: guard with existing row check before insert.
+- Low priority: 3-toggle-per-day cap limits real-world impact. Fix: guard with existing row check before insert.
 
-### C. Habit detail icon
-- `HabitDetailView` uses `Text(habit.icon)` — should be `Image(systemName:)`.
-
-### D. Journey runtime verification gap
-- The Journey follow-up fixes are implemented and build-verified, but manual runtime validation is still outstanding.
-
-### E. Simulator CLI install / launch
+### D. Simulator CLI install / launch
 - `simctl boot` succeeds, but `simctl install` / `simctl launch` remain unreliable from CLI on the configured simulator.
 
-### F. Niyyah save fallback
-- `MomentService.postMomentToAllCircles` still treats `saveNiyyah` as non-fatal after a successful photo post, so a Supabase niyyah-write failure could still leave a stale private niyyah.
+> Issues C (habit icon SF Symbol) and F (niyyah save fallback) have been resolved.
 
 ---
 
@@ -278,4 +283,4 @@ None. Remaining Phase 13 work is local app polish / UX work with no external dep
 
 ---
 
-*Last updated: 2026-04-16 — Session 24. Phase 13 is substantially complete and in final-pass mode. Next: Profile / Settings redesign, then final runtime QA + polish sweep.*
+*Last updated: 2026-04-20 — Session 25. Phase 13 complete and signed off. Next: functionality fixes (streak glow, habit choosing options, misc behaviour bugs).*
