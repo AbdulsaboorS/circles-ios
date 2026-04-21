@@ -1,71 +1,97 @@
-# main — Phase 14 Context + Session Hook
+# main — Session Note (2026-04-21)
 
 ## Goal
 
-Scope lock session only — no implementation. Locked Phases 14–15 of the Personalization Era with user after critical review + investor feedback review. Updated ROADMAP.md / STATE.md / HANDOFF.md.
+Retroactive code review of Phase 14 (Meaningful Habits) against the locked
+spec in `.planning/phases/14-meaningful-habits/14-CONTEXT.md` + build order in
+`.planning/notes/phase14-start.md`. No code written this session — findings
+only, for user to act on before on-device QA.
 
 ## Scope
 
-Documentation + planning only. No code changes. Decided what ships pre-MVP vs what goes to the parking lot.
+Read-only review of the six Phase 14 commits on `main`:
+- 03b97da 14.1 SQL
+- a8bd8fc 14.2 quiz
+- 2b55fa8 14.3 Gemini suggestions
+- 145cebc 14.4 niyyah
+- f42ab0c 14.5 Hamdulillah overlay
+- ca32895 14.6 Noor Bead
+
+No changes to Phase 15 work (lives in `phase-15-social-pulse` worktree).
 
 ## Touched Files
 
-- `.planning/ROADMAP.md` — inserted Phase 14 (Meaningful Habits) + Phase 15 (Social Pulse); renumbered old 14–18 → 16–19; added Parking Lot section
-- `.planning/STATE.md` — Current Focus shifted from "Functionality fixes" to Phase 14; progress.total_phases bumped 18 → 19; noted streak glow work folds into Phase 14
-- `.planning/HANDOFF.md` — notifications worktree now points at `phase-15-social-pulse`; next workstream on main remains Phase 14
+None (review session). Files read for the review:
+- `.planning/phases/14-meaningful-habits/migrations/001_niyyah_and_struggles.sql`
+- `Circles/Onboarding/Quiz/*` (all 10 files)
+- `Circles/Onboarding/{Amiir,Member}OnboardingCoordinator.swift`
+- `Circles/Onboarding/OnboardingPendingState.swift`
+- `Circles/Models/{Profile,Habit,HabitSuggestion,HabitSuggestion+Fallback,StreakMilestone}.swift`
+- `Circles/Services/GeminiService.swift` (generateHabitSuggestions only)
+- `Circles/Services/HabitService.swift` (niyyah param only, line 100-120)
+- `Circles/Home/{AddPrivateIntentionSheet,HomeView,HomeViewModel,HamdulillahOverlay,StreakBeadView}.swift`
+
+Not yet verified: `Circles/Home/HabitDetailView.swift` niyyah render,
+full body of `HabitService.createPrivateHabit`.
 
 ## Decisions
 
-### Locked Phase 14 — Meaningful Habits (~2.5–3 weeks)
-
-1. **Niyyah prompt on habit creation** — one text field ("What's your niyyah for this?"); works for personal AND shared habits; no separate struggle-lens field for shared. Shows on Habit Detail as emotional anchor. Feeds AI plan.
-2. **Catalog expansion** — 10 → ~30 items, 5 categories (Worship / Character / Knowledge / Health / Service). Revisit salah-as-habit framing in SPEC (collapse to "Pray 5 daily" or lift to separate consistency tracker).
-3. **Onboarding quiz — 2 screens** — Islamic struggles + Life struggles (multi-select), simple branching rules, **max 3 suggested habits per result**, **skippable**, **redoable from Profile → Settings → "My Focus Areas"**. Answers stored as JSONB on `profiles` (`struggles_islamic`, `struggles_life`), private. Wired into Amir onboarding (after Step 2), Joiner onboarding (after Habit Alignment), in-app new-intention flow.
-4. **Check-off ritual upgrade** — hold-to-complete + Niyyah-style animation + "Alhamdulillah" micro-moment. Reuses existing NiyyahDissolve / NoorAura / IslamicGeometricPattern.
-5. **Single master geometric pattern streak visual** — always-on from day 1, intensity scales with streak. Starts from existing 8-pointed IslamicGeometricPattern. **One master pattern for all users** — no per-user niyyah seeding in v1. Retires static star. In-flight streak glow work pauses and folds in.
-
-**Schema deltas:** `habits.niyyah TEXT` nullable; `profiles.struggles_islamic JSONB`, `profiles.struggles_life JSONB`.
-
-### Locked Phase 15 — Social Pulse (~1–1.5 weeks)
-
-Absorbs the old "Notifications" phase. Adds nudge push, comment push, permission modal UX, real-device end-to-end edge function verification, copy/tone audit. `send-moment-window-notifications` is already live via cron (Session 19); Phase 15 adds the social-interactive push on top. Existing `phase-15-social-pulse` worktree maps here.
-
-### Parked (post-MVP, validate with real TestFlight users first)
-
-- Intention arcs + end_dates + past-intentions archive + AI-extended roadmaps
-- Photo evidence on habit check-ins
-- Streak personalization with per-user niyyah seeding
-- Habit check-in photo → Circle Moment promotion
-- Quiz v2 (AI-generated beyond branching)
-- Pattern-based nudges
-
-### Rejected framings worth remembering
-
-- **Arcs are scope creep** — user + critical agent aligned; investor disagreed but user's instinct won. "Pray Fajr forever" is identity, not a 28-day project. End_dates create dropout cliffs. AI roadmap extension across arcs is unsolved complexity.
-- **Don't move Branding up** — investor pushed; rejected. Design system is locked from Phase 11.1 / 13; Branding Finalization is a 1–2 day naming task, not a blocker.
-- **Struggle lens for shared habits is the same niyyah prompt** — one field covers both contexts; no schema divergence.
+No decisions made this session. Review output is advisory — user has not
+yet approved any fix.
 
 ## Verified
 
-- Docs cross-reference cleanly (ROADMAP phase numbers match STATE and HANDOFF)
-- No code changes this session — no build to verify
+### Strong — ship-ready
+- SQL migration idempotent, column comments, `NOTIFY pgrst` reload
+- `StreakMilestone` math matches spec (diameters, sparkle counts, saturation)
+- Gemini prompt defensive (markdown strip, empty-array throw, cap at 6)
+- Pre-auth struggle flushing via `OnboardingPendingState` + `saveLocation`
+- Bead `igniteTrigger` guarded by `todayComplete` on receiver side
+- `wasAllDone` guard in `toggleHabit` prevents re-fire on same complete day
+
+### Drifts from locked spec
+1. **Quiz Screen A/B headlines and subheads** (D-15) — implementation copy
+   doesn't match the locked text from `onboarding_quiz_state.md`. Options
+   and CTAs are correct; only the headline + subhead drifted.
+2. **Breathing scale** (D-31) — spec `0.97 ↔ 1.03`, impl `1.0 → 1.03` only
+   (single-direction, not symmetric).
+3. **Aura opacity** (D-31) — spec says "modulates 0.8 ↔ 1.0" (continuous);
+   impl only transitions once on `todayComplete` change, no loop.
+4. **8-point star** (D-29) — spec "matching `IslamicGeometricPattern.starPath`
+   geometry"; impl defines fresh `EightPointStar` shape in `StreakBeadView.swift`.
+5. **Check-off haptic** (D-24) — spec "subtle gold haptic pulse"; impl uses
+   `.success` notification haptic (strong tri-tone, not subtle).
+6. Processing screen (C) has no minimum display time — instant fallback or
+   fast Gemini return causes a flash.
+7. Intercept gate post-quiz UX — lands on `pickHabit` step with custom name
+   pre-filled; user must manually tap Continue to reach niyyah. Minor
+   redundancy.
+8. Intercept gate has no local-session cache — re-fetches profile on every
+   sheet open. If `saveStrugglesToProfile` silently fails, quiz re-appears
+   on next FAB tap.
 
 ## Next
 
-- User: decide whether Phase 14 SPEC work runs on `main` or in a new worktree (separate from `phase-15-social-pulse`)
-- User: run `/gsd:plan-phase` on Phase 14 to create `.planning/phases/14-meaningful-habits/` with SPEC + migration plan
-- Optional: update PROJECT.md (v2.3 vision doc) to fold in niyyah prompt + onboarding quiz mechanics. Deferred this session for context reasons — low-risk to land when Phase 14 ships.
-- Keep the notifications worktree aligned with Phase 15 naming.
+User to decide which (if any) drift items to fix before on-device QA.
+Recommended minimum: items 1 (quiz copy) and 5 (haptic) — both are
+one-file fixes that don't invalidate the rest of Phase 14.
+
+Phase 14 QA test plan lives in `HANDOFF.md` — still the right next step
+once these findings are triaged.
 
 ## Blockers
 
-None. Scope is locked.
+None. Build is still green from prior session; review was read-only.
 
 ## Notes For Re-entry
 
-- **Context for next session:** User was exhausted by round after round of scope refinement. They finalized by saying "lets lock scope we need to move to building quick." Respect that. Don't reopen the scope unless user explicitly asks.
-- **Watch for scope regression:** if anyone proposes arcs, end_dates, photo-on-check-in, or per-user streak pattern seeding — those are parked and were explicitly rejected. Don't re-suggest them; point to the parking lot.
-- **The investor memo:** user shared an investor critique mid-session. Investor was right on notifications move-up and cutting photos + streak seeding. Investor was wrong on arcs ("necessary / genius") and on moving branding up. User's edits correctly split the difference.
-- **Habit count per quiz:** user picked **3 max** over "5–7." Honor this number in SPEC.
-- **Current iOS date:** 2026-04-20.
-- **Don't touch PROJECT.md without the user's ack** — vision doc, deferred intentionally.
+- If the user wants #1 fixed, the locked copy lives in
+  `~/.claude/projects/-Users-abdulsaboorshaikh-Desktop-Circles/memory/onboarding_quiz_state.md`.
+- If the user wants #5 fixed, change
+  `UINotificationFeedbackGenerator().notificationOccurred(.success)` in
+  `HomeView.swift` handleHabitToggle to a `.soft` impact generator.
+- Items 2, 3, 4 are bead-visual refinements — grouped; touch only
+  `StreakBeadView.swift`. Defer until after QA since the user may say
+  the current feel is fine.
+- Do NOT touch Phase 15 files on `main` — that workstream is in its own
+  worktree.
