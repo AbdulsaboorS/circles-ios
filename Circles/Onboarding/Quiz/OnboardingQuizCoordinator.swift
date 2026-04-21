@@ -33,6 +33,7 @@ final class OnboardingQuizCoordinator {
     var isLoadingSuggestions: Bool = false
 
     var errorMessage: String? = nil
+    var allowsMultiSelect: Bool = false
 
     // MARK: - Callbacks (wired by caller)
 
@@ -40,9 +41,12 @@ final class OnboardingQuizCoordinator {
     /// Caller decides whether to write directly to Supabase or stage for later flush.
     var onPersistStruggles: ((_ islamic: [String], _ life: [String]) async -> Void)?
 
-    /// Called when the user picks a habit on Screen D (or a custom name).
+    /// Called when the user picks a single habit on Screen D (or a custom name).
     /// `suggestion` is nil for custom entries; `customName` carries the typed name.
     var onFinish: ((_ suggestion: HabitSuggestion?, _ customName: String?) -> Void)?
+
+    /// Called when the user picks multiple habits (multi-select intercept path only).
+    var onFinishMany: ((_ suggestions: [HabitSuggestion], _ customName: String?) -> Void)?
 
     // MARK: - Derived
 

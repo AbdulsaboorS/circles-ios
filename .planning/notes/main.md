@@ -1,110 +1,385 @@
-# main — Session Note (2026-04-21)
+# main — Session Note (2026-04-21, Session 3)
 
-## Goal
+## What Was Done This Session
 
-Close all 8 Phase 14 drift items identified in the retroactive code review,
-commit them as clean named commits, and push the full backlog to `origin/main`.
-Prepare handoff for on-device QA of Phase 14 before Phase 15 begins in a new
-worktree.
+### Planned (plan file exists, not yet executed)
 
-## Scope
+Full plan written at:
+`/Users/abdulsaboorshaikh/.claude/plans/read-planning-notes-main-md-in-full-tingly-pelican.md`
 
-`main` branch only. Drifts #1–#8 against the locked spec in
-`.planning/phases/14-meaningful-habits/14-CONTEXT.md`. Phase 15
-(`phase-15-social-pulse` worktree) is untouched.
+Three tasks queued, in order:
+1. Bug 1 — Multi-select Gemini suggestions
+2. Bug 2 — Quiz re-entry delta screen
+3. Habit Detail redesign (full spec in session 2 note — still valid)
 
-Explicitly out of scope: intention arcs, end_dates, past-intentions archive,
-photo evidence, per-user streak seeding.
+### Partially Executed
 
-## Touched Files
+**ONE edit committed** to `OnboardingQuizCoordinator.swift`:
+- Added `var allowsMultiSelect: Bool = false`
+- Added `var onFinishMany: ((_ suggestions: [HabitSuggestion], _ customName: String?) -> Void)?`
+- Build is green (these are additive properties only)
 
-- `Circles/Onboarding/Quiz/QuizIslamicStrugglesView.swift` — drift #1 (copy)
-- `Circles/Onboarding/Quiz/QuizLifeStrugglesView.swift` — drift #1 (copy)
-- `Circles/Home/StreakBeadView.swift` — drifts #2 (breath), #3 (aura), #4 (star)
-- `Circles/DesignSystem/IslamicGeometricPattern.swift` — drift #4 (star)
-- `Circles/Home/HomeView.swift` — drift #5 (haptic)
-- `Circles/Onboarding/Quiz/OnboardingQuizCoordinator.swift` — drift #6 (min display)
-- `Circles/Home/AddPrivateIntentionSheet.swift` — drifts #7 (UX skip) + #8 (cache)
+---
 
-## Decisions
+## Remaining Work — Bug 1 (Multi-select Gemini suggestions)
 
-- **Drift #4 (star geometry):** `EightPointStar` promoted to
-  `IslamicGeometricPattern.swift` as the canonical internal type. Both the
-  tiling background and the bead core now draw from it. Duplicate private
-  struct in `StreakBeadView.swift` deleted.
-- **Drift #5 (haptic):** `UIImpactFeedbackGenerator(.soft)` — single gentle
-  pulse. Undo path retains `.light`.
-- **Drift #6 (processing screen):** 1.6 s floor (matches the existing
-  `pulseOpacity` animation cycle in `QuizProcessingView`). Elapsed-time
-  approach — no extra sleep on slow Gemini calls.
-- **Drift #7 (intercept gate UX):** `onFinish` in `configureInterceptQuiz`
-  routes to `.niyyah` directly when a habit name is resolved. Defensive
-  fallback to `.pickHabit` if both suggestion and custom are empty.
-- **Drift #8 (cache + errors):** UserDefaults key
-  `phase14.quiz.completed.<userId>` scoped per user. Set only on successful
-  `saveStrugglesToProfile`. Hydrated from server truth on first gate check
-  when struggles are non-empty. Save errors now routed to `coord.errorMessage`
-  so the existing sheet alert fires.
+### Files to change
 
-## Verified
+#### 1. `Circles/Onboarding/Quiz/QuizHabitSelectionView.swift` — full rewrite
+Key changes:
+- `@State selectedId: UUID?` → `@State selectedIds: Set<UUID> = []`
+- Tap handler: if `coordinator.allowsMultiSelect` → toggle in set; else → replace set with singleton
+- `canContinue`: `!selectedIds.isEmpty || !trimmedCustom.isEmpty`
+- New `ctaLabel` computed: `"Create N habits"` when allowsMultiSelect && N > 0; else `"Begin"`
+- Header copy: `"Habits shaped for you"` / `"Pick as many as feel right."` when multi-select
+- Continue button action:
+  - custom: `coordinator.finish(customName:)` (unchanged)
+  - multi: `coordinator.onFinishMany?(suggestions.filter { selectedIds.contains($0.id) }, nil)`
+  - single: `coordinator.finish(suggestion:)` (unchanged)
 
-- Build green: `xcodebuild -scheme Circles -destination 'generic/platform=iOS
-  Simulator' build` — zero errors after every drift fix.
-- All 8 drift commits pushed to `origin/main` (20 total commits published this
-  session including the Phase 14 phase commits + Session 2 wips + Session 3
-  named fixes).
-- On-device QA **not yet done** — this is the next step before Phase 15.
+#### 2. `Circles/Home/AddPrivateIntentionSheet.swift` — multiple targeted edits
 
-## Next
+**A. Add `PendingHabitSpec` struct (before coordinator class):**
+```swift
+private struct PendingHabitSpec {
+    let name: String
+    let icon: String
+    let niyyah: String?
+    let familiarity: String
+}
+```
 
-**On-device QA of Phase 14 (all drifts):**
+**B. Extend `AddIntentionCoordinator`:**
+Add after `var createdHabit: Habit?`:
+```swift
+var createdHabits: [Habit] = []
+var generatingProgressText: String = ""
 
-1. **Drifts #1 (quiz copy)** — Trigger the quiz intercept by opening the FAB
-   sheet with a fresh account (no struggles in profile). Screen A headline
-   should read "What do you find hardest in your deen?" / subhead "Be honest —
-   this shapes your journey". Screen B should read "What holds you back day to
-   day?" / "Your deen doesn't live in a vacuum".
+// Multi-create queue (Bug 1)
+var pendingQueue: [HabitSuggestion] = []
+var pendingIndex: Int = 0
+var collectedSpecs: [PendingHabitSpec] = []
 
-2. **Drift #2 (bead breath)** — Home screen, user with streak > 0. Bead should
-   pulse symmetrically 0.97 ↔ 1.03. No static size before animation starts.
+var multiProgressLabel: String? {
+    guard pendingQueue.count > 1 else { return nil }
+    return "Habit \(pendingIndex + 1) of \(pendingQueue.count)"
+}
+```
 
-3. **Drift #3 (aura pulse)** — Same bead. Gold aura rings should breathe
-   0.8 ↔ 1.0 opacity, in phase with the bead breath.
+**C. Add `createAndGenerateAll` method on coordinator (after `createAndGenerate`):**
+```swift
+func createAndGenerateAll(userId: UUID) async {
+    let specs = collectedSpecs
+    guard !specs.isEmpty else {
+        await createAndGenerate(userId: userId)
+        return
+    }
+    isGenerating = true
+    planDone = false
+    errorMessage = nil
+    var created: [Habit] = []
+    for (i, spec) in specs.enumerated() {
+        generatingProgressText = "Building roadmaps… (\(i + 1)/\(specs.count))"
+        do {
+            let habit = try await HabitService.shared.createPrivateHabit(
+                userId: userId, name: spec.name, icon: spec.icon,
+                familiarity: spec.familiarity, niyyah: spec.niyyah
+            )
+            created.append(habit)
+            let milestones = try await GeminiService.shared.generate28DayRoadmap(
+                habitName: habit.name,
+                planNotes: spec.niyyah.map { "Niyyah: \($0)" },
+                userRefinementRequest: nil
+            )
+            _ = try await HabitPlanService.shared.upsertInitialPlan(
+                habitId: habit.id, userId: userId, milestones: milestones
+            )
+        } catch { /* continue on partial failure */ }
+    }
+    createdHabits = created
+    createdHabit = created.first
+    planDone = !created.isEmpty
+    isGenerating = false
+}
+```
 
-4. **Drift #4 (star geometry)** — Star core inside bead should rotate; Niyyah
-   overlay and Journey screen backgrounds should show the tiling geometric
-   pattern unchanged.
+**D. Update `configureInterceptQuiz` (L208–223) — add 2 lines:**
+```swift
+private func configureInterceptQuiz(userId: UUID) {
+    quizCoordinator.allowsMultiSelect = true    // ADD THIS
+    quizCoordinator.onPersistStruggles = { ... } // unchanged
+    quizCoordinator.onFinish = { ... }           // unchanged
+    quizCoordinator.onFinishMany = { suggestions, _ in   // ADD THIS BLOCK
+        beginPerHabitQueue(suggestions: suggestions)
+    }
+}
+```
 
-5. **Drift #5 (haptic)** — Tap a habit to complete: should feel like a single
-   gentle tap, not a tri-tone buzz.
+**E. Add `beginPerHabitQueue` method on the view (after `configureInterceptQuiz`):**
+```swift
+private func beginPerHabitQueue(suggestions: [HabitSuggestion]) {
+    guard !suggestions.isEmpty else { coord.step = .pickHabit; return }
+    coord.pendingQueue = suggestions
+    coord.pendingIndex = 0
+    coord.collectedSpecs = []
+    let first = suggestions[0]
+    coord.selectedName = first.name
+    coord.showCustomField = false
+    coord.selectedIcon = habitSymbol(for: first.name)
+    coord.niyyah = ""
+    coord.familiarity = ""
+    coord.step = .niyyah
+}
+```
 
-6. **Drift #6 (processing screen)** — With airplane mode on, run the intercept
-   quiz through Screen B → processing screen should linger ~1.6 s before
-   suggestions appear.
+**F. Update `niyyahStep` — add progress header at the top of the VStack:**
+```swift
+if let progress = coord.multiProgressLabel {
+    Text(progress)
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(Color.msTextMuted)
+        .padding(.top, 16)
+}
+```
 
-7. **Drift #7 (intercept gate UX)** — Complete the quiz, pick a Gemini
-   suggestion → should land on Niyyah screen with the habit name and derived
-   icon in the title. No pickHabit detour.
+**G. Update `familiarityStep` continue button action (replace the `guard let userId` block):**
+```swift
+continueButton(enabled: !coord.familiarity.isEmpty) {
+    guard let userId = auth.session?.user.id else { return }
+    if !coord.pendingQueue.isEmpty {
+        coord.collectedSpecs.append(PendingHabitSpec(
+            name: coord.resolvedName(), icon: coord.resolvedIcon(),
+            niyyah: coord.trimmedNiyyah, familiarity: coord.familiarity
+        ))
+        let nextIndex = coord.pendingIndex + 1
+        if nextIndex < coord.pendingQueue.count {
+            let next = coord.pendingQueue[nextIndex]
+            coord.pendingIndex = nextIndex
+            coord.selectedName = next.name
+            coord.showCustomField = false
+            coord.selectedIcon = habitSymbol(for: next.name)
+            coord.niyyah = ""
+            coord.familiarity = ""
+            coord.step = .niyyah
+        } else {
+            coord.step = .generating
+            Task { await coord.createAndGenerateAll(userId: userId) }
+        }
+    } else {
+        coord.step = .generating
+        Task { await coord.createAndGenerate(userId: userId) }
+    }
+}
+```
 
-8. **Drift #8 (cache)** — Complete the quiz successfully. Force-quit the app.
-   Relaunch → tap FAB → sheet should open at pickHabit instantly (no spinner
-   from the gate check). Try with Wi-Fi off to confirm no network dependency.
+**H. Update `generatingStep` progress text (inside `if coord.isGenerating`):**
+```swift
+Text(coord.pendingQueue.count > 1 && !coord.generatingProgressText.isEmpty
+     ? coord.generatingProgressText
+     : "Building your 28-day roadmap…")
+```
 
-After QA passes → Phase 15 in a new worktree (`phase-15-social-pulse`).
+**I. Update `generatingStep` plan-done block (count-aware copy):**
+```swift
+let count = coord.createdHabits.count
+Text(count > 1 ? "Your \(count) roadmaps are ready!" : "Your roadmap is ready!")
+// CTA label:
+Text(coord.planDone ? (count > 1 ? "Open Home" : "Open Roadmap") : (count > 1 ? "Open Home" : "Open Habit"))
+```
 
-## Blockers
+---
 
-None. All code is on `main`, build is green.
+## Remaining Work — Bug 2 (Quiz re-entry delta screen)
+
+### Files to change
+
+#### 1. `OnboardingQuizCoordinator.swift` — add `startFromExistingStruggles`:
+```swift
+func startFromExistingStruggles(islamicSlugs: [String], lifeSlugs: [String]) async {
+    selectedIslamic = Set(islamicSlugs.compactMap(IslamicStruggle.init(rawValue:)))
+    selectedLife    = Set(lifeSlugs.compactMap(LifeStruggle.init(rawValue:)))
+    step = .processing
+    await loadSuggestions()
+}
+```
+
+#### 2. `AddPrivateIntentionSheet.swift`
+
+**A. Add `case quizDelta` to `AddIntentionCoordinator.Step` enum:**
+`enum Step { case quizDelta, quizIntercept, pickHabit, niyyah, familiarity, generating }`
+
+**B. Add to coordinator (after `multiProgressLabel`):**
+```swift
+var savedStrugglesIslamic: [String] = []
+var savedStrugglesLife: [String] = []
+```
+
+**C. Add `case .quizDelta: quizDeltaStep` to the `content` switch.**
+
+**D. Add `quizDeltaStep` view:**
+```swift
+private var quizDeltaStep: some View {
+    VStack(spacing: 0) {
+        ScrollView {
+            VStack(spacing: 28) {
+                Spacer(minLength: 24)
+                VStack(spacing: 10) {
+                    Image(systemName: "person.fill.questionmark")
+                        .font(.system(size: 40)).foregroundStyle(Color.msGold)
+                    Text("Still the same?")
+                        .font(.system(size: 28, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
+                    Text("Here's what you shared last time.")
+                        .font(.appSubheadline).foregroundStyle(Color.msTextMuted)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 24)
+
+                let allStruggles = coord.savedStrugglesIslamic + coord.savedStrugglesLife
+                if !allStruggles.isEmpty {
+                    let cols = [GridItem(.adaptive(minimum: 100, maximum: 200))]
+                    LazyVGrid(columns: cols, spacing: 8) {
+                        ForEach(allStruggles, id: \.self) { slug in
+                            Text(slug.replacingOccurrences(of: "_", with: " ").capitalized)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color.msTextPrimary)
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(Color.msCardShared, in: Capsule())
+                                .overlay(Capsule().stroke(Color.msBorder, lineWidth: 1))
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                Spacer(minLength: 24)
+            }
+        }
+
+        VStack(spacing: 12) {
+            // "Same" — pre-populate coordinator, skip A+B
+            Button {
+                guard let userId = auth.session?.user.id else { return }
+                configureInterceptQuiz(userId: userId)
+                quizCoordinator.selectedIslamic = Set(coord.savedStrugglesIslamic.compactMap(IslamicStruggle.init(rawValue:)))
+                quizCoordinator.selectedLife    = Set(coord.savedStrugglesLife.compactMap(LifeStruggle.init(rawValue:)))
+                quizCoordinator.step = .processing
+                coord.step = .quizIntercept
+                Task { await quizCoordinator.loadSuggestions() }
+            } label: {
+                Text("Same — show me habits")
+                    .font(.appSubheadline.weight(.semibold)).foregroundStyle(Color.msBackground)
+                    .frame(maxWidth: .infinity).frame(height: 52)
+                    .background(Color.msGold).clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            // "Changed" — full quiz, overwrites struggles
+            Button {
+                guard let userId = auth.session?.user.id else { return }
+                quizCoordinator = OnboardingQuizCoordinator()
+                configureInterceptQuiz(userId: userId)
+                coord.step = .quizIntercept
+            } label: {
+                Text("Things have changed")
+                    .font(.appSubheadline.weight(.medium)).foregroundStyle(Color.msGold)
+                    .frame(maxWidth: .infinity).frame(height: 52)
+                    .background(Color.msGold.opacity(0.12)).clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.msGold.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20).padding(.bottom, 24)
+    }
+}
+```
+
+**E. Rewrite `resolveQuizGate()` (replace entirely):**
+```swift
+private func resolveQuizGate() async {
+    guard let userId = auth.session?.user.id else {
+        coord.isResolvingGate = false; return
+    }
+    let (islamic, life) = await loadSavedStruggles(userId: userId)
+    if islamic.isEmpty && life.isEmpty {
+        configureInterceptQuiz(userId: userId)
+        coord.step = .quizIntercept
+    } else {
+        coord.savedStrugglesIslamic = islamic
+        coord.savedStrugglesLife    = life
+        coord.step = .quizDelta
+    }
+    coord.isResolvingGate = false
+}
+
+private func loadSavedStruggles(userId: UUID) async -> ([String], [String]) {
+    do {
+        let profile: Profile = try await SupabaseService.shared.client
+            .from("profiles")
+            .select("id,struggles_islamic,struggles_life")
+            .eq("id", value: userId.uuidString)
+            .single().execute().value
+        return (profile.strugglesIslamic ?? [], profile.strugglesLife ?? [])
+    } catch { return ([], []) }
+}
+```
+Replace the old `loadNeedsQuiz` with `loadSavedStruggles` above (it's the same Supabase query, just returns values instead of Bool).
+
+**F. Remove `markQuizCompletedLocally(for: userId)` call in `saveStrugglesToProfile` (L236).**
+
+**G. Delete three UserDefaults helper functions (L581–591):**
+- `quizCompletionKey(for:)`
+- `isQuizCompletedLocally(for:)`
+- `markQuizCompletedLocally(for:)`
+
+---
+
+## Remaining Work — Habit Detail Redesign
+
+Full spec still in session 2 note (this file, above). Full execution plan in plan file.
+
+### Code map (from exploration this session)
+
+#### HabitDetailView.swift — structure to keep vs remove
+- **KEEP**: `fetchLogs()`, `loadPlan()`, `generatePlan()`, `refineWithAI()`, `applyMilestoneEdit()`, `planLoadingOverlay`, `RefinePlanSheet`, `EditMilestoneSheet`, `RoadmapLoadingIndicator`, `StatPill`, existing computed `isCompletedToday`, `habitStreak`, `totalCompletions`
+- **REMOVE**: `DetailTab` enum, `selectedTab` state, `tabBar`, `tabContent`, `constellationSection`, `revealedGlow` state, `triggerConstellationReveal()`, `reflectionTabContent`, `todayReflectionCard`, `pastReflectionCard`, `loadTodayReflection()`, `loadAllReflections()`, `saveReflection()`, `heroSection`, `showReflectionSheet`/`editingReflectionDate`/`todayReflection`/`allReflections` state, `ReflectionLogSheet` struct, `fullRoadmapSheet` computed (promote to FullRoadmapView), `showFullRoadmapSheet` state
+- **MODIFY**: `fetchLogs()` — remove `gte("date", value: twentyEightDaysAgoString)` filter (need ALL logs for calendar + longestStreak)
+- **ADD state**: `displayedMonth: Date = Date()`, `showAlhamdulillah: Bool = false`, `alhamdulillahTask: Task<Void,Never>?`, `memberPresence: [CircleMemberSummary] = []`
+- **ADD computed**: `longestStreak: Int`, `completionRate: Double`, `todayMilestone: HabitMilestone?`
+
+#### New views needed (in HabitDetailView.swift or separate files)
+- `CheckInOrb` — hold-to-confirm orb (LongPressGesture + progress animation)
+- `HabitMonthCalendar` — calendar grid with month navigation
+- `FullRoadmapView` — promoted from `fullRoadmapSheet`; new file `Circles/Home/FullRoadmapView.swift`
+
+#### HomeView.swift changes
+- Remove `@State celebratingHabitId: UUID?` (L173)
+- Remove `@State celebrationTask: Task<Void, Never>?` (L174)  
+- Remove 3 `HamdulillahOverlay()` overlay mounts (L547-551, L577-581, L613-617)
+- Remove `handleHabitToggle` function (L630-650)
+- Cards: remove `onToggle: { handleHabitToggle(habit) }` closures → pass `{}` or remove param
+- `HeroHabitCard` (L957): remove check-in Button(action: onToggle); replace with chevron hint
+- `SharedHabitCard` (L1088): same
+- `PersonalHabitCard` (L1220): same
+
+#### Delete
+- `Circles/Home/ReflectionLogStore.swift` — sole consumer is HabitDetailView, safe to delete
+
+#### HabitDetailView toggle logic (no HomeViewModel injection needed)
+- Optimistic toggle via direct `HabitService.shared.toggleHabitLog(habitId:userId:date:completed:true)`
+- Optimistically append to local `logs` array
+- Fire-and-forget: broadcast, group streak, streak refetch
+- `isCompletedToday` computed from local `logs` → transitions to State 2 immediately
+
+---
 
 ## Notes For Re-entry
 
-- All 8 Phase 14 drifts are closed. No uncommitted changes on `main`.
-- `phase-15-social-pulse` worktree exists; Phase 15 should start there, not
-  on `main`.
-- If QA reveals a regression on the bead animations, the breath fix is
-  `StreakBeadView.startBreathing()` (pre-kick to `0.97`) and the aura is
-  `startAuraPulse()` (pre-kick to `0.8`). Both functions are in
-  `Circles/Home/StreakBeadView.swift`.
-- UserDefaults cache key for debugging drift #8:
-  `"phase14.quiz.completed.<userId-UUID>"` — can be cleared via Instruments
-  or a short one-liner in a Playground to force the quiz gate to re-check.
+- **Plan file**: `/Users/abdulsaboorshaikh/.claude/plans/read-planning-notes-main-md-in-full-tingly-pelican.md`
+- **Partially done**: `OnboardingQuizCoordinator.swift` has `allowsMultiSelect` + `onFinishMany` added. Build green.
+- **Next session must**: Execute Bug 1 (all edits above), commit, then Bug 2, commit, then Redesign, commit. Three commits total.
+- **Commit order**: Bug 1 first, Bug 2 second, Redesign third. Do not mix.
+- `phase-15-social-pulse` worktree untouched — do not merge.
+- Phase 14 QA (8 drifts) still pending on-device after all three commits.
+
+## Scoped & Parked
+- Habit frequency (every N days) — post-MVP, do not scope
+- Onboarding multi-select — deferred, only intercept path gets multi-select
