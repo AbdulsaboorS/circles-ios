@@ -77,21 +77,34 @@ Five features in scope:
 - **D-24:** Subtle gold haptic pulse accompanies the fade
 - **D-25:** Undo (tap again when completed) has no special animation — plain toggle back
 
-### 5. Streak Visual — Master Geometric Pattern
-- **D-26:** Single master pattern for all users — no per-user seeding in v1
-- **D-27:** Always-on from day 1, never absent
-- **D-28:** Placement: full-width behind the header section on HomeView (not contained to streak counter, not on habit rows)
-- **D-29:** Pattern style: upgrade from current simple 8-pointed star tiling → girih-style interlocking geometry (complex polygon tessellations — richer, more layered). SuperDesign mockups to be produced before implementation.
-- **D-30:** Scaling intensity as streak grows: layered instances + opacity + gold gradient on lines
-  - Day 1: one faint layer, barely visible
-  - Day 7: second slightly rotated layer added
-  - Day 30: third layer, more saturated gold
-  - Day 100+: fully awakened — all layers at full richness
-- **D-31:** Slow rotation animation — each layer drifts at a different imperceptible speed, feels alive not static
-- **D-32:** Gold gradient fill on pattern lines (not plain white strokes) — more luminous
-- **D-33:** `NoorAuraOverlay` breathing glow sits on top for warmth
-- **D-34:** In-flight streak glow work on `main` folds into this — do not ship separately
-- **D-35:** Implemented as Canvas-based SwiftUI component — no external dependencies
+### 5. Streak Visual — Noor Bead (Centered Hero)
+
+> **Direction changed 2026-04-20** after design review. Original spec called for a full-width girih tessellation behind the header; that was replaced with a centered luminous "Noor bead" hero element that upgrades the existing `heartSection` in `HomeView.swift`. Rationale: tessellated background felt busy and didn't match the iconic sun+star language already in the app (`NoorRingView`, `StarConstellationView`, `IslamicGeometricPattern`). Reference: `.planning/phases/14-meaningful-habits/references/streak-bead-reference.png`.
+
+- **D-26:** Single master "Noor bead" for all users — no per-user seeding in v1.
+- **D-27:** Always-on from day 1, never absent.
+- **D-28:** Placement: centered hero element in the existing header/heart section of `HomeView.swift`. Upgrades (does NOT replace the position of) the current `heartSection` gold medallion + star ring + streak text stack.
+- **D-29:** Visual composition — a gold sphere with:
+  - Radial gradient fill (#E8B84F center → #D4A240 mid → #8B6A28 edge)
+  - 8-point star at its core, matching `IslamicGeometricPattern.starPath` geometry, parchment fill (#F0EAD6)
+  - Soft multi-layer noor aura (reuses `NoorRingView` stroke + blur language)
+  - Sparkle particles ramping up at higher tiers
+- **D-30:** Scaling runs on two axes:
+  - **Every check-in day** → incremental glow-up: small size bump (~1.5px), gradient saturation bump, aura opacity bump. Feels like the bead absorbs one more day of light.
+  - **Named milestone tiers** (bigger visual jumps + caption text):
+    - Day 0 — *Lapsed*: dark, dim, cracked surface, no aura, star grey
+    - Day 1 — *First light*: faint ember, tight halo, 1 sparkle
+    - Day 3 — *Three Fajrs*: warmer ember, small aura, 2 sparkles
+    - Day 7 — *One week*: clearly gold, defined halo, 3 sparkles
+    - Day 14 — *Two weeks*: bright gold, larger aura, 5 sparkles
+    - Day 21 — *Three weeks*: very bright, outer aura bleeds, 7 sparkles
+    - Day 28 — *Sanctuary*: fully radiant, multi-layer aura, 10+ drifting sparkles
+    - Day 28+ — daily glow continues incrementally; no new named tier in v1 (a future "Noor" tier at 100+ is deferred)
+- **D-31:** Slow animations — bead breathes scale 0.97↔1.03 over ~4s; aura opacity modulates 0.8↔1.0; sparkles drift + twinkle on loop; inner 8-point star rotates ~360°/600s (imperceptible but alive). Lapsed state is static.
+- **D-32:** Beneath the bead: existing "X Day Streak" serif text stays; add a small italic milestone caption in parchment at 70% opacity (e.g. "First light", "Three Fajrs", "Sanctuary"). The existing Islamic quote line below stays unchanged.
+- **D-33:** Reuses `NoorRingView` stroke + shadow language where they overlap; the breathing noor aura is an extension of that component's vocabulary.
+- **D-34:** In-flight streak glow work on `main` folds into this — do not ship separately.
+- **D-35:** Implemented as SwiftUI (Canvas where needed, plain shapes where cleaner). No external dependencies. New component `StreakBeadView(streakDays: Int)` (or an in-place refactor of `heartSection`). Milestone mapping lives in a small helper type `StreakMilestone`.
 
 ### Schema Deltas
 - **D-36:** `habits` gains `niyyah TEXT` nullable
@@ -173,8 +186,8 @@ Five features in scope:
 <specifics>
 ## Specific Design Direction
 
-### Streak Visual — Girih Pattern
-SuperDesign mockups required before implementation. Direction: Ottoman/Andalusian-style interlocking polygon tessellations, gold gradient line strokes, multi-layer with slow rotation drift. Reference: girih tiles, not simple 8-pointed star grid.
+### Streak Visual — Noor Bead
+Centered luminous gold bead hero element, upgrading the existing `heartSection` in `HomeView.swift`. 8-point star core (matches `IslamicGeometricPattern.starPath`), radial gradient sphere, multi-layer noor aura, drifting sparkles. Grows incrementally every check-in day and hits named milestones at 1 / 3 / 7 / 14 / 21 / 28. Visual reference: `.planning/phases/14-meaningful-habits/references/streak-bead-reference.png`. SuperDesign canvas: see project `Circles Streak Geometric Pattern`.
 
 ### Quiz Screens — Tone
 Warm, personal, Islamic — not clinical or survey-like. Copy treats the user as a serious Muslim trying to grow, not a beginner being onboarded. "Be honest — this shapes your journey" not "Help us personalize your experience."
