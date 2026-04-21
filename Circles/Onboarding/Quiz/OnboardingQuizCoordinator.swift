@@ -109,4 +109,14 @@ final class OnboardingQuizCoordinator {
         guard !trimmed.isEmpty else { return }
         onFinish?(nil, trimmed)
     }
+
+    /// Re-entry path (Bug 2 — quiz delta). Jumps straight from the delta "Same"
+    /// button into processing + habit selection, using the user's previously-saved
+    /// struggle slugs. Does not re-persist (caller already has them on file).
+    func startFromExistingStruggles(islamicSlugs: [String], lifeSlugs: [String]) async {
+        selectedIslamic = Set(islamicSlugs.compactMap(IslamicStruggle.init(rawValue:)))
+        selectedLife    = Set(lifeSlugs.compactMap(LifeStruggle.init(rawValue:)))
+        step = .processing
+        await loadSuggestions()
+    }
 }

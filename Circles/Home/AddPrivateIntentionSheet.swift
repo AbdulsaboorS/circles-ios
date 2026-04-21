@@ -17,7 +17,7 @@ private struct PendingHabitSpec {
 @MainActor
 private final class AddIntentionCoordinator {
 
-    enum Step { case quizIntercept, pickHabit, niyyah, familiarity, generating }
+    enum Step { case quizDelta, quizIntercept, pickHabit, niyyah, familiarity, generating }
 
     var step: Step = .pickHabit
 
@@ -55,6 +55,10 @@ private final class AddIntentionCoordinator {
         guard pendingQueue.count > 1 else { return nil }
         return "Habit \(pendingIndex + 1) of \(pendingQueue.count)"
     }
+
+    // Saved struggles (Bug 2 — quiz delta re-entry)
+    var savedStrugglesIslamic: [String] = []
+    var savedStrugglesLife: [String] = []
 
     func selectCurated(name: String, icon: String) {
         selectedName = name
@@ -215,6 +219,7 @@ struct AddPrivateIntentionSheet: View {
             gateResolvingStep
         } else {
             switch coord.step {
+            case .quizDelta:     quizDeltaStep
             case .quizIntercept: quizInterceptStep
             case .pickHabit:     pickHabitStep
             case .niyyah:        niyyahStep
@@ -236,30 +241,130 @@ struct AddPrivateIntentionSheet: View {
         OnboardingQuizFlowView(coordinator: quizCoordinator)
     }
 
+    // MARK: Quiz delta (re-entry)
+
+    /// Shown for returning users who already have struggles saved. Gives them a
+    /// "Same" button (skip A+B, jump to processing+selection) or "Changed"
+    /// (run the full quiz again, overwriting struggles).
+    private var quizDeltaStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 28) {
+                    Spacer(minLength: 24)
+
+                    VStack(spacing: 10) {
+                        Image(systemName: "person.fill.questionmark")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Color.msGold)
+                        Text("Still the same?")
+                            .font(.system(size: 28, weight: .regular, design: .serif))
+                            .foregroundStyle(Color.msTextPrimary)
+                        Text("Here's what you shared last time.")
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 24)
+
+                    let chipLabels = savedStruggleLabels()
+                    if !chipLabels.isEmpty {
+                        let cols = [GridItem(.adaptive(minimum: 100, maximum: 220))]
+                        LazyVGrid(columns: cols, alignment: .leading, spacing: 8) {
+                            ForEach(chipLabels, id: \.self) { label in
+                                Text(label)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(Color.msTextPrimary)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color.msCardShared, in: Capsule())
+                                    .overlay(Capsule().stroke(Color.msBorder, lineWidth: 1))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+
+                    Spacer(minLength: 24)
+                }
+            }
+
+            VStack(spacing: 12) {
+                Button {
+                    guard let userId = auth.session?.user.id else { return }
+                    configureInterceptQuiz(userId: userId)
+                    coord.step = .quizIntercept
+                    Task {
+                        await quizCoordinator.startFromExistingStruggles(
+                            islamicSlugs: coord.savedStrugglesIslamic,
+                            lifeSlugs: coord.savedStrugglesLife
+                        )
+                    }
+                } label: {
+                    Text("Same — show me habits")
+                        .font(.appSubheadline.weight(.semibold))
+                        .foregroundStyle(Color.msBackground)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(Color.msGold)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    guard let userId = auth.session?.user.id else { return }
+                    // Full quiz from Screen A. Fresh coordinator so stale
+                    // state can't leak from a previous visit.
+                    quizCoordinator = OnboardingQuizCoordinator()
+                    configureInterceptQuiz(userId: userId)
+                    coord.step = .quizIntercept
+                } label: {
+                    Text("Things have changed")
+                        .font(.appSubheadline.weight(.medium))
+                        .foregroundStyle(Color.msGold)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(Color.msGold.opacity(0.12))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.msGold.opacity(0.3), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    private func savedStruggleLabels() -> [String] {
+        let islamic = coord.savedStrugglesIslamic.compactMap { IslamicStruggle(rawValue: $0)?.label }
+        let life    = coord.savedStrugglesLife.compactMap   { LifeStruggle(rawValue: $0)?.label }
+        return islamic + life
+    }
+
     // MARK: Quiz gate
 
+    /// First-time users (no saved struggles) go straight into the intercept quiz.
+    /// Returning users see a "delta" screen with their previous answers so they
+    /// can confirm "Same" (skip A+B, go to processing+selection) or "Changed"
+    /// (rerun the full quiz, overwriting struggles on finish).
     private func resolveQuizGate() async {
         guard let userId = auth.session?.user.id else {
             coord.isResolvingGate = false
             return
         }
-        if isQuizCompletedLocally(for: userId) {
-            coord.step = .pickHabit
-            coord.isResolvingGate = false
-            return
-        }
-        let needsQuiz = await loadNeedsQuiz(userId: userId)
-        if needsQuiz {
+        let (islamic, life) = await loadSavedStruggles(userId: userId)
+        if islamic.isEmpty && life.isEmpty {
             configureInterceptQuiz(userId: userId)
             coord.step = .quizIntercept
         } else {
-            markQuizCompletedLocally(for: userId)
-            coord.step = .pickHabit
+            coord.savedStrugglesIslamic = islamic
+            coord.savedStrugglesLife    = life
+            coord.step = .quizDelta
         }
         coord.isResolvingGate = false
     }
 
-    private func loadNeedsQuiz(userId: UUID) async -> Bool {
+    private func loadSavedStruggles(userId: UUID) async -> ([String], [String]) {
         do {
             let profile: Profile = try await SupabaseService.shared.client
                 .from("profiles")
@@ -268,11 +373,9 @@ struct AddPrivateIntentionSheet: View {
                 .single()
                 .execute()
                 .value
-            let islamicEmpty = (profile.strugglesIslamic ?? []).isEmpty
-            let lifeEmpty    = (profile.strugglesLife ?? []).isEmpty
-            return islamicEmpty || lifeEmpty
+            return (profile.strugglesIslamic ?? [], profile.strugglesLife ?? [])
         } catch {
-            return false
+            return ([], [])
         }
     }
 
@@ -327,7 +430,6 @@ struct AddPrivateIntentionSheet: View {
                 .update(updates)
                 .eq("id", value: userId.uuidString)
                 .execute()
-            markQuizCompletedLocally(for: userId)
         } catch {
             coord.errorMessage = "Couldn't save your answers. Please try again."
             quizCoordinator.errorMessage = "Couldn't save your answers. Please try again."
@@ -704,20 +806,6 @@ private struct HabitPickTile: View {
                 )
         )
     }
-}
-
-// MARK: - Quiz completion cache (UserDefaults, scoped per user)
-
-private func quizCompletionKey(for userId: UUID) -> String {
-    "phase14.quiz.completed.\(userId.uuidString)"
-}
-
-private func isQuizCompletedLocally(for userId: UUID) -> Bool {
-    UserDefaults.standard.bool(forKey: quizCompletionKey(for: userId))
-}
-
-private func markQuizCompletedLocally(for userId: UUID) {
-    UserDefaults.standard.set(true, forKey: quizCompletionKey(for: userId))
 }
 
 // MARK: - Icon helper (matches HomeView helper)
