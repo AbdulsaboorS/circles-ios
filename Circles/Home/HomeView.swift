@@ -170,9 +170,6 @@ struct HomeView: View {
     @State private var nudgedIds: Set<UUID>    = []
     @State private var showMembersSheet        = false
 
-    @State private var celebratingHabitId: UUID? = nil
-    @State private var celebrationTask: Task<Void, Never>? = nil
-
     // FAB pulse
     @State private var fabGlow = false
 
@@ -541,14 +538,8 @@ struct HomeView: View {
                 NavigationLink(value: hero) {
                     HeroHabitCard(
                         habit: hero,
-                        isCompleted: viewModel.isCompleted(habitId: hero.id),
-                        onToggle: { handleHabitToggle(hero) }
+                        isCompleted: viewModel.isCompleted(habitId: hero.id)
                     )
-                    .overlay {
-                        if celebratingHabitId == hero.id {
-                            HamdulillahOverlay()
-                        }
-                    }
                 }
                 .buttonStyle(.plain)
 
@@ -571,14 +562,8 @@ struct HomeView: View {
             ForEach(sorted) { habit in
                 SharedHabitCard(
                     habit: habit,
-                    isCompleted: viewModel.isCompleted(habitId: habit.id),
-                    onToggle: { handleHabitToggle(habit) }
+                    isCompleted: viewModel.isCompleted(habitId: habit.id)
                 )
-                .overlay {
-                    if celebratingHabitId == habit.id {
-                        HamdulillahOverlay()
-                    }
-                }
                 .contentShape(Rectangle())
                 .onTapGesture { navigationPath.append(habit) }
             }
@@ -607,46 +592,13 @@ struct HomeView: View {
                 ForEach(habits) { habit in
                     PersonalHabitCard(
                         habit: habit,
-                        isCompleted: viewModel.isCompleted(habitId: habit.id),
-                        onToggle: { handleHabitToggle(habit) }
+                        isCompleted: viewModel.isCompleted(habitId: habit.id)
                     )
-                    .overlay {
-                        if celebratingHabitId == habit.id {
-                            HamdulillahOverlay()
-                        }
-                    }
                     .contentShape(Rectangle())
                     .onTapGesture { navigationPath.append(habit) }
                 }
             }
         }
-    }
-
-    // MARK: - Check-off Micro-moment
-
-    /// Drives the Hamdulillah overlay + subtle haptic only on the
-    /// incomplete → complete transition. Undo (complete → incomplete)
-    /// runs the toggle plainly, no animation, no haptic.
-    private func handleHabitToggle(_ habit: Habit) {
-        guard let uid = auth.session?.user.id else { return }
-        let wasCompleted = viewModel.isCompleted(habitId: habit.id)
-
-        if !wasCompleted {
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-            celebrationTask?.cancel()
-            celebratingHabitId = habit.id
-            celebrationTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(1500))
-                guard !Task.isCancelled else { return }
-                if celebratingHabitId == habit.id {
-                    celebratingHabitId = nil
-                }
-            }
-        } else {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-
-        Task { await viewModel.toggleHabit(habit, userId: uid) }
     }
 
     // MARK: - Habit Ordering
@@ -957,7 +909,6 @@ private struct CirclePresenceRow: View {
 private struct HeroHabitCard: View {
     let habit: Habit
     let isCompleted: Bool
-    let onToggle: () -> Void
 
     @State private var borderGlow: Double = 0.45
     @State private var shimmerPhase: CGFloat = -0.5
@@ -987,8 +938,9 @@ private struct HeroHabitCard: View {
 
             Spacer()
 
-            // Check-in / done CTA — checkmark IS the undo trigger
-            Button(action: onToggle) {
+            // Navigation affordance — tap anywhere on the card to open detail.
+            // Check-in now lives on HabitDetailView behind a hold-to-confirm orb.
+            Group {
                 if isCompleted {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 46))
@@ -996,23 +948,17 @@ private struct HeroHabitCard: View {
                         .frame(width: 58, height: 58)
                         .shadow(color: Color.msGold.opacity(0.45), radius: 10)
                 } else {
-                    VStack(spacing: 4) {
-                        Image(systemName: "circle")
-                            .font(.system(size: 22))
-                        Text("Check\nIn")
-                            .font(.system(size: 9, weight: .semibold))
-                            .multilineTextAlignment(.center)
-                    }
-                    .foregroundStyle(Color.msGold)
-                    .frame(width: 58, height: 58)
-                    .background(
-                        SwiftUI.Circle()
-                            .fill(Color.msGold.opacity(0.14))
-                            .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.50), lineWidth: 1.5))
-                    )
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.msGold)
+                        .frame(width: 58, height: 58)
+                        .background(
+                            SwiftUI.Circle()
+                                .fill(Color.msGold.opacity(0.14))
+                                .overlay(SwiftUI.Circle().stroke(Color.msGold.opacity(0.50), lineWidth: 1.5))
+                        )
                 }
             }
-            .buttonStyle(.plain)
             .animation(.spring(response: 0.35), value: isCompleted)
         }
         .padding(20)
@@ -1088,7 +1034,6 @@ private struct HeroHabitCard: View {
 private struct SharedHabitCard: View {
     let habit: Habit
     let isCompleted: Bool
-    let onToggle: () -> Void
 
     @State private var shimmerPhase: CGFloat = -0.5
     @State private var bloomOpacity: Double  = 0
@@ -1109,18 +1054,15 @@ private struct SharedHabitCard: View {
                         .shadow(color: Color.msGold.opacity(isCompleted ? 0.55 : 0.30), radius: 5)
                 }
                 Spacer()
-                // Checkmark IS the undo trigger when completed
+                // Decorative: completion indicator / tap-to-open chevron.
                 if isCompleted {
-                    Button(action: onToggle) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Color.msGold.opacity(0.85))
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.msGold.opacity(0.85))
+                        .transition(.scale.combined(with: .opacity))
                 } else {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 11))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color.msTextMuted)
                         .transition(.opacity)
                 }
@@ -1135,18 +1077,12 @@ private struct SharedHabitCard: View {
 
             Spacer(minLength: 4)
 
-            // Check In button only when pending — completed state is clean
             if !isCompleted {
                 HStack {
                     Spacer(minLength: 0)
-                    Button(action: onToggle) {
-                        Text("Check In")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.msBackgroundDeep)
-                            .padding(.horizontal, 9).padding(.vertical, 5)
-                            .background(Capsule().fill(Color.msGold))
-                    }
-                    .buttonStyle(.plain)
+                    Text("Tap to check in")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(Color.msGold.opacity(0.8))
                 }
                 .transition(.opacity)
             }
@@ -1220,7 +1156,6 @@ private struct SharedHabitCard: View {
 private struct PersonalHabitCard: View {
     let habit: Habit
     let isCompleted: Bool
-    let onToggle: () -> Void
 
     @State private var shimmerPhase: CGFloat = -0.5
 
@@ -1245,26 +1180,18 @@ private struct PersonalHabitCard: View {
 
                 Spacer()
 
-                // Checkmark IS the undo trigger when completed
-                Button(action: onToggle) {
+                // Decorative: tap whole row to open detail.
+                Group {
                     if isCompleted {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
                             .foregroundStyle(Color.msGold.opacity(0.70))
                     } else {
-                        Text("Check in")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.msTextMuted)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(
-                                Capsule()
-                                    .fill(Color.clear)
-                                    .overlay(Capsule().stroke(Color.msTextMuted.opacity(0.25), lineWidth: 1))
-                            )
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.msTextMuted.opacity(0.55))
                     }
                 }
-                .buttonStyle(.plain)
                 .animation(.spring(response: 0.35), value: isCompleted)
             }
             .padding(.horizontal, 16)
