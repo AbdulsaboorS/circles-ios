@@ -28,18 +28,19 @@ Use branch-specific notes under `.planning/notes/` for session continuity within
 - Moment gate tests 1–5 all verified
 
 ### Active Workstreams
-- `phase-14-notifications`
-  - purpose: notification architecture and implementation
+- `phase-14-notifications` *(branch name is historical — this work is now scoped as new Phase 15 — Social Pulse per the 2026-04-20 renumbering in ROADMAP.md)*
+  - purpose: notification architecture and implementation (nudges, comment push, permission UX, real-device verification)
   - worktree: `/Users/abdulsaboorshaikh/Desktop/Circles/.claude/worktrees/phase-14-notifications`
   - branch note: `.planning/notes/phase-14-notifications.md`
   - status: Phase 14.1 built + build-verified; needs SQL migration run + manual QA
+  - conceptual mapping: branch name `phase-14-notifications` → new **Phase 15 — Social Pulse**. Do not rename the branch; update branch-local docs to reference new numbering.
 
-### Next Workstream (not yet started)
-- **Functionality fixes** — streak glow behaviour, habit choosing options, and other miscellaneous in-app behaviour bugs
-- This is the next thing the user will work on after the current session
-- Start by asking the user which specific bugs they want to tackle first; they mentioned streak glow and habit choice UX as the main ones
-- No new features — fix and polish existing flows only
-- Work directly on `main` unless a fix is large enough to warrant its own branch
+### Next Workstream on `main`
+- **Phase 14 — Meaningful Habits** (Personalization Era scope locked 2026-04-20)
+  - See ROADMAP.md for full scope
+  - In-flight streak glow work on `main` pauses and folds into Phase 14's streak visual
+  - Misc behaviour-bug fixes still ship as standalone commits on `main`
+  - Habit-catalog overhaul absorbed into Phase 14 (no longer a separate workstream)
 
 ### Recommended Merge Order
 1. Merge the lower-risk branch first

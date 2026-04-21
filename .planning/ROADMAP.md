@@ -1,7 +1,7 @@
 # Circles v2.4 — Roadmap
 
-**Updated:** 2026-04-16
-**Direction:** Private Islamic BeReal. 18-phase execution plan + 2 new feature phases.
+**Updated:** 2026-04-20
+**Direction:** Private Islamic BeReal. Phases 1–13 built. The Personalization Era (14–15) inserts between the completed UI/UX pass and the Shipping Era (16–19).
 
 ---
 
@@ -220,40 +220,103 @@ Latest direction locked with user:
 
 ---
 
-## Phase 14 — Naming + Branding ⬜ Planned
+# Personalization Era
+
+The next two phases make existing surfaces feel personal and rewarding, without introducing new product concepts. Decided 2026-04-20 after user + investor critique of a larger "Personalization Era" proposal. Arcs, end_dates, per-user streak seeding, photo evidence on check-ins, and a past-intentions archive are **parked** until real TestFlight usage data informs them.
+
+---
+
+## Phase 14 — Meaningful Habits ⬜ Planned
+
+**Goal:** Make habit creation emotionally anchored, narrow the generic catalog, make check-off feel like a small dua, and make the streak feel alive.
+
+**Scope:**
+1. **Niyyah prompt on habit creation.** Single text field ("What's your niyyah for this?") asked when creating any habit — personal or shared. Shows on Habit Detail as the emotional header. Fed into AI plan generation. Works as the struggle lens for shared habits too — no separate field.
+2. **Catalog expansion.** Grow from the current 10 items to ~30 items across 5 categories: Worship, Character, Knowledge, Health, Service. Revisit salah-as-habit framing — likely collapse to "Pray 5 daily" or lift to a separate consistency tracker (SPEC-level decision).
+3. **Onboarding quiz — 2 screens.**
+   - Screen 1 — Islamic struggles (multi-select): consistent prayer, Quran connection, dhikr, guarding tongue, lowering gaze, waking for Fajr, voluntary fasting, seeking knowledge
+   - Screen 2 — Life struggles (multi-select): discipline, sleep, physical health, family ties, restlessness/anxiety, time management, phone & media, patience
+   - Simple branching rules map the combination to **max 3 suggested habits** from the expanded catalog
+   - Skippable. Redoable anytime from Profile → Settings → "My Focus Areas"
+   - Answers stored on `profiles` as JSONB arrays (`struggles_islamic`, `struggles_life`) — private, never visible to circle members
+   - Wired into Amir onboarding (after Step 2 Core Habits), Joiner onboarding (after Habit Alignment), and in-app new-intention creation
+4. **Check-off ritual upgrade.** Hold-to-complete → Niyyah-style gold-dust animation → brief "Alhamdulillah" micro-moment. Reuses NiyyahDissolve / NoorAura / IslamicGeometricPattern components.
+5. **Single master geometric pattern streak visual.** Always-on from day 1. Intensity scales continuously with streak length. Starts from the existing 8-pointed IslamicGeometricPattern vocabulary and grows in layered complexity. **One master pattern for all users** — no per-user niyyah seeding in v1. Retires the static star. In-flight streak glow work pauses and folds into this.
+
+**Schema deltas:**
+- `habits` gains nullable `niyyah TEXT`
+- `profiles` gains nullable `struggles_islamic JSONB`, `struggles_life JSONB`
+
+**Out of scope (parked):** arcs, end_dates, past-intentions archive, photo evidence on check-ins, per-user streak seeding, quiz v2 AI synthesis.
+
+**Timeline:** ~2.5–3 weeks.
+
+---
+
+## Phase 15 — Social Pulse ⬜ Planned
+
+**Goal:** Give circles real-time social tug. Absorbs and completes the old "Notifications" phase.
+
+**Scope:**
+- **Nudge push notifications** (PRD requirement, not yet built) — tap nudge icon on a member who hasn't posted → friendly push ("Humza is waiting for your moment")
+- **Comment push notifications** (PRD requirement, not yet built)
+- **Permission modal UX** — warm Islamic framing, retry-friendly
+- **Real-device end-to-end verification** of all edge functions (`send-moment-window-notifications`, nudges, comments)
+- **Copy/tone audit** — warm Islamic voice across every notification string
+
+**Note:** `send-moment-window-notifications` is already deployed and live via cron (Session 19). This phase adds the **social-interactive** push layer on top.
+
+**Existing worktree:** `phase-14-notifications` branch (historical name) holds the in-progress notifications scaffolding and maps to this phase. See HANDOFF.md.
+
+**Timeline:** ~1–1.5 weeks.
+
+---
+
+## Shipping Era
+
+---
+
+## Phase 16 — Naming + Branding Finalization ⬜ Planned
 - Finalize feature names: "Circles", "Moments", "Niyyah", "Journey"
 - Logo finalized — update app icon asset in Xcode
 - App display name, bundle name confirmed
 
----
-
-## Phase 15 — Notifications ⬜ Planned
-- Verify and deploy all Edge Functions end-to-end on real device
-- Copy/tone audit — warm Islamic voice
-- `send-moment-window-notifications` now deployed and live (cron active)
-- Handle notification permission modal UX
+*Small phase (1–2 days). Can run in parallel with earlier work if needed — design system is already locked from Phase 11.1 / 13.*
 
 ---
 
-## Phase 16 — Onboarding Videos + Animation Polish ⬜ Planned
+## Phase 17 — Onboarding Videos + Animation Polish ⬜ Planned
 - Replace placeholder video containers with real assets
 - Animation timing polish on transitions
 - Blocked on content creation
 
 ---
 
-## Phase 17 — Web Landing Page ⬜ Planned
+## Phase 18 — Web Landing Page ⬜ Planned
 - App Store download CTA as primary action
 - Midnight Sanctuary color palette
 - No framework dependency — plain HTML/Tailwind/vanilla JS
 
 ---
 
-## Phase 18 — App Store Submission ⬜ Planned
+## Phase 19 — App Store Submission ⬜ Planned
 - App Store metadata, screenshots, privacy manifest
 - TestFlight internal beta + human QA
 - Submit for review
 
 ---
 
-*Phase 13 is now in final-pass mode. Immediate next major UX build: Profile / Settings redesign, followed by final runtime QA and polish.*
+## Parking Lot — Post-MVP
+
+Validate with real TestFlight usage before investing in any of these:
+
+- **Intention arcs** — goal + end_date + baseline/ending reflections; past-intentions archive; AI-extended roadmaps across arcs
+- **Photo evidence on habit check-ins** — optional photo per check-in with its own timeline on Habit Detail; separate storage bucket
+- **Streak personalization with niyyah seeding** — pattern variant per user based on their stated niyyah
+- **Habit check-in photo → Circle Moment promotion** — let a habit evidence photo be the day's Moment
+- **Quiz v2** — AI-generated suggestions beyond simple branching rules
+- **Pattern-based nudges** — "You haven't done Quran for 3 days — want help?"
+
+---
+
+*Phase 13 complete. Personalization Era (14–15) scope locked 2026-04-20. Shipping Era resumes at Phase 16.*

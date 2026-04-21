@@ -5,7 +5,7 @@ milestone_name: milestone
 status: active
 last_updated: "2026-04-20T00:00:00.000Z"
 progress:
-  total_phases: 18
+  total_phases: 19
   completed_phases: 13
   total_plans: 13
   completed_plans: 11
@@ -15,7 +15,11 @@ progress:
 
 ## Current Focus
 
-**Next: Functionality fixes** — streak glow, habit choosing options, and other miscellaneous app behaviour bugs. No new features; polish and correct existing flows.
+**Next: Phase 14 — Meaningful Habits** (Personalization Era, locked 2026-04-20). Make habit creation emotionally anchored, catalog less generic, check-off rewarding, and streak alive. Followed by Phase 15 — Social Pulse (nudges + comment push + real-device verification).
+
+Scope explicitly rejects: intention arcs, end_dates, past-intentions archive, photo evidence on check-ins, per-user streak seeding — all parked for post-MVP validation with real TestFlight users. See ROADMAP.md for full scope and parking lot.
+
+In-flight streak glow work on `main` **pauses** and folds into Phase 14's single master geometric pattern streak visual.
 
 **Phase 13 (UI/UX Pass)** — ✓ Complete. All waves signed off. Profile redesign shipped. Journey tab shipped and QA'd.
 
