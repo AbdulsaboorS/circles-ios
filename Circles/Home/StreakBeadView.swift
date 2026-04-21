@@ -198,28 +198,3 @@ struct StreakBeadView: View {
         }
     }
 }
-
-// MARK: - 8-point star shape
-
-/// 8-point star that mirrors the geometry of
-/// `IslamicGeometricPattern.starPath` (inner/outer radii at 1 : ~0.44),
-/// but packaged as a `Shape` so it participates in SwiftUI layout.
-private struct EightPointStar: Shape {
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let outerR = min(rect.width, rect.height) / 2
-        let innerR = outerR * 0.44
-        var path = Path()
-        for i in 0..<16 {
-            let angle = Double(i) * .pi / 8 - .pi / 2
-            let r = i.isMultiple(of: 2) ? outerR : innerR
-            let pt = CGPoint(
-                x: center.x + r * CGFloat(Foundation.cos(angle)),
-                y: center.y + r * CGFloat(Foundation.sin(angle))
-            )
-            if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
-        }
-        path.closeSubpath()
-        return path
-    }
-}

@@ -20,7 +20,9 @@ struct IslamicGeometricPattern: View {
                         x: CGFloat(col) * tileSize + tileSize / 2,
                         y: CGFloat(row) * tileSize + tileSize / 2
                     )
-                    let starPath = starPath(center: center, size: tileSize * 0.42)
+                    let s = tileSize * 0.42
+                    let rect = CGRect(x: center.x - s / 2, y: center.y - s / 2, width: s, height: s)
+                    let starPath = EightPointStar().path(in: rect)
                     context.stroke(
                         starPath,
                         with: .color(color.opacity(opacity)),
@@ -32,9 +34,14 @@ struct IslamicGeometricPattern: View {
         .allowsHitTesting(false)
         .ignoresSafeArea()
     }
+}
 
-    private func starPath(center: CGPoint, size: CGFloat) -> Path {
-        let outerR = size / 2
+/// Canonical 8-point star geometry shared by `IslamicGeometricPattern` (tiled
+/// background) and `StreakBeadView` (rotating bead core). Inner/outer radii 1 : 0.44.
+struct EightPointStar: Shape {
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let outerR = min(rect.width, rect.height) / 2
         let innerR = outerR * 0.44
         var path = Path()
         for i in 0..<16 {
