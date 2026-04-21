@@ -172,11 +172,17 @@ struct AddPrivateIntentionSheet: View {
             coord.isResolvingGate = false
             return
         }
+        if isQuizCompletedLocally(for: userId) {
+            coord.step = .pickHabit
+            coord.isResolvingGate = false
+            return
+        }
         let needsQuiz = await loadNeedsQuiz(userId: userId)
         if needsQuiz {
             configureInterceptQuiz(userId: userId)
             coord.step = .quizIntercept
         } else {
+            markQuizCompletedLocally(for: userId)
             coord.step = .pickHabit
         }
         coord.isResolvingGate = false
@@ -209,8 +215,10 @@ struct AddPrivateIntentionSheet: View {
                 coord.showCustomField = true
                 coord.customName = picked
                 coord.selectedName = ""
+                coord.step = .niyyah      // name already chosen — skip pickHabit
+            } else {
+                coord.step = .pickHabit   // defensive fallback
             }
-            coord.step = .pickHabit
         }
     }
 
@@ -225,7 +233,9 @@ struct AddPrivateIntentionSheet: View {
                 .update(updates)
                 .eq("id", value: userId.uuidString)
                 .execute()
+            markQuizCompletedLocally(for: userId)
         } catch {
+            coord.errorMessage = "Couldn't save your answers. Please try again."
             quizCoordinator.errorMessage = "Couldn't save your answers. Please try again."
         }
     }
@@ -564,6 +574,20 @@ private struct HabitPickTile: View {
                 )
         )
     }
+}
+
+// MARK: - Quiz completion cache (UserDefaults, scoped per user)
+
+private func quizCompletionKey(for userId: UUID) -> String {
+    "phase14.quiz.completed.\(userId.uuidString)"
+}
+
+private func isQuizCompletedLocally(for userId: UUID) -> Bool {
+    UserDefaults.standard.bool(forKey: quizCompletionKey(for: userId))
+}
+
+private func markQuizCompletedLocally(for userId: UUID) {
+    UserDefaults.standard.set(true, forKey: quizCompletionKey(for: userId))
 }
 
 // MARK: - Icon helper (matches HomeView helper)
