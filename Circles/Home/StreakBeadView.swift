@@ -23,6 +23,7 @@ struct StreakBeadView: View {
     @State private var breathScale: CGFloat = 1.0
     @State private var igniteScale: CGFloat = 1.0
     @State private var igniteBurstActive: Bool = false
+    @State private var auraPulse: Double = 1.0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -40,7 +41,10 @@ struct StreakBeadView: View {
         .scaleEffect(breathScale * igniteScale)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(streakDays) day streak, \(tier.caption)")
-        .onAppear(perform: startBreathing)
+        .onAppear {
+            startBreathing()
+            startAuraPulse()
+        }
         .onChange(of: igniteTrigger) { _, _ in
             guard todayComplete else { return }
             fireIgniteBurst()
@@ -53,17 +57,17 @@ struct StreakBeadView: View {
         let multiplier: Double = todayComplete ? 1.0 : 0.6
         return ZStack {
             SwiftUI.Circle()
-                .fill(Color.msGold.opacity(isLapsed ? 0.06 : 0.18 * multiplier))
+                .fill(Color.msGold.opacity(isLapsed ? 0.06 : 0.18 * multiplier * auraPulse))
                 .frame(width: tier.auraRadius * 1.8, height: tier.auraRadius * 1.8)
                 .blur(radius: 36)
 
             SwiftUI.Circle()
-                .stroke(Color.msGold.opacity(isLapsed ? 0.10 : 0.42 * multiplier), lineWidth: 1)
+                .stroke(Color.msGold.opacity(isLapsed ? 0.10 : 0.42 * multiplier * auraPulse), lineWidth: 1)
                 .frame(width: diameter * 1.55, height: diameter * 1.55)
                 .blur(radius: isLapsed ? 0 : 2)
 
             SwiftUI.Circle()
-                .stroke(Color.msGold.opacity(isLapsed ? 0.05 : 0.20 * multiplier), lineWidth: 2)
+                .stroke(Color.msGold.opacity(isLapsed ? 0.05 : 0.20 * multiplier * auraPulse), lineWidth: 2)
                 .frame(width: diameter * 1.90, height: diameter * 1.90)
                 .blur(radius: isLapsed ? 0 : 6)
         }
@@ -164,8 +168,17 @@ struct StreakBeadView: View {
 
     private func startBreathing() {
         guard !reduceMotion, !isLapsed else { return }
+        breathScale = 0.97
         withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
             breathScale = 1.03
+        }
+    }
+
+    private func startAuraPulse() {
+        guard !reduceMotion, !isLapsed else { return }
+        auraPulse = 0.8
+        withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
+            auraPulse = 1.0
         }
     }
 

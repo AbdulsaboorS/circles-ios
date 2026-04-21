@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Screen A — "Where is your Islamic practice pulling you right now?"
+/// Screen A — "What do you find hardest in your deen?"
 struct QuizIslamicStrugglesView: View {
     @Bindable var coordinator: OnboardingQuizCoordinator
 
@@ -15,12 +15,12 @@ struct QuizIslamicStrugglesView: View {
                             .font(.system(size: 44))
                             .foregroundStyle(Color.msGold)
 
-                        Text("Where is your Islamic practice pulling you right now?")
+                        Text("What do you find hardest in your deen?")
                             .font(.system(size: 24, weight: .regular, design: .serif))
                             .foregroundStyle(Color.msTextPrimary)
                             .multilineTextAlignment(.center)
 
-                        Text("Pick what resonates. You can pick more than one.")
+                        Text("Be honest — this shapes your journey")
                             .font(.appSubheadline)
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)

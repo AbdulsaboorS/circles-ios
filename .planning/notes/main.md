@@ -50,13 +50,25 @@ yet approved any fix.
 - `wasAllDone` guard in `toggleHabit` prevents re-fire on same complete day
 
 ### Drifts from locked spec
-1. **Quiz Screen A/B headlines and subheads** (D-15) — implementation copy
-   doesn't match the locked text from `onboarding_quiz_state.md`. Options
-   and CTAs are correct; only the headline + subhead drifted.
-2. **Breathing scale** (D-31) — spec `0.97 ↔ 1.03`, impl `1.0 → 1.03` only
-   (single-direction, not symmetric).
-3. **Aura opacity** (D-31) — spec says "modulates 0.8 ↔ 1.0" (continuous);
-   impl only transitions once on `todayComplete` change, no loop.
+1. ✅ **Fixed (Session 2, 2026-04-21)** — **Quiz Screen A/B headlines and
+   subheads** (D-15). Copy aligned with `onboarding_quiz_state.md`:
+   - `QuizIslamicStrugglesView.swift` lines 3, 18, 23 — now reads
+     *"What do you find hardest in your deen?"* / *"Be honest — this shapes
+     your journey"*.
+   - `QuizLifeStrugglesView.swift` lines 3, 18, 23 — now reads
+     *"What holds you back day to day?"* / *"Your deen doesn't live in a
+     vacuum"*.
+2. ✅ **Fixed (Session 2, 2026-04-21)** — **Breathing scale** (D-31). Now
+   symmetric `0.97 ↔ 1.03` via a pre-animation `breathScale = 0.97` kick in
+   `startBreathing()` (`StreakBeadView.swift` lines 165–171). `@State` default
+   stays `1.0` so `reduceMotion` / `lapsed` guard paths keep resting size.
+3. ✅ **Fixed (Session 2, 2026-04-21)** — **Aura opacity** (D-31). Continuous
+   `0.8 ↔ 1.0` pulse on a 4s `.easeInOut(autoreverses: true).repeatForever`
+   cycle, in-phase with the bead breath. New `@State auraPulse: Double = 1.0`
+   multiplied into each non-lapsed opacity in `auraLayer`
+   (`StreakBeadView.swift` lines 60, 65, 70). Kicked by `startAuraPulse()`
+   (lines 177–183) called alongside `startBreathing()` from `onAppear`
+   (lines 44–47). Lapsed / `reduceMotion` stay static.
 4. **8-point star** (D-29) — spec "matching `IslamicGeometricPattern.starPath`
    geometry"; impl defines fresh `EightPointStar` shape in `StreakBeadView.swift`.
 5. **Check-off haptic** (D-24) — spec "subtle gold haptic pulse"; impl uses
@@ -70,28 +82,76 @@ yet approved any fix.
    sheet open. If `saveStrugglesToProfile` silently fails, quiz re-appears
    on next FAB tap.
 
+## Session 2 — Fixes Applied (2026-04-21)
+
+Scope: drifts #1, #2, and #3 per user direction (added #3 mid-session before
+cutoff). Build green on iOS Simulator (Xcode 26.3, `iphonesimulator26.2`
+SDK). Not yet committed — awaiting user sign-off on the edits before commit
++ on-device QA.
+
+### Touched files
+- `Circles/Onboarding/Quiz/QuizIslamicStrugglesView.swift` — 3 line edits
+  (doc comment, headline, subhead).
+- `Circles/Onboarding/Quiz/QuizLifeStrugglesView.swift` — 3 line edits (same
+  shape as above).
+- `Circles/Home/StreakBeadView.swift` — 5 edits total:
+  - Breath fix (#2): pre-animation `breathScale = 0.97` inside
+    `startBreathing()`.
+  - Aura pulse (#3): new `@State auraPulse`, `auraPulse` multiplier on all
+    three non-lapsed opacity sites in `auraLayer`, `onAppear` closure now
+    calls both `startBreathing()` + `startAuraPulse()`, and new
+    `startAuraPulse()` helper mirroring `startBreathing`.
+
+### Decision log
+- Breathing fix: chose the "pull to `0.97` in `startBreathing`" approach over
+  changing the `@State` default so `reduceMotion` + `lapsed` users keep the
+  resting size of `1.0`. Single-frame batch on `onAppear` — no visible pop.
+- Aura pulse fix: same pattern as breath (pre-animation kick to `0.8`,
+  `@State` default `1.0` so reduceMotion/lapsed rest at full brightness).
+  Same 4s `.easeInOut.repeatForever(autoreverses: true)` duration, **in
+  phase** with the bead breath — bead inhales + aura brightens together.
+  Applied as a multiplicative factor on top of the existing
+  `todayComplete ? 1.0 : 0.6` multiplier so aura still dims on incomplete
+  days, just pulses within that dim baseline.
+- Scope held to 1 + 2 + 3; drifts #4, #5, #6, #7, #8 untouched.
+- Commits not yet created — user to approve after diff/QA review.
+
 ## Next
 
-User to decide which (if any) drift items to fix before on-device QA.
-Recommended minimum: items 1 (quiz copy) and 5 (haptic) — both are
-one-file fixes that don't invalidate the rest of Phase 14.
+Drifts #4–#8 remain open. User to triage after on-device QA of 1 + 2 + 3:
+- #4 star geometry — isolated to `StreakBeadView.swift`; should swap
+  `EightPointStar` shape for `IslamicGeometricPattern.starPath`. Defer if the
+  current star reads correctly on device.
+- #5 haptic — one-line change in `HomeView.swift` handleHabitToggle.
+- #6/#7/#8 — UX polish, no one-liners; scope each separately.
 
-Phase 14 QA test plan lives in `HANDOFF.md` — still the right next step
-once these findings are triaged.
+Phase 14 QA test plan still lives in `HANDOFF.md`.
 
 ## Blockers
 
-None. Build is still green from prior session; review was read-only.
+None. Build green. Three fixes staged but not yet committed — user requested
+a plan-and-execute pass; commits are the user's call.
 
 ## Notes For Re-entry
 
-- If the user wants #1 fixed, the locked copy lives in
+- Fixes 1 + 2 + 3 are on `main` working tree, unstaged. Recommended commits
+  (keep 2 + 3 separate so the user can revert the aura pulse alone if QA
+  feels "too busy"):
+  1. `fix(quiz): align Screen A/B copy with locked spec` (2 quiz files)
+  2. `fix(bead): symmetric breathing 0.97 ↔ 1.03 per spec`
+     (`StreakBeadView.swift` — breath-only portion)
+  3. `feat(bead): continuous aura opacity pulse 0.8 ↔ 1.0`
+     (`StreakBeadView.swift` — aura portion)
+  Because #2 and #3 both touch `StreakBeadView.swift` and are entangled at
+  the `onAppear` closure, splitting them cleanly may require `git add -p`
+  or a single combined `fix(bead): symmetric breathing + aura pulse per
+  D-31` commit. Combined is acceptable if splitting is painful.
+- Locked quiz copy lives in
   `~/.claude/projects/-Users-abdulsaboorshaikh-Desktop-Circles/memory/onboarding_quiz_state.md`.
-- If the user wants #5 fixed, change
+- If the user wants #5 fixed next, change
   `UINotificationFeedbackGenerator().notificationOccurred(.success)` in
   `HomeView.swift` handleHabitToggle to a `.soft` impact generator.
-- Items 2, 3, 4 are bead-visual refinements — grouped; touch only
-  `StreakBeadView.swift`. Defer until after QA since the user may say
-  the current feel is fine.
+- #4 is still inside `StreakBeadView.swift` — defer until after on-device QA
+  confirms the new breath + aura pulse feel right.
 - Do NOT touch Phase 15 files on `main` — that workstream is in its own
   worktree.

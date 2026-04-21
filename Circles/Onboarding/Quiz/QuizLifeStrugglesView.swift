@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Screen B — "What about the rest of your life — where do you feel it?"
+/// Screen B — "What holds you back day to day?"
 struct QuizLifeStrugglesView: View {
     @Bindable var coordinator: OnboardingQuizCoordinator
 
@@ -15,12 +15,12 @@ struct QuizLifeStrugglesView: View {
                             .font(.system(size: 44))
                             .foregroundStyle(Color.msGold)
 
-                        Text("What about the rest of your life — where do you feel it?")
+                        Text("What holds you back day to day?")
                             .font(.system(size: 24, weight: .regular, design: .serif))
                             .foregroundStyle(Color.msTextPrimary)
                             .multilineTextAlignment(.center)
 
-                        Text("Again, pick everything that fits.")
+                        Text("Your deen doesn't live in a vacuum")
                             .font(.appSubheadline)
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
