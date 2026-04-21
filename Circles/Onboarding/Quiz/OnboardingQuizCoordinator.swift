@@ -27,9 +27,8 @@ final class OnboardingQuizCoordinator {
     var selectedIslamic: Set<IslamicStruggle> = []
     var selectedLife: Set<LifeStruggle> = []
 
-    /// Populated by `loadSuggestions()`. Task 2 ships a static stub list so the
-    /// quiz flow is demonstrable end-to-end; Task 3 replaces the body of
-    /// `loadSuggestions()` with a live Gemini call + static fallback.
+    /// Populated by `loadSuggestions()` from Gemini, or `HabitSuggestion.fallbackSuggestions`
+    /// when Gemini is unreachable / malformed.
     var suggestions: [HabitSuggestion] = []
     var isLoadingSuggestions: Bool = false
 
@@ -53,19 +52,6 @@ final class OnboardingQuizCoordinator {
     var islamicSlugs: [String] { selectedIslamic.map(\.rawValue).sorted() }
     var lifeSlugs: [String]    { selectedLife.map(\.rawValue).sorted() }
 
-    // MARK: - Static stub suggestions (Task 2)
-    //
-    // Task 3 will replace this with a live Gemini call. The list intentionally
-    // mirrors the structure of what Gemini will return so Screen D doesn't
-    // need to change once the live loader lands.
-    static let stubSuggestions: [HabitSuggestion] = [
-        HabitSuggestion(name: "Fajr on time",      rationale: "Start the day in obedience. Everything else settles from here."),
-        HabitSuggestion(name: "One page of Quran", rationale: "A small, daily anchor in the Book of Allah."),
-        HabitSuggestion(name: "Morning dhikr",     rationale: "Steady the heart before the day pulls at it."),
-        HabitSuggestion(name: "Gratitude note",    rationale: "Three lines — Allah's favors on you today."),
-        HabitSuggestion(name: "Ten-minute walk",   rationale: "Give the body what it's owed so the soul can work.")
-    ]
-
     // MARK: - Advances
 
     func advanceToLife() {
@@ -74,7 +60,7 @@ final class OnboardingQuizCoordinator {
     }
 
     /// Advances to processing, persists struggles through the caller-provided callback,
-    /// then populates the stub suggestion list before showing Screen D.
+    /// then kicks off the live Gemini suggestion load.
     func advanceToProcessing() async {
         guard canAdvanceFromLife else { return }
         step = .processing
@@ -84,17 +70,24 @@ final class OnboardingQuizCoordinator {
         await loadSuggestions()
     }
 
-    /// Populates `suggestions`. Task 2 uses `stubSuggestions` directly; Task 3
-    /// replaces this body with a live Gemini call that falls back to the
-    /// stub list on error. Always advances to `.habitSelection` so the user
-    /// is never stranded on the processing screen.
+    /// Populates `suggestions` from Gemini, falling back to a static list if the
+    /// call throws. Always advances to `.habitSelection` so the user is never
+    /// stranded on the processing screen.
     func loadSuggestions() async {
         isLoadingSuggestions = true
-        // Small artificial delay so the processing screen doesn't flash.
-        try? await Task.sleep(for: .milliseconds(800))
-        suggestions = Self.stubSuggestions
-        isLoadingSuggestions = false
-        step = .habitSelection
+        defer {
+            isLoadingSuggestions = false
+            step = .habitSelection
+        }
+        do {
+            let live = try await GeminiService.shared.generateHabitSuggestions(
+                islamicStruggles: islamicSlugs,
+                lifeStruggles: lifeSlugs
+            )
+            suggestions = live
+        } catch {
+            suggestions = HabitSuggestion.fallbackSuggestions
+        }
     }
 
     func finish(suggestion: HabitSuggestion) {

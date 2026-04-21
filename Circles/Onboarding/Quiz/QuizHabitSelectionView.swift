@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Screen D — picks one habit from `coordinator.suggestions` (or "Custom…").
-/// Task 2 uses the stub list seeded by `OnboardingQuizCoordinator.stubSuggestions`;
-/// Task 3 replaces those with live Gemini output without changing this view.
+/// Suggestions come from `GeminiService.generateHabitSuggestions`, falling back
+/// to `HabitSuggestion.fallbackSuggestions` when Gemini is unreachable.
 struct QuizHabitSelectionView: View {
     @Bindable var coordinator: OnboardingQuizCoordinator
 

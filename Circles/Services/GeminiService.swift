@@ -198,6 +198,70 @@ final class GeminiService {
         return decoded.milestones.sorted { $0.day < $1.day }
     }
 
+    /// Phase 14: Generate a short list of habit suggestions grounded in the user's
+    /// quiz answers. Returns 4–6 suggestions; caller is responsible for falling back
+    /// to `HabitSuggestion.fallbackSuggestions` on throw.
+    func generateHabitSuggestions(
+        islamicStruggles: [String],
+        lifeStruggles: [String]
+    ) async throws -> [HabitSuggestion] {
+        let islamicList = islamicStruggles.map { "- \($0.replacingOccurrences(of: "_", with: " "))" }.joined(separator: "\n")
+        let lifeList    = lifeStruggles.map    { "- \($0.replacingOccurrences(of: "_", with: " "))" }.joined(separator: "\n")
+
+        let prompt = """
+        You are a knowledgeable, gentle Islamic habits coach. Suggest a small number of
+        practical, daily habits that answer the user's stated struggles. Keep each habit
+        small enough to do in under 10 minutes most days.
+
+        Islamic struggles the user chose:
+        \(islamicList.isEmpty ? "(none)" : islamicList)
+
+        Life struggles the user chose:
+        \(lifeList.isEmpty ? "(none)" : lifeList)
+
+        Return ONLY valid JSON (no markdown fences) with this exact shape:
+        {"suggestions":[{"name":"short habit name","rationale":"one gentle sentence explaining why it fits"}]}
+        Requirements:
+        - Between 4 and 6 objects in "suggestions".
+        - Habit names under 40 characters, sentence case (e.g. "Fajr on time").
+        - Rationales under 140 characters, first-person friendly tone, Muslim-appropriate language.
+        - Never recommend anything that contradicts Islamic teachings.
+        """
+
+        let body: [String: Any] = [
+            "contents": [
+                ["parts": [["text": prompt]]]
+            ]
+        ]
+
+        guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await Self.session.data(for: request)
+
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "(no body)"
+            throw GeminiError.httpError(statusCode: http.statusCode, body: body)
+        }
+
+        struct Envelope: Decodable {
+            let suggestions: [HabitSuggestion]
+        }
+
+        let cleaned = try Self.extractGeminiTextJSON(from: data)
+        let decoded = try JSONDecoder().decode(Envelope.self, from: cleaned)
+        guard !decoded.suggestions.isEmpty else {
+            throw URLError(.cannotParseResponse)
+        }
+        return Array(decoded.suggestions.prefix(6))
+    }
+
     // MARK: - Shared Gemini response parsing
 
     private static func extractGeminiTextJSON(from data: Data) throws -> Data {
