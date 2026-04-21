@@ -18,6 +18,9 @@ struct OnboardingPendingState: Codable {
     var inviteCode: String = ""
     var selectedCircleHabits: [String] = []
 
+    var strugglesIslamic: [String] = []
+    var strugglesLife: [String] = []
+
     private static let userDefaultsKey = "pending_onboarding_state"
 
     static func save(_ state: OnboardingPendingState) {

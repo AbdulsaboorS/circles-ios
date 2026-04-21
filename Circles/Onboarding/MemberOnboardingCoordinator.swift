@@ -9,6 +9,7 @@ final class MemberOnboardingCoordinator {
     enum Step: Hashable {
         case transitionToCircle    // Islamic transition (before circle preview)
         case circleAlignment       // Step 2: Rich circle preview + habit selection
+        case onboardingQuiz        // Phase 14: Meaningful-Habits quiz
         case personalHabits        // Step 3: Private habits, max 2
         case transitionToAI        // Islamic transition (after personal habits)
         case aiGeneration          // Step 4: Background AI generation
@@ -30,6 +31,13 @@ final class MemberOnboardingCoordinator {
     var cityTimezone: String = ""
     var cityLatitude: Double = 0
     var cityLongitude: Double = 0
+
+    // Phase 14 Meaningful-Habits struggles (flushed to profiles after auth).
+    var strugglesIslamic: [String] = []
+    var strugglesLife: [String] = []
+
+    // Selected habit from the quiz (used to seed Step 3 Personal Habits).
+    var quizSelectedHabitName: String? = nil
 
     // MARK: - Back to Amir flow
     var onBack: (() -> Void)? = nil
@@ -72,6 +80,10 @@ final class MemberOnboardingCoordinator {
     // MARK: - Navigation Helpers
     func proceedToCircleAlignment() {
         navigationPath.append(.circleAlignment)
+    }
+
+    func proceedToOnboardingQuiz() {
+        navigationPath.append(.onboardingQuiz)
     }
 
     func proceedToPersonalHabits() {
@@ -185,6 +197,8 @@ final class MemberOnboardingCoordinator {
         state.cityTimezone = cityTimezone
         state.cityLatitude = cityLatitude
         state.cityLongitude = cityLongitude
+        state.strugglesIslamic = strugglesIslamic
+        state.strugglesLife = strugglesLife
         OnboardingPendingState.save(state)
     }
 
@@ -198,6 +212,12 @@ final class MemberOnboardingCoordinator {
         let trimmedName = preferredName.trimmingCharacters(in: .whitespaces)
         if !trimmedName.isEmpty {
             updates["preferred_name"] = .string(trimmedName)
+        }
+        if !strugglesIslamic.isEmpty {
+            updates["struggles_islamic"] = .array(strugglesIslamic.map { .string($0) })
+        }
+        if !strugglesLife.isEmpty {
+            updates["struggles_life"] = .array(strugglesLife.map { .string($0) })
         }
         try await SupabaseService.shared.client
             .from("profiles")

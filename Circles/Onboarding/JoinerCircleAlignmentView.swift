@@ -136,7 +136,7 @@ struct JoinerCircleAlignmentView: View {
                 StepIndicator(current: 1, total: 7)
 
                 Button {
-                    coordinator.proceedToTransitionToAI()
+                    coordinator.proceedToOnboardingQuiz()
                 } label: {
                     Text("I'm In")
                         .font(.system(size: 17, weight: .semibold))

@@ -9,6 +9,8 @@ struct Profile: Codable, Identifiable, Sendable {
     var timezone: String?
     var latitude: Double?
     var longitude: Double?
+    var strugglesIslamic: [String]?
+    var strugglesLife: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -19,5 +21,7 @@ struct Profile: Codable, Identifiable, Sendable {
         case timezone
         case latitude
         case longitude
+        case strugglesIslamic = "struggles_islamic"
+        case strugglesLife = "struggles_life"
     }
 }

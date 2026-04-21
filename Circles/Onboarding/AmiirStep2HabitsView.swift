@@ -128,7 +128,7 @@ struct AmiirStep2HabitsView: View {
                     StepIndicator(current: 1, total: 7)
 
                     Button {
-                        coordinator.proceedToTransitionToAI()
+                        coordinator.proceedToOnboardingQuiz()
                     } label: {
                         Text("Build the Foundation")
                             .font(.system(size: 17, weight: .semibold))

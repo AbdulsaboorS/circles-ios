@@ -22,6 +22,9 @@ struct MemberOnboardingFlowView: View {
                     case .circleAlignment:
                         JoinerCircleAlignmentView()
 
+                    case .onboardingQuiz:
+                        JoinerQuizStepView()
+
                     case .personalHabits:
                         JoinerPersonalHabitsView()
 

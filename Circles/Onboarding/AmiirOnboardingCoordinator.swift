@@ -8,6 +8,7 @@ final class AmiirOnboardingCoordinator {
 
     enum Step: Hashable {
         case coreHabits           // Step 2: The Struggle
+        case onboardingQuiz       // Phase 14: Meaningful-Habits quiz
         case circleIdentity       // Step 3: Circle Identity
         case transitionToPersonal // Islamic transition
         case personalIntentions   // Step 4: Personal Intentions
@@ -43,6 +44,13 @@ final class AmiirOnboardingCoordinator {
     var cityLatitude: Double = 0
     var cityLongitude: Double = 0
 
+    // Phase 14 Meaningful-Habits struggles (flushed to profiles after auth).
+    var strugglesIslamic: [String] = []
+    var strugglesLife: [String] = []
+
+    // Selected habit from the quiz (used to seed Step 3 Personal Intentions).
+    var quizSelectedHabitName: String? = nil
+
     // MARK: - Created Entities
     var createdCircle: Circle? = nil
     private(set) var createdHabitsInSession: [Habit] = []
@@ -70,6 +78,10 @@ final class AmiirOnboardingCoordinator {
     // MARK: - Navigation Helpers
     func proceedToStruggle() {
         navigationPath.append(.coreHabits)
+    }
+
+    func proceedToOnboardingQuiz() {
+        navigationPath.append(.onboardingQuiz)
     }
 
     func proceedToIdentity() {
@@ -215,6 +227,8 @@ final class AmiirOnboardingCoordinator {
         state.cityTimezone = cityTimezone
         state.cityLatitude = cityLatitude
         state.cityLongitude = cityLongitude
+        state.strugglesIslamic = strugglesIslamic
+        state.strugglesLife = strugglesLife
         OnboardingPendingState.save(state)
     }
 
@@ -228,6 +242,12 @@ final class AmiirOnboardingCoordinator {
         let trimmedName = preferredName.trimmingCharacters(in: .whitespaces)
         if !trimmedName.isEmpty {
             updates["preferred_name"] = .string(trimmedName)
+        }
+        if !strugglesIslamic.isEmpty {
+            updates["struggles_islamic"] = .array(strugglesIslamic.map { .string($0) })
+        }
+        if !strugglesLife.isEmpty {
+            updates["struggles_life"] = .array(strugglesLife.map { .string($0) })
         }
         try await SupabaseService.shared.client
             .from("profiles")

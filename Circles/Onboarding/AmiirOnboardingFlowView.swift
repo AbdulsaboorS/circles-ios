@@ -13,6 +13,8 @@ struct AmiirOnboardingFlowView: View {
                     switch step {
                     case .coreHabits:
                         AmiirStep2HabitsView()
+                    case .onboardingQuiz:
+                        AmiirQuizStepView()
                     case .circleIdentity:
                         AmiirStep1IdentityView()
                     case .transitionToPersonal:

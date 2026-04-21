@@ -7,9 +7,13 @@ import Supabase
 @MainActor
 private final class AddIntentionCoordinator {
 
-    enum Step { case pickHabit, familiarity, generating }
+    enum Step { case quizIntercept, pickHabit, familiarity, generating }
 
     var step: Step = .pickHabit
+
+    /// True while we're checking whether the user has completed the Phase 14 quiz.
+    /// Keeps us from flashing `pickHabit` before the gate decision is made.
+    var isResolvingGate: Bool = true
 
     // Step 1
     var selectedName: String = ""
@@ -55,9 +59,13 @@ private final class AddIntentionCoordinator {
         errorMessage = nil
         do {
             let habit = try await HabitService.shared.createPrivateHabit(
-                userId: userId, name: name, icon: icon, familiarity: familiarity
+                userId: userId,
+                name: name,
+                icon: icon,
+                familiarity: familiarity
             )
             createdHabit = habit
+
             let milestones = try await GeminiService.shared.generate28DayRoadmap(
                 habitName: habit.name,
                 planNotes: habit.planNotes,
@@ -83,6 +91,7 @@ struct AddPrivateIntentionSheet: View {
     var onCreated: (Habit) -> Void   // called when user taps "Open" or after plan finishes
 
     @State private var coord = AddIntentionCoordinator()
+    @State private var quizCoordinator = OnboardingQuizCoordinator()
 
     var body: some View {
         NavigationStack {
@@ -103,16 +112,99 @@ struct AddPrivateIntentionSheet: View {
             } message: {
                 Text(coord.errorMessage ?? "")
             }
+            .task { await resolveQuizGate() }
         }
         .presentationDetents([.large])
     }
 
     @ViewBuilder
     private var content: some View {
-        switch coord.step {
-        case .pickHabit:  pickHabitStep
-        case .familiarity: familiarityStep
-        case .generating: generatingStep
+        if coord.isResolvingGate {
+            gateResolvingStep
+        } else {
+            switch coord.step {
+            case .quizIntercept: quizInterceptStep
+            case .pickHabit:     pickHabitStep
+            case .familiarity:   familiarityStep
+            case .generating:    generatingStep
+            }
+        }
+    }
+
+    private var gateResolvingStep: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            ProgressView().tint(Color.msGold).scaleEffect(1.2)
+            Spacer()
+        }
+    }
+
+    private var quizInterceptStep: some View {
+        OnboardingQuizFlowView(coordinator: quizCoordinator)
+    }
+
+    // MARK: Quiz gate
+
+    private func resolveQuizGate() async {
+        guard let userId = auth.session?.user.id else {
+            coord.isResolvingGate = false
+            return
+        }
+        let needsQuiz = await loadNeedsQuiz(userId: userId)
+        if needsQuiz {
+            configureInterceptQuiz(userId: userId)
+            coord.step = .quizIntercept
+        } else {
+            coord.step = .pickHabit
+        }
+        coord.isResolvingGate = false
+    }
+
+    private func loadNeedsQuiz(userId: UUID) async -> Bool {
+        do {
+            let profile: Profile = try await SupabaseService.shared.client
+                .from("profiles")
+                .select("id,struggles_islamic,struggles_life")
+                .eq("id", value: userId.uuidString)
+                .single()
+                .execute()
+                .value
+            let islamicEmpty = (profile.strugglesIslamic ?? []).isEmpty
+            let lifeEmpty    = (profile.strugglesLife ?? []).isEmpty
+            return islamicEmpty || lifeEmpty
+        } catch {
+            return false
+        }
+    }
+
+    private func configureInterceptQuiz(userId: UUID) {
+        quizCoordinator.onPersistStruggles = { islamic, life in
+            await saveStrugglesToProfile(userId: userId, islamic: islamic, life: life)
+        }
+        quizCoordinator.onFinish = { suggestion, custom in
+            let picked = suggestion?.name ?? custom
+            if let picked, !picked.isEmpty {
+                coord.showCustomField = true
+                coord.customName = picked
+                coord.selectedName = ""
+            }
+            coord.step = .pickHabit
+        }
+    }
+
+    private func saveStrugglesToProfile(userId: UUID, islamic: [String], life: [String]) async {
+        let updates: [String: AnyJSON] = [
+            "struggles_islamic": .array(islamic.map { .string($0) }),
+            "struggles_life":    .array(life.map    { .string($0) })
+        ]
+        do {
+            try await SupabaseService.shared.client
+                .from("profiles")
+                .update(updates)
+                .eq("id", value: userId.uuidString)
+                .execute()
+        } catch {
+            quizCoordinator.errorMessage = "Couldn't save your answers. Please try again."
         }
     }
 
