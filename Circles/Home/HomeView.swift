@@ -615,7 +615,7 @@ struct HomeView: View {
         let wasCompleted = viewModel.isCompleted(habitId: habit.id)
 
         if !wasCompleted {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
             celebrationTask?.cancel()
             celebratingHabitId = habit.id
             celebrationTask = Task { @MainActor in
