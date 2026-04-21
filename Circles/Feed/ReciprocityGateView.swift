@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ReciprocityGateView: View {
-    let prayerName: String
     let onPostTapped: () -> Void
 
     var body: some View {
@@ -19,7 +18,7 @@ struct ReciprocityGateView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("It's \(prayerName) time")
+                    Text("Time to share your Moment")
                         .font(.appHeadline)
                         .foregroundStyle(Color(hex: "F0EAD6"))
                     Text("Your circle is waiting. Share this moment to unlock.")
@@ -30,7 +29,7 @@ struct ReciprocityGateView: View {
                 }
 
                 Button(action: onPostTapped) {
-                    Text("Share your Pause")
+                    Text("Share your Moment")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color(hex: "1A2E1E"))
                         .frame(maxWidth: .infinity)

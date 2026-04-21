@@ -152,6 +152,9 @@ struct HomeView: View {
     @State private var showRoadmapBanner  = false
     @State private var scrollOffset: CGFloat = 0
 
+    // Noor info sheet
+    @State private var showNoorInfo   = false
+
     // Edit layout sheet
     @State private var showEditLayout = false
 
@@ -330,6 +333,9 @@ struct HomeView: View {
                     withAnimation(.easeOut(duration: 0.3)) { toastVisible = false }
                 }
             }
+            .sheet(isPresented: $showNoorInfo) {
+                NoorInfoSheet(streakDays: viewModel.computedStreak)
+            }
             .sheet(isPresented: $showAddIntention) {
                 AddPrivateIntentionSheet { newHabit in
                     if let uid = auth.session?.user.id {
@@ -421,27 +427,38 @@ struct HomeView: View {
         let nextHint = StreakMilestone.nextTierHint(forDays: days)
 
         return VStack(spacing: 14) {
-            StreakBeadView(
-                streakDays: days,
-                todayComplete: viewModel.allHabitsCompleted,
-                igniteTrigger: viewModel.beadIgniteCounter
-            )
+            Button { showNoorInfo = true } label: {
+                StreakBeadView(
+                    streakDays: days,
+                    todayComplete: viewModel.allHabitsCompleted,
+                    igniteTrigger: viewModel.beadIgniteCounter
+                )
+            }
+            .buttonStyle(.plain)
 
             Text("\(days) Day Streak")
                 .font(.system(size: 26, weight: .bold, design: .serif))
                 .foregroundStyle(Color.msTextPrimary)
 
-            VStack(spacing: 4) {
-                Text(milestone.caption)
-                    .font(.system(size: 14, weight: .regular, design: .serif).italic())
-                    .foregroundStyle(Color.msTextPrimary.opacity(0.70))
+            Button { showNoorInfo = true } label: {
+                VStack(spacing: 4) {
+                    HStack(spacing: 5) {
+                        Text(milestone.caption)
+                            .font(.system(size: 14, weight: .regular, design: .serif).italic())
+                            .foregroundStyle(Color.msTextPrimary.opacity(0.70))
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.msTextMuted.opacity(0.55))
+                    }
 
-                if let nextHint {
-                    Text(nextHint)
-                        .font(.system(size: 12, weight: .regular, design: .serif).italic())
-                        .foregroundStyle(Color.msTextPrimary.opacity(0.55))
+                    if let nextHint {
+                        Text(nextHint)
+                            .font(.system(size: 12, weight: .regular, design: .serif).italic())
+                            .foregroundStyle(Color.msTextPrimary.opacity(0.55))
+                    }
                 }
             }
+            .buttonStyle(.plain)
 
             Text(islamicQuote)
                 .font(.system(size: 13, weight: .regular, design: .serif).italic())

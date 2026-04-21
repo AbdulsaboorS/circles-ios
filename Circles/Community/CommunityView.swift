@@ -261,7 +261,7 @@ struct CommunityView: View {
                     .refreshable { await loadGlobalFeed() }
 
                     if momentService.isGateActive {
-                        ReciprocityGateView(prayerName: momentService.prayerDisplayName) {
+                        ReciprocityGateView {
                             draftMoment = nil
                             showGlobalCamera = true
                         }

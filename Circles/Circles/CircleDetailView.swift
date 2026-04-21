@@ -197,9 +197,7 @@ struct CircleDetailView: View {
                                     .padding(.top, 12)
 
                                     if DailyMomentService.shared.isGateActive {
-                                        ReciprocityGateView(
-                                            prayerName: DailyMomentService.shared.prayerDisplayName
-                                        ) {
+                                        ReciprocityGateView {
                                             draftMoment = nil
                                             showCamera = true
                                         }
