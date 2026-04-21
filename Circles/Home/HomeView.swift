@@ -192,6 +192,9 @@ struct HomeView: View {
     @State private var heartScale: CGFloat   = 1.0
     @State private var starAngle: Double     = 0
 
+    @State private var celebratingHabitId: UUID? = nil
+    @State private var celebrationTask: Task<Void, Never>? = nil
+
     // FAB pulse
     @State private var fabGlow = false
 
@@ -588,12 +591,13 @@ struct HomeView: View {
                     HeroHabitCard(
                         habit: hero,
                         isCompleted: viewModel.isCompleted(habitId: hero.id),
-                        onToggle: {
-                            guard let uid = auth.session?.user.id else { return }
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            Task { await viewModel.toggleHabit(hero, userId: uid) }
-                        }
+                        onToggle: { handleHabitToggle(hero) }
                     )
+                    .overlay {
+                        if celebratingHabitId == hero.id {
+                            HamdulillahOverlay()
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
 
@@ -617,12 +621,13 @@ struct HomeView: View {
                 SharedHabitCard(
                     habit: habit,
                     isCompleted: viewModel.isCompleted(habitId: habit.id),
-                    onToggle: {
-                        guard let uid = auth.session?.user.id else { return }
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        Task { await viewModel.toggleHabit(habit, userId: uid) }
-                    }
+                    onToggle: { handleHabitToggle(habit) }
                 )
+                .overlay {
+                    if celebratingHabitId == habit.id {
+                        HamdulillahOverlay()
+                    }
+                }
                 .contentShape(Rectangle())
                 .onTapGesture { navigationPath.append(habit) }
             }
@@ -652,17 +657,45 @@ struct HomeView: View {
                     PersonalHabitCard(
                         habit: habit,
                         isCompleted: viewModel.isCompleted(habitId: habit.id),
-                        onToggle: {
-                            guard let uid = auth.session?.user.id else { return }
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            Task { await viewModel.toggleHabit(habit, userId: uid) }
-                        }
+                        onToggle: { handleHabitToggle(habit) }
                     )
+                    .overlay {
+                        if celebratingHabitId == habit.id {
+                            HamdulillahOverlay()
+                        }
+                    }
                     .contentShape(Rectangle())
                     .onTapGesture { navigationPath.append(habit) }
                 }
             }
         }
+    }
+
+    // MARK: - Check-off Micro-moment
+
+    /// Drives the Hamdulillah overlay + subtle haptic only on the
+    /// incomplete → complete transition. Undo (complete → incomplete)
+    /// runs the toggle plainly, no animation, no haptic.
+    private func handleHabitToggle(_ habit: Habit) {
+        guard let uid = auth.session?.user.id else { return }
+        let wasCompleted = viewModel.isCompleted(habitId: habit.id)
+
+        if !wasCompleted {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            celebrationTask?.cancel()
+            celebratingHabitId = habit.id
+            celebrationTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(1500))
+                guard !Task.isCancelled else { return }
+                if celebratingHabitId == habit.id {
+                    celebratingHabitId = nil
+                }
+            }
+        } else {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        Task { await viewModel.toggleHabit(habit, userId: uid) }
     }
 
     // MARK: - Habit Ordering
