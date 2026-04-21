@@ -1,12 +1,19 @@
 import SwiftUI
 
-/// Screen D — picks one habit from `coordinator.suggestions` (or "Custom…").
-/// Suggestions come from `GeminiService.generateHabitSuggestions`, falling back
-/// to `HabitSuggestion.fallbackSuggestions` when Gemini is unreachable.
+/// Screen D — picks one (or many, in intercept mode) habits from `coordinator.suggestions`
+/// or a "Custom…" name. Suggestions come from `GeminiService.generateHabitSuggestions`,
+/// falling back to `HabitSuggestion.fallbackSuggestions` when Gemini is unreachable.
+///
+/// Selection mode:
+/// - `coordinator.allowsMultiSelect == false` (default): tap replaces selection; Continue calls
+///   `coordinator.finish(suggestion:)` or `coordinator.finish(customName:)`.
+/// - `coordinator.allowsMultiSelect == true`: tap toggles into a Set; Continue calls
+///   `coordinator.onFinishMany(suggestions, nil)` with every selected suggestion. Custom name
+///   still falls back to `finish(customName:)` (single item).
 struct QuizHabitSelectionView: View {
     @Bindable var coordinator: OnboardingQuizCoordinator
 
-    @State private var selectedId: UUID?
+    @State private var selectedIds: Set<UUID> = []
     @State private var showCustomField: Bool = false
     @State private var customName: String = ""
 
@@ -16,7 +23,26 @@ struct QuizHabitSelectionView: View {
 
     private var canContinue: Bool {
         if showCustomField { return !trimmedCustom.isEmpty }
-        return selectedId != nil
+        return !selectedIds.isEmpty
+    }
+
+    private var ctaLabel: String {
+        if showCustomField { return "Begin" }
+        if coordinator.allowsMultiSelect {
+            let n = selectedIds.count
+            if n > 1 { return "Create \(n) habits" }
+            if n == 1 { return "Create 1 habit" }
+            return "Begin"
+        }
+        return "Begin"
+    }
+
+    private var headerTitle: String {
+        coordinator.allowsMultiSelect ? "Habits shaped for you" : "One habit, shaped for you"
+    }
+
+    private var headerSubtitle: String {
+        coordinator.allowsMultiSelect ? "Pick as many as feel right." : "Pick the one that feels most alive."
     }
 
     var body: some View {
@@ -30,12 +56,12 @@ struct QuizHabitSelectionView: View {
                             .font(.system(size: 40))
                             .foregroundStyle(Color.msGold)
 
-                        Text("One habit, shaped for you")
+                        Text(headerTitle)
                             .font(.system(size: 24, weight: .regular, design: .serif))
                             .foregroundStyle(Color.msTextPrimary)
                             .multilineTextAlignment(.center)
 
-                        Text("Pick the one that feels most alive.")
+                        Text(headerSubtitle)
                             .font(.appSubheadline)
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
@@ -44,19 +70,18 @@ struct QuizHabitSelectionView: View {
 
                     VStack(spacing: 10) {
                         ForEach(coordinator.suggestions) { suggestion in
-                            let isSelected = !showCustomField && selectedId == suggestion.id
+                            let isSelected = !showCustomField && selectedIds.contains(suggestion.id)
                             SuggestionRow(
                                 suggestion: suggestion,
                                 isSelected: isSelected
                             ) {
-                                selectedId = suggestion.id
-                                showCustomField = false
+                                handleTap(suggestion: suggestion)
                             }
                         }
 
                         CustomRow(isSelected: showCustomField) {
                             showCustomField = true
-                            selectedId = nil
+                            selectedIds.removeAll()
                         }
 
                         if showCustomField {
@@ -77,20 +102,49 @@ struct QuizHabitSelectionView: View {
             }
 
             continueButton(enabled: canContinue) {
-                if showCustomField {
-                    coordinator.finish(customName: trimmedCustom)
-                } else if let id = selectedId,
-                          let match = coordinator.suggestions.first(where: { $0.id == id }) {
-                    coordinator.finish(suggestion: match)
-                }
+                handleContinue()
             }
             .padding(20)
         }
     }
 
+    private func handleTap(suggestion: HabitSuggestion) {
+        showCustomField = false
+        if coordinator.allowsMultiSelect {
+            if selectedIds.contains(suggestion.id) {
+                selectedIds.remove(suggestion.id)
+            } else {
+                selectedIds.insert(suggestion.id)
+            }
+        } else {
+            selectedIds = [suggestion.id]
+        }
+    }
+
+    private func handleContinue() {
+        if showCustomField {
+            coordinator.finish(customName: trimmedCustom)
+            return
+        }
+        if coordinator.allowsMultiSelect {
+            let picked = coordinator.suggestions.filter { selectedIds.contains($0.id) }
+            guard !picked.isEmpty else { return }
+            if let onFinishMany = coordinator.onFinishMany {
+                onFinishMany(picked, nil)
+            } else if let first = picked.first {
+                coordinator.finish(suggestion: first)
+            }
+            return
+        }
+        if let id = selectedIds.first,
+           let match = coordinator.suggestions.first(where: { $0.id == id }) {
+            coordinator.finish(suggestion: match)
+        }
+    }
+
     private func continueButton(enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text("Begin")
+            Text(ctaLabel)
                 .font(.appSubheadline.weight(.semibold))
                 .foregroundStyle(Color.msBackground)
                 .frame(maxWidth: .infinity)

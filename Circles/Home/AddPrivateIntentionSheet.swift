@@ -3,6 +3,16 @@ import Supabase
 
 // MARK: - Sheet coordinator
 
+/// Captures a single habit's user input while we're queuing up multiple habits
+/// from the multi-select intercept path. One spec per habit, then `createAndGenerateAll`
+/// creates + roadmaps each in sequence.
+private struct PendingHabitSpec {
+    let name: String
+    let icon: String
+    let niyyah: String?
+    let familiarity: String
+}
+
 @Observable
 @MainActor
 private final class AddIntentionCoordinator {
@@ -30,9 +40,21 @@ private final class AddIntentionCoordinator {
 
     // Step 3 / result
     var createdHabit: Habit?
+    var createdHabits: [Habit] = []
     var isGenerating = false
     var planDone = false
     var errorMessage: String?
+    var generatingProgressText: String = ""
+
+    // Multi-create queue (Bug 1 — multi-select intercept path)
+    var pendingQueue: [HabitSuggestion] = []
+    var pendingIndex: Int = 0
+    var collectedSpecs: [PendingHabitSpec] = []
+
+    var multiProgressLabel: String? {
+        guard pendingQueue.count > 1 else { return nil }
+        return "Habit \(pendingIndex + 1) of \(pendingQueue.count)"
+    }
 
     func selectCurated(name: String, icon: String) {
         selectedName = name
@@ -99,6 +121,55 @@ private final class AddIntentionCoordinator {
         } catch {
             errorMessage = HabitPlanService.userFacingMessage(from: error)
         }
+        isGenerating = false
+    }
+
+    /// Creates + generates roadmaps for every habit in `collectedSpecs` sequentially.
+    /// Continues on partial failure so one bad roadmap doesn't block the rest.
+    func createAndGenerateAll(userId: UUID) async {
+        let specs = collectedSpecs
+        guard !specs.isEmpty else {
+            await createAndGenerate(userId: userId)
+            return
+        }
+        isGenerating = true
+        planDone = false
+        errorMessage = nil
+        var created: [Habit] = []
+        for (i, spec) in specs.enumerated() {
+            generatingProgressText = "Building roadmaps… (\(i + 1)/\(specs.count))"
+            do {
+                let habit = try await HabitService.shared.createPrivateHabit(
+                    userId: userId,
+                    name: spec.name,
+                    icon: spec.icon,
+                    familiarity: spec.familiarity,
+                    niyyah: spec.niyyah
+                )
+                created.append(habit)
+                let promptNotes: String? = {
+                    switch (habit.planNotes, spec.niyyah) {
+                    case let (notes?, niy?): return "\(notes)\nNiyyah: \(niy)"
+                    case let (notes?, nil):  return notes
+                    case let (nil, niy?):    return "Niyyah: \(niy)"
+                    case (nil, nil):         return nil
+                    }
+                }()
+                let milestones = try await GeminiService.shared.generate28DayRoadmap(
+                    habitName: habit.name,
+                    planNotes: promptNotes,
+                    userRefinementRequest: nil
+                )
+                _ = try await HabitPlanService.shared.upsertInitialPlan(
+                    habitId: habit.id, userId: userId, milestones: milestones
+                )
+            } catch {
+                // Continue queue on partial failure.
+            }
+        }
+        createdHabits = created
+        createdHabit = created.first
+        planDone = !created.isEmpty
         isGenerating = false
     }
 }
@@ -206,6 +277,7 @@ struct AddPrivateIntentionSheet: View {
     }
 
     private func configureInterceptQuiz(userId: UUID) {
+        quizCoordinator.allowsMultiSelect = true
         quizCoordinator.onPersistStruggles = { islamic, life in
             await saveStrugglesToProfile(userId: userId, islamic: islamic, life: life)
         }
@@ -220,6 +292,28 @@ struct AddPrivateIntentionSheet: View {
                 coord.step = .pickHabit   // defensive fallback
             }
         }
+        quizCoordinator.onFinishMany = { suggestions, _ in
+            beginPerHabitQueue(suggestions: suggestions)
+        }
+    }
+
+    /// Seeds the per-habit niyyah/familiarity queue after the user multi-selects on Screen D.
+    /// First suggestion pre-populates the coord; subsequent ones swap in on each Continue.
+    private func beginPerHabitQueue(suggestions: [HabitSuggestion]) {
+        guard !suggestions.isEmpty else {
+            coord.step = .pickHabit
+            return
+        }
+        coord.pendingQueue = suggestions
+        coord.pendingIndex = 0
+        coord.collectedSpecs = []
+        let first = suggestions[0]
+        coord.selectedName = first.name
+        coord.showCustomField = false
+        coord.selectedIcon = habitSymbol(for: first.name)
+        coord.niyyah = ""
+        coord.familiarity = ""
+        coord.step = .niyyah
     }
 
     private func saveStrugglesToProfile(userId: UUID, islamic: [String], life: [String]) async {
@@ -317,6 +411,13 @@ struct AddPrivateIntentionSheet: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 28) {
+                    if let progress = coord.multiProgressLabel {
+                        Text(progress)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color.msTextMuted)
+                            .padding(.top, 16)
+                    }
+
                     Spacer(minLength: 20)
 
                     VStack(spacing: 10) {
@@ -437,8 +538,31 @@ struct AddPrivateIntentionSheet: View {
 
             continueButton(enabled: !coord.familiarity.isEmpty) {
                 guard let userId = auth.session?.user.id else { return }
-                coord.step = .generating
-                Task { await coord.createAndGenerate(userId: userId) }
+                if !coord.pendingQueue.isEmpty {
+                    coord.collectedSpecs.append(PendingHabitSpec(
+                        name: coord.resolvedName(),
+                        icon: coord.resolvedIcon(),
+                        niyyah: coord.trimmedNiyyah,
+                        familiarity: coord.familiarity
+                    ))
+                    let nextIndex = coord.pendingIndex + 1
+                    if nextIndex < coord.pendingQueue.count {
+                        let next = coord.pendingQueue[nextIndex]
+                        coord.pendingIndex = nextIndex
+                        coord.selectedName = next.name
+                        coord.showCustomField = false
+                        coord.selectedIcon = habitSymbol(for: next.name)
+                        coord.niyyah = ""
+                        coord.familiarity = ""
+                        coord.step = .niyyah
+                    } else {
+                        coord.step = .generating
+                        Task { await coord.createAndGenerateAll(userId: userId) }
+                    }
+                } else {
+                    coord.step = .generating
+                    Task { await coord.createAndGenerate(userId: userId) }
+                }
             }
             .padding(20)
         }
@@ -459,7 +583,9 @@ struct AddPrivateIntentionSheet: View {
                     ProgressView()
                         .tint(Color.msGold)
                         .scaleEffect(1.4)
-                    Text("Building your 28-day roadmap…")
+                    Text(coord.pendingQueue.count > 1 && !coord.generatingProgressText.isEmpty
+                         ? coord.generatingProgressText
+                         : "Building your 28-day roadmap…")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextPrimary)
                     Text("This usually takes 10–20 seconds.")
@@ -467,11 +593,12 @@ struct AddPrivateIntentionSheet: View {
                         .foregroundStyle(Color.msTextMuted)
                 }
             } else if coord.planDone {
+                let count = coord.createdHabits.count
                 VStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 36))
                         .foregroundStyle(Color.msGold)
-                    Text("Your roadmap is ready!")
+                    Text(count > 1 ? "Your \(count) roadmaps are ready!" : "Your roadmap is ready!")
                         .font(.appTitle)
                         .foregroundStyle(Color.msTextPrimary)
                     Text("Tap below to start your journey.")
@@ -496,11 +623,14 @@ struct AddPrivateIntentionSheet: View {
 
             VStack(spacing: 12) {
                 if let habit = coord.createdHabit {
+                    let count = coord.createdHabits.count
                     Button {
                         onCreated(habit)
                         dismiss()
                     } label: {
-                        Text(coord.planDone ? "Open Roadmap" : "Open Habit")
+                        Text(coord.planDone
+                             ? (count > 1 ? "Open Home" : "Open Roadmap")
+                             : (count > 1 ? "Open Home" : "Open Habit"))
                             .font(.appSubheadline.weight(.semibold))
                             .foregroundStyle(Color.msBackground)
                             .frame(maxWidth: .infinity)
