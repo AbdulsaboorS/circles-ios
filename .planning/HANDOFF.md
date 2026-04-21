@@ -32,7 +32,7 @@ Use branch-specific notes under `.planning/notes/` for session continuity within
   - purpose: notification architecture and implementation (nudges, comment push, permission UX, real-device verification)
   - worktree: `/Users/abdulsaboorshaikh/Desktop/Circles/.claude/worktrees/phase-15-social-pulse`
   - branch note: `.planning/notes/phase-15-social-pulse.md`
-  - status: Phase 15.2 nudge foundation in progress; Phase 15.1 still needs SQL migration run + manual QA
+  - status: Phase 15.1 and 15.2 are built pending user verification; remaining code work in this phase is 15.3 circle check-in notifications, 15.4 habit reminders, and end-of-phase hardening
   - conceptual mapping: phase numbering is now **Phase 15 — Social Pulse**. The branch name and worktree path now match that numbering.
 
 ### Next Workstream on `main`

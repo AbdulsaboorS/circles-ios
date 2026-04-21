@@ -48,6 +48,7 @@ This branch should avoid unrelated Phase 13 follow-up fixes unless they directly
 - The shared `NotificationPermissionModal` is now the canonical soft-ask UI
 - Phase 15.1 fully enforces `moment_window` toggles in the edge function; the other toggles are persisted now and enforced later
 - Phase 15.2 now normalizes the nudge payload type to `nudge` and respects target-side notification preferences before sending
+- Phase 15.2 now routes nudge taps explicitly by payload, uses `preferred_name` in push copy, and includes custom nudge messages in the delivered notification body
 
 ## Verified
 
@@ -67,13 +68,27 @@ This branch should avoid unrelated Phase 13 follow-up fixes unless they directly
   - canonical `nudge` payload type support in app routing
   - target-side notification preference gating in `send-peer-nudge`
   - daily quota is only consumed when the nudge is deliverable
+  - custom nudge copy now reaches APNs
+  - nudge payloads can override the destination tab via `route`
 - `xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build` succeeded
 
 ## Next
 
-- Manual simulator verification for the new settings flow and soft-ask flow
-- Run the SQL helper in Supabase before relying on the new preferences table
-- Continue Phase 15.2 by finishing the nudge flow, then move to circle check-in notifications
+- User verification pass for Phase 15.1 and 15.2:
+  - run the `notification_preferences` SQL in Supabase if not already applied
+  - verify settings + soft-ask flow
+  - verify received nudge push delivery, copy, badge, and tap routing
+- Remaining code work for the rest of Phase 15:
+  1. Phase 15.3 — Circle check-in notifications
+     Add the backend producer path for circle activity push, define low-noise summary/cap rules, and send payloads with explicit route/context.
+  2. Phase 15.3 — App-side handling
+     Confirm `circle_check_in` payloads route cleanly into Circles/feed context and badge behavior feels correct when foregrounded or tapped.
+  3. Phase 15.4 — Habit reminder scheduler
+     Build local scheduling logic, prayer-aware defaults for prayer habits, simple default timing for non-prayer habits, and cancellation/reschedule on habit completion.
+  4. Phase 15.4 — Preference enforcement
+     Apply `habit_reminders_enabled` to scheduling paths and confirm reminders stop when the master toggle or reminder toggle is off.
+  5. Phase 15 end-of-phase hardening
+     Real-device verification of all active notification families, copy/tone pass across every payload, and final cleanup of any delivery/routing regressions found during testing.
 
 ## Blockers
 
