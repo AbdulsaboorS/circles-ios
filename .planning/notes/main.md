@@ -2,156 +2,109 @@
 
 ## Goal
 
-Retroactive code review of Phase 14 (Meaningful Habits) against the locked
-spec in `.planning/phases/14-meaningful-habits/14-CONTEXT.md` + build order in
-`.planning/notes/phase14-start.md`. No code written this session — findings
-only, for user to act on before on-device QA.
+Close all 8 Phase 14 drift items identified in the retroactive code review,
+commit them as clean named commits, and push the full backlog to `origin/main`.
+Prepare handoff for on-device QA of Phase 14 before Phase 15 begins in a new
+worktree.
 
 ## Scope
 
-Read-only review of the six Phase 14 commits on `main`:
-- 03b97da 14.1 SQL
-- a8bd8fc 14.2 quiz
-- 2b55fa8 14.3 Gemini suggestions
-- 145cebc 14.4 niyyah
-- f42ab0c 14.5 Hamdulillah overlay
-- ca32895 14.6 Noor Bead
+`main` branch only. Drifts #1–#8 against the locked spec in
+`.planning/phases/14-meaningful-habits/14-CONTEXT.md`. Phase 15
+(`phase-15-social-pulse` worktree) is untouched.
 
-No changes to Phase 15 work (lives in `phase-15-social-pulse` worktree).
+Explicitly out of scope: intention arcs, end_dates, past-intentions archive,
+photo evidence, per-user streak seeding.
 
 ## Touched Files
 
-None (review session). Files read for the review:
-- `.planning/phases/14-meaningful-habits/migrations/001_niyyah_and_struggles.sql`
-- `Circles/Onboarding/Quiz/*` (all 10 files)
-- `Circles/Onboarding/{Amiir,Member}OnboardingCoordinator.swift`
-- `Circles/Onboarding/OnboardingPendingState.swift`
-- `Circles/Models/{Profile,Habit,HabitSuggestion,HabitSuggestion+Fallback,StreakMilestone}.swift`
-- `Circles/Services/GeminiService.swift` (generateHabitSuggestions only)
-- `Circles/Services/HabitService.swift` (niyyah param only, line 100-120)
-- `Circles/Home/{AddPrivateIntentionSheet,HomeView,HomeViewModel,HamdulillahOverlay,StreakBeadView}.swift`
-
-Not yet verified: `Circles/Home/HabitDetailView.swift` niyyah render,
-full body of `HabitService.createPrivateHabit`.
+- `Circles/Onboarding/Quiz/QuizIslamicStrugglesView.swift` — drift #1 (copy)
+- `Circles/Onboarding/Quiz/QuizLifeStrugglesView.swift` — drift #1 (copy)
+- `Circles/Home/StreakBeadView.swift` — drifts #2 (breath), #3 (aura), #4 (star)
+- `Circles/DesignSystem/IslamicGeometricPattern.swift` — drift #4 (star)
+- `Circles/Home/HomeView.swift` — drift #5 (haptic)
+- `Circles/Onboarding/Quiz/OnboardingQuizCoordinator.swift` — drift #6 (min display)
+- `Circles/Home/AddPrivateIntentionSheet.swift` — drifts #7 (UX skip) + #8 (cache)
 
 ## Decisions
 
-No decisions made this session. Review output is advisory — user has not
-yet approved any fix.
+- **Drift #4 (star geometry):** `EightPointStar` promoted to
+  `IslamicGeometricPattern.swift` as the canonical internal type. Both the
+  tiling background and the bead core now draw from it. Duplicate private
+  struct in `StreakBeadView.swift` deleted.
+- **Drift #5 (haptic):** `UIImpactFeedbackGenerator(.soft)` — single gentle
+  pulse. Undo path retains `.light`.
+- **Drift #6 (processing screen):** 1.6 s floor (matches the existing
+  `pulseOpacity` animation cycle in `QuizProcessingView`). Elapsed-time
+  approach — no extra sleep on slow Gemini calls.
+- **Drift #7 (intercept gate UX):** `onFinish` in `configureInterceptQuiz`
+  routes to `.niyyah` directly when a habit name is resolved. Defensive
+  fallback to `.pickHabit` if both suggestion and custom are empty.
+- **Drift #8 (cache + errors):** UserDefaults key
+  `phase14.quiz.completed.<userId>` scoped per user. Set only on successful
+  `saveStrugglesToProfile`. Hydrated from server truth on first gate check
+  when struggles are non-empty. Save errors now routed to `coord.errorMessage`
+  so the existing sheet alert fires.
 
 ## Verified
 
-### Strong — ship-ready
-- SQL migration idempotent, column comments, `NOTIFY pgrst` reload
-- `StreakMilestone` math matches spec (diameters, sparkle counts, saturation)
-- Gemini prompt defensive (markdown strip, empty-array throw, cap at 6)
-- Pre-auth struggle flushing via `OnboardingPendingState` + `saveLocation`
-- Bead `igniteTrigger` guarded by `todayComplete` on receiver side
-- `wasAllDone` guard in `toggleHabit` prevents re-fire on same complete day
-
-### Drifts from locked spec
-1. ✅ **Fixed (Session 2, 2026-04-21)** — **Quiz Screen A/B headlines and
-   subheads** (D-15). Copy aligned with `onboarding_quiz_state.md`:
-   - `QuizIslamicStrugglesView.swift` lines 3, 18, 23 — now reads
-     *"What do you find hardest in your deen?"* / *"Be honest — this shapes
-     your journey"*.
-   - `QuizLifeStrugglesView.swift` lines 3, 18, 23 — now reads
-     *"What holds you back day to day?"* / *"Your deen doesn't live in a
-     vacuum"*.
-2. ✅ **Fixed (Session 2, 2026-04-21)** — **Breathing scale** (D-31). Now
-   symmetric `0.97 ↔ 1.03` via a pre-animation `breathScale = 0.97` kick in
-   `startBreathing()` (`StreakBeadView.swift` lines 165–171). `@State` default
-   stays `1.0` so `reduceMotion` / `lapsed` guard paths keep resting size.
-3. ✅ **Fixed (Session 2, 2026-04-21)** — **Aura opacity** (D-31). Continuous
-   `0.8 ↔ 1.0` pulse on a 4s `.easeInOut(autoreverses: true).repeatForever`
-   cycle, in-phase with the bead breath. New `@State auraPulse: Double = 1.0`
-   multiplied into each non-lapsed opacity in `auraLayer`
-   (`StreakBeadView.swift` lines 60, 65, 70). Kicked by `startAuraPulse()`
-   (lines 177–183) called alongside `startBreathing()` from `onAppear`
-   (lines 44–47). Lapsed / `reduceMotion` stay static.
-4. **8-point star** (D-29) — spec "matching `IslamicGeometricPattern.starPath`
-   geometry"; impl defines fresh `EightPointStar` shape in `StreakBeadView.swift`.
-5. **Check-off haptic** (D-24) — spec "subtle gold haptic pulse"; impl uses
-   `.success` notification haptic (strong tri-tone, not subtle).
-6. Processing screen (C) has no minimum display time — instant fallback or
-   fast Gemini return causes a flash.
-7. Intercept gate post-quiz UX — lands on `pickHabit` step with custom name
-   pre-filled; user must manually tap Continue to reach niyyah. Minor
-   redundancy.
-8. Intercept gate has no local-session cache — re-fetches profile on every
-   sheet open. If `saveStrugglesToProfile` silently fails, quiz re-appears
-   on next FAB tap.
-
-## Session 2 — Fixes Applied (2026-04-21)
-
-Scope: drifts #1, #2, and #3 per user direction (added #3 mid-session before
-cutoff). Build green on iOS Simulator (Xcode 26.3, `iphonesimulator26.2`
-SDK). Not yet committed — awaiting user sign-off on the edits before commit
-+ on-device QA.
-
-### Touched files
-- `Circles/Onboarding/Quiz/QuizIslamicStrugglesView.swift` — 3 line edits
-  (doc comment, headline, subhead).
-- `Circles/Onboarding/Quiz/QuizLifeStrugglesView.swift` — 3 line edits (same
-  shape as above).
-- `Circles/Home/StreakBeadView.swift` — 5 edits total:
-  - Breath fix (#2): pre-animation `breathScale = 0.97` inside
-    `startBreathing()`.
-  - Aura pulse (#3): new `@State auraPulse`, `auraPulse` multiplier on all
-    three non-lapsed opacity sites in `auraLayer`, `onAppear` closure now
-    calls both `startBreathing()` + `startAuraPulse()`, and new
-    `startAuraPulse()` helper mirroring `startBreathing`.
-
-### Decision log
-- Breathing fix: chose the "pull to `0.97` in `startBreathing`" approach over
-  changing the `@State` default so `reduceMotion` + `lapsed` users keep the
-  resting size of `1.0`. Single-frame batch on `onAppear` — no visible pop.
-- Aura pulse fix: same pattern as breath (pre-animation kick to `0.8`,
-  `@State` default `1.0` so reduceMotion/lapsed rest at full brightness).
-  Same 4s `.easeInOut.repeatForever(autoreverses: true)` duration, **in
-  phase** with the bead breath — bead inhales + aura brightens together.
-  Applied as a multiplicative factor on top of the existing
-  `todayComplete ? 1.0 : 0.6` multiplier so aura still dims on incomplete
-  days, just pulses within that dim baseline.
-- Scope held to 1 + 2 + 3; drifts #4, #5, #6, #7, #8 untouched.
-- Commits not yet created — user to approve after diff/QA review.
+- Build green: `xcodebuild -scheme Circles -destination 'generic/platform=iOS
+  Simulator' build` — zero errors after every drift fix.
+- All 8 drift commits pushed to `origin/main` (20 total commits published this
+  session including the Phase 14 phase commits + Session 2 wips + Session 3
+  named fixes).
+- On-device QA **not yet done** — this is the next step before Phase 15.
 
 ## Next
 
-Drifts #4–#8 remain open. User to triage after on-device QA of 1 + 2 + 3:
-- #4 star geometry — isolated to `StreakBeadView.swift`; should swap
-  `EightPointStar` shape for `IslamicGeometricPattern.starPath`. Defer if the
-  current star reads correctly on device.
-- #5 haptic — one-line change in `HomeView.swift` handleHabitToggle.
-- #6/#7/#8 — UX polish, no one-liners; scope each separately.
+**On-device QA of Phase 14 (all drifts):**
 
-Phase 14 QA test plan still lives in `HANDOFF.md`.
+1. **Drifts #1 (quiz copy)** — Trigger the quiz intercept by opening the FAB
+   sheet with a fresh account (no struggles in profile). Screen A headline
+   should read "What do you find hardest in your deen?" / subhead "Be honest —
+   this shapes your journey". Screen B should read "What holds you back day to
+   day?" / "Your deen doesn't live in a vacuum".
+
+2. **Drift #2 (bead breath)** — Home screen, user with streak > 0. Bead should
+   pulse symmetrically 0.97 ↔ 1.03. No static size before animation starts.
+
+3. **Drift #3 (aura pulse)** — Same bead. Gold aura rings should breathe
+   0.8 ↔ 1.0 opacity, in phase with the bead breath.
+
+4. **Drift #4 (star geometry)** — Star core inside bead should rotate; Niyyah
+   overlay and Journey screen backgrounds should show the tiling geometric
+   pattern unchanged.
+
+5. **Drift #5 (haptic)** — Tap a habit to complete: should feel like a single
+   gentle tap, not a tri-tone buzz.
+
+6. **Drift #6 (processing screen)** — With airplane mode on, run the intercept
+   quiz through Screen B → processing screen should linger ~1.6 s before
+   suggestions appear.
+
+7. **Drift #7 (intercept gate UX)** — Complete the quiz, pick a Gemini
+   suggestion → should land on Niyyah screen with the habit name and derived
+   icon in the title. No pickHabit detour.
+
+8. **Drift #8 (cache)** — Complete the quiz successfully. Force-quit the app.
+   Relaunch → tap FAB → sheet should open at pickHabit instantly (no spinner
+   from the gate check). Try with Wi-Fi off to confirm no network dependency.
+
+After QA passes → Phase 15 in a new worktree (`phase-15-social-pulse`).
 
 ## Blockers
 
-None. Build green. Three fixes staged but not yet committed — user requested
-a plan-and-execute pass; commits are the user's call.
+None. All code is on `main`, build is green.
 
 ## Notes For Re-entry
 
-- Fixes 1 + 2 + 3 are on `main` working tree, unstaged. Recommended commits
-  (keep 2 + 3 separate so the user can revert the aura pulse alone if QA
-  feels "too busy"):
-  1. `fix(quiz): align Screen A/B copy with locked spec` (2 quiz files)
-  2. `fix(bead): symmetric breathing 0.97 ↔ 1.03 per spec`
-     (`StreakBeadView.swift` — breath-only portion)
-  3. `feat(bead): continuous aura opacity pulse 0.8 ↔ 1.0`
-     (`StreakBeadView.swift` — aura portion)
-  Because #2 and #3 both touch `StreakBeadView.swift` and are entangled at
-  the `onAppear` closure, splitting them cleanly may require `git add -p`
-  or a single combined `fix(bead): symmetric breathing + aura pulse per
-  D-31` commit. Combined is acceptable if splitting is painful.
-- Locked quiz copy lives in
-  `~/.claude/projects/-Users-abdulsaboorshaikh-Desktop-Circles/memory/onboarding_quiz_state.md`.
-- If the user wants #5 fixed next, change
-  `UINotificationFeedbackGenerator().notificationOccurred(.success)` in
-  `HomeView.swift` handleHabitToggle to a `.soft` impact generator.
-- #4 is still inside `StreakBeadView.swift` — defer until after on-device QA
-  confirms the new breath + aura pulse feel right.
-- Do NOT touch Phase 15 files on `main` — that workstream is in its own
-  worktree.
+- All 8 Phase 14 drifts are closed. No uncommitted changes on `main`.
+- `phase-15-social-pulse` worktree exists; Phase 15 should start there, not
+  on `main`.
+- If QA reveals a regression on the bead animations, the breath fix is
+  `StreakBeadView.startBreathing()` (pre-kick to `0.97`) and the aura is
+  `startAuraPulse()` (pre-kick to `0.8`). Both functions are in
+  `Circles/Home/StreakBeadView.swift`.
+- UserDefaults cache key for debugging drift #8:
+  `"phase14.quiz.completed.<userId-UUID>"` — can be cleared via Instruments
+  or a short one-liner in a Playground to force the quiz gate to re-check.
