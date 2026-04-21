@@ -7,7 +7,7 @@ import Supabase
 @MainActor
 private final class AddIntentionCoordinator {
 
-    enum Step { case quizIntercept, pickHabit, familiarity, generating }
+    enum Step { case quizIntercept, pickHabit, niyyah, familiarity, generating }
 
     var step: Step = .pickHabit
 
@@ -20,6 +20,9 @@ private final class AddIntentionCoordinator {
     var selectedIcon: String = "leaf.fill"
     var customName: String = ""
     var showCustomField = false
+
+    // Step 1.5 — niyyah (optional; blank means "skip")
+    var niyyah: String = ""
 
     // Step 2
     var familiarity: String = ""     // "Just starting" | "Some experience" | "Very familiar"
@@ -51,9 +54,15 @@ private final class AddIntentionCoordinator {
         return !name.isEmpty
     }
 
+    var trimmedNiyyah: String? {
+        let t = niyyah.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
     func createAndGenerate(userId: UUID) async {
         let name = resolvedName()
         let icon = resolvedIcon()
+        let niyyahValue = trimmedNiyyah
         isGenerating = true
         planDone = false
         errorMessage = nil
@@ -62,13 +71,25 @@ private final class AddIntentionCoordinator {
                 userId: userId,
                 name: name,
                 icon: icon,
-                familiarity: familiarity
+                familiarity: familiarity,
+                niyyah: niyyahValue
             )
             createdHabit = habit
 
+            // Fold niyyah into plan_notes just for the prompt so Gemini's roadmap tone
+            // reflects the user's intention. We don't persist the combined string.
+            let promptNotes: String? = {
+                switch (habit.planNotes, niyyahValue) {
+                case let (notes?, niy?): return "\(notes)\nNiyyah: \(niy)"
+                case let (notes?, nil):  return notes
+                case let (nil, niy?):    return "Niyyah: \(niy)"
+                case (nil, nil):         return nil
+                }
+            }()
+
             let milestones = try await GeminiService.shared.generate28DayRoadmap(
                 habitName: habit.name,
-                planNotes: habit.planNotes,
+                planNotes: promptNotes,
                 userRefinementRequest: nil
             )
             _ = try await HabitPlanService.shared.upsertInitialPlan(
@@ -125,6 +146,7 @@ struct AddPrivateIntentionSheet: View {
             switch coord.step {
             case .quizIntercept: quizInterceptStep
             case .pickHabit:     pickHabitStep
+            case .niyyah:        niyyahStep
             case .familiarity:   familiarityStep
             case .generating:    generatingStep
             }
@@ -273,7 +295,72 @@ struct AddPrivateIntentionSheet: View {
             }
 
             continueButton(enabled: coord.canProceedFromPick()) {
-                coord.step = .familiarity
+                coord.step = .niyyah
+            }
+            .padding(20)
+        }
+    }
+
+    // MARK: Step 1.5 — niyyah
+
+    private var niyyahStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 28) {
+                    Spacer(minLength: 20)
+
+                    VStack(spacing: 10) {
+                        Image(systemName: coord.resolvedIcon())
+                            .font(.system(size: 40))
+                            .foregroundStyle(Color.msGold)
+                        Text(coord.resolvedName())
+                            .font(.appTitle)
+                            .foregroundStyle(Color.msTextPrimary)
+                        Text("What's your niyyah for this?")
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                        Text("A single line between you and Allah. Skip if you're not ready.")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msTextMuted.opacity(0.75))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 24)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        TextField("e.g. To draw closer to Allah through patience",
+                                  text: $coord.niyyah,
+                                  axis: .vertical)
+                            .lineLimit(3...5)
+                            .foregroundStyle(Color.msTextPrimary)
+                            .padding(14)
+                            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
+                            )
+                            .tint(Color.msGold)
+                    }
+                    .padding(.horizontal, 20)
+
+                    Spacer(minLength: 24)
+                }
+            }
+
+            VStack(spacing: 10) {
+                continueButton(enabled: true) {
+                    coord.step = .familiarity
+                }
+
+                Button {
+                    coord.niyyah = ""
+                    coord.step = .familiarity
+                } label: {
+                    Text("Skip for now")
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted)
+                }
+                .buttonStyle(.plain)
             }
             .padding(20)
         }

@@ -9,6 +9,7 @@ struct Habit: Codable, Identifiable, Equatable, Hashable {
     var suggestedAmount: String?
     var acceptedAmount: String?
     var planNotes: String?
+    var niyyah: String?             // user's intention; one-line "why" of the habit
     var isActive: Bool
     var isAccountable: Bool         // true = broadcasts to circleId's feed
     var circleId: UUID?             // nil = Personal habit
@@ -23,6 +24,7 @@ struct Habit: Codable, Identifiable, Equatable, Hashable {
         case suggestedAmount = "suggested_amount"
         case acceptedAmount = "accepted_amount"
         case planNotes = "plan_notes"
+        case niyyah
         case isActive = "is_active"
         case isAccountable = "is_accountable"
         case circleId = "circle_id"

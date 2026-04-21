@@ -97,9 +97,16 @@ final class HabitService {
     // MARK: - Private Habit Creation
 
     /// Create a personal (non-accountable) habit with no circle link.
-    /// `familiarity` is stored in plan_notes for AI context.
-    func createPrivateHabit(userId: UUID, name: String, icon: String, familiarity: String) async throws -> Habit {
-        let row: [String: AnyJSON] = [
+    /// `familiarity` is stored in plan_notes for AI context; `niyyah` (optional) is the
+    /// user's one-line intention captured during the meaningful-habits flow.
+    func createPrivateHabit(
+        userId: UUID,
+        name: String,
+        icon: String,
+        familiarity: String,
+        niyyah: String? = nil
+    ) async throws -> Habit {
+        var row: [String: AnyJSON] = [
             "user_id": .string(userId.uuidString),
             "name": .string(name),
             "icon": .string(icon),
@@ -107,6 +114,9 @@ final class HabitService {
             "is_accountable": .bool(false),
             "plan_notes": .string("Familiarity: \(familiarity)")
         ]
+        if let niyyah, !niyyah.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            row["niyyah"] = .string(niyyah.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
         return try await client
             .from("habits")
             .upsert(row, onConflict: "user_id,name")

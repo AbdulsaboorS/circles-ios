@@ -246,6 +246,16 @@ struct HabitDetailView: View {
             }
             .animation(.easeInOut(duration: 0.7), value: isCompletedToday)
 
+            if let niyyah = habit.niyyah?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !niyyah.isEmpty {
+                Text("“\(niyyah)”")
+                    .font(.system(size: 15, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(Color.msTextPrimary.opacity(0.78))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24)
+            }
+
             if let goal = habit.acceptedAmount, !goal.isEmpty {
                 Label(goal, systemImage: "target")
                     .font(.appCaption)
