@@ -71,10 +71,11 @@ final class OnboardingQuizCoordinator {
     }
 
     /// Populates `suggestions` from Gemini, falling back to a static list if the
-    /// call throws. Always advances to `.habitSelection` so the user is never
-    /// stranded on the processing screen.
+    /// call throws. Enforces a 1.6 s minimum so the processing screen completes
+    /// at least one full pulse cycle before transitioning.
     func loadSuggestions() async {
         isLoadingSuggestions = true
+        let start = Date()
         defer {
             isLoadingSuggestions = false
             step = .habitSelection
@@ -87,6 +88,11 @@ final class OnboardingQuizCoordinator {
             suggestions = live
         } catch {
             suggestions = HabitSuggestion.fallbackSuggestions
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        let minSeconds: TimeInterval = 1.6
+        if elapsed < minSeconds {
+            try? await Task.sleep(for: .seconds(minSeconds - elapsed))
         }
     }
 
