@@ -28,12 +28,12 @@ Use branch-specific notes under `.planning/notes/` for session continuity within
 - Moment gate tests 1–5 all verified
 
 ### Active Workstreams
-- `phase-14-notifications` *(branch name is historical — this work is now scoped as new Phase 15 — Social Pulse per the 2026-04-20 renumbering in ROADMAP.md)*
+- `phase-15-social-pulse` *(notifications / Social Pulse workstream)*
   - purpose: notification architecture and implementation (nudges, comment push, permission UX, real-device verification)
-  - worktree: `/Users/abdulsaboorshaikh/Desktop/Circles/.claude/worktrees/phase-14-notifications`
-  - branch note: `.planning/notes/phase-14-notifications.md`
-  - status: Phase 14.1 built + build-verified; needs SQL migration run + manual QA
-  - conceptual mapping: branch name `phase-14-notifications` → new **Phase 15 — Social Pulse**. Do not rename the branch; update branch-local docs to reference new numbering.
+  - worktree: `/Users/abdulsaboorshaikh/Desktop/Circles/.claude/worktrees/phase-15-social-pulse`
+  - branch note: `.planning/notes/phase-15-social-pulse.md`
+  - status: Phase 15.2 nudge foundation in progress; Phase 15.1 still needs SQL migration run + manual QA
+  - conceptual mapping: phase numbering is now **Phase 15 — Social Pulse**. The branch name and worktree path now match that numbering.
 
 ### Next Workstream on `main`
 - **Phase 14 — Meaningful Habits** (Personalization Era scope locked 2026-04-20)

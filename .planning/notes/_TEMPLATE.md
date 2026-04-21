@@ -2,7 +2,7 @@
 
 Copy this file to a branch-specific name such as:
 - `.planning/notes/phase-13-followup-testing.md`
-- `.planning/notes/phase-14-notifications.md`
+- `.planning/notes/phase-15-social-pulse.md`
 
 Keep this file concise and current. This is not a long-form diary.
 

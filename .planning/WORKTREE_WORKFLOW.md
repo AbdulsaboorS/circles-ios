@@ -29,12 +29,12 @@ Example:
 Example branches:
 
 - `phase-13-followup-testing`
-- `phase-14-notifications`
+- `phase-15-social-pulse`
 
 Branch notes:
 
 - `.planning/notes/phase-13-followup-testing.md`
-- `.planning/notes/phase-14-notifications.md`
+- `.planning/notes/phase-15-social-pulse.md`
 
 ---
 
@@ -44,14 +44,14 @@ From the main repo checkout:
 
 ```bash
 cd /Users/abdulsaboorshaikh/Desktop/Circles
-git worktree add ../Circles-notifications -b phase-14-notifications
+git worktree add ../Circles-notifications -b phase-15-social-pulse
 ```
 
 If the branch already exists:
 
 ```bash
 cd /Users/abdulsaboorshaikh/Desktop/Circles
-git worktree add ../Circles-notifications phase-14-notifications
+git worktree add ../Circles-notifications phase-15-social-pulse
 ```
 
 After creation:
@@ -183,8 +183,8 @@ If a workstream must touch a shared integration point, document it immediately i
 Use names that match a single active phase or concern:
 
 - `phase-13-followup-testing`
-- `phase-14-notifications`
-- `phase-14-notifications-settings`
+- `phase-15-social-pulse`
+- `phase-15-social-pulse-settings`
 
 Avoid vague names like:
 - `fixes`

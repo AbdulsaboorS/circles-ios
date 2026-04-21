@@ -1,5 +1,18 @@
 {
   "permissions": {
     "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATE=$(head -40 .planning/STATE.md 2>/dev/null || echo ''); LATEST=$(ls -t .planning/notes/*.md 2>/dev/null | head -1); NOTES=$(cat \"$LATEST\" 2>/dev/null || echo ''); [ -z \"$STATE$NOTES\" ] && exit 0; printf '## Circles iOS — Auto-loaded Project Context\\n\\n### Current State\\n%s\\n\\n### Session Re-entry Note (%s)\\n%s' \"$STATE\" \"$LATEST\" \"$NOTES\" | jq -Rs '{hookSpecificOutput: {hookEventName: \"SessionStart\", additionalContext: .}}'",
+            "statusMessage": "Loading project context..."
+          }
+        ]
+      }
+    ]
   }
 }

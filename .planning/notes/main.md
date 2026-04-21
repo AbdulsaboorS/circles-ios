@@ -1,4 +1,4 @@
-# main — Personalization Era Scope Lock
+# main — Phase 14 Context + Session Hook
 
 ## Goal
 
@@ -12,7 +12,7 @@ Documentation + planning only. No code changes. Decided what ships pre-MVP vs wh
 
 - `.planning/ROADMAP.md` — inserted Phase 14 (Meaningful Habits) + Phase 15 (Social Pulse); renumbered old 14–18 → 16–19; added Parking Lot section
 - `.planning/STATE.md` — Current Focus shifted from "Functionality fixes" to Phase 14; progress.total_phases bumped 18 → 19; noted streak glow work folds into Phase 14
-- `.planning/HANDOFF.md` — `phase-14-notifications` worktree now flagged as conceptual map to new Phase 15 Social Pulse (branch name kept as-is); Next Workstream on main set to Phase 14
+- `.planning/HANDOFF.md` — notifications worktree now points at `phase-15-social-pulse`; next workstream on main remains Phase 14
 
 ## Decisions
 
@@ -28,7 +28,7 @@ Documentation + planning only. No code changes. Decided what ships pre-MVP vs wh
 
 ### Locked Phase 15 — Social Pulse (~1–1.5 weeks)
 
-Absorbs the old "Notifications" phase. Adds nudge push, comment push, permission modal UX, real-device end-to-end edge function verification, copy/tone audit. `send-moment-window-notifications` is already live via cron (Session 19); Phase 15 adds the social-interactive push on top. Existing `phase-14-notifications` worktree maps here.
+Absorbs the old "Notifications" phase. Adds nudge push, comment push, permission modal UX, real-device end-to-end edge function verification, copy/tone audit. `send-moment-window-notifications` is already live via cron (Session 19); Phase 15 adds the social-interactive push on top. Existing `phase-15-social-pulse` worktree maps here.
 
 ### Parked (post-MVP, validate with real TestFlight users first)
 
@@ -52,10 +52,10 @@ Absorbs the old "Notifications" phase. Adds nudge push, comment push, permission
 
 ## Next
 
-- User: decide whether Phase 14 SPEC work runs on `main` or in a new worktree (separate from `phase-14-notifications`)
+- User: decide whether Phase 14 SPEC work runs on `main` or in a new worktree (separate from `phase-15-social-pulse`)
 - User: run `/gsd:plan-phase` on Phase 14 to create `.planning/phases/14-meaningful-habits/` with SPEC + migration plan
 - Optional: update PROJECT.md (v2.3 vision doc) to fold in niyyah prompt + onboarding quiz mechanics. Deferred this session for context reasons — low-risk to land when Phase 14 ships.
-- Consider renaming `phase-14-notifications` branch to `phase-15-social-pulse` only if the other agent explicitly requests; otherwise leave the historical name.
+- Keep the notifications worktree aligned with Phase 15 naming.
 
 ## Blockers
 

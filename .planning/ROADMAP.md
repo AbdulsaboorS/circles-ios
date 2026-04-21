@@ -266,7 +266,7 @@ The next two phases make existing surfaces feel personal and rewarding, without 
 
 **Note:** `send-moment-window-notifications` is already deployed and live via cron (Session 19). This phase adds the **social-interactive** push layer on top.
 
-**Existing worktree:** `phase-14-notifications` branch (historical name) holds the in-progress notifications scaffolding and maps to this phase. See HANDOFF.md.
+**Existing worktree:** `phase-15-social-pulse` holds the in-progress notifications scaffolding and maps to this phase. See HANDOFF.md.
 
 **Timeline:** ~1–1.5 weeks.
 

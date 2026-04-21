@@ -15,7 +15,7 @@ progress:
 
 ## Current Focus
 
-**Next: Phase 14 — Meaningful Habits** (Personalization Era, locked 2026-04-20). Make habit creation emotionally anchored, catalog less generic, check-off rewarding, and streak alive. Followed by Phase 15 — Social Pulse (nudges + comment push + real-device verification).
+**Next: Phase 14 — Meaningful Habits** (Personalization Era, locked 2026-04-20). Make habit creation emotionally anchored, catalog less generic, check-off rewarding, and streak alive. Followed by Phase 15 — Social Pulse (notifications, nudges + comment push + real-device verification).
 
 Scope explicitly rejects: intention arcs, end_dates, past-intentions archive, photo evidence on check-ins, per-user streak seeding — all parked for post-MVP validation with real TestFlight users. See ROADMAP.md for full scope and parking lot.
 
