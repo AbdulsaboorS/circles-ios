@@ -10,25 +10,6 @@ private struct ScrollOffsetKey: PreferenceKey {
     }
 }
 
-// MARK: - Islamic 8-Pointed Star (geometric border ring)
-
-private struct IslamicStar: Shape {
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let outerR = min(rect.width, rect.height) / 2
-        let innerR = outerR * 0.44
-        var path   = Path()
-        for i in 0 ..< 16 {
-            let angle = Double(i) * .pi / 8 - .pi / 2
-            let r     = i.isMultiple(of: 2) ? outerR : innerR
-            let pt    = CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle))
-            if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
-        }
-        path.closeSubpath()
-        return path
-    }
-}
-
 // MARK: - Grain Texture (global background noise)
 
 private struct GrainTexture: View {
@@ -186,12 +167,6 @@ struct HomeView: View {
     @State private var nudgedIds: Set<UUID>    = []
     @State private var showMembersSheet        = false
 
-    // Heart / bloom animations
-    @State private var bloomOpacity: Double  = 0.10
-    @State private var bloomScale: CGFloat   = 1.0
-    @State private var heartScale: CGFloat   = 1.0
-    @State private var starAngle: Double     = 0
-
     @State private var celebratingHabitId: UUID? = nil
     @State private var celebrationTask: Task<Void, Never>? = nil
 
@@ -318,16 +293,6 @@ struct HomeView: View {
             .navigationDestination(for: Habit.self) { HabitDetailView(habit: $0) }
             .onAppear {
                 guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
-                    bloomOpacity = 0.20
-                    bloomScale   = 1.12
-                }
-                withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true).delay(0.4)) {
-                    heartScale = 1.06
-                }
-                withAnimation(.linear(duration: 120).repeatForever(autoreverses: false)) {
-                    starAngle = 360
-                }
                 withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
                     fabGlow = true
                 }
@@ -448,66 +413,35 @@ struct HomeView: View {
         .multilineTextAlignment(.center)
     }
 
-    // MARK: - Heart (Spiritual Centerpiece)
+    // MARK: - Noor Bead (Spiritual Centerpiece)
 
     private var heartSection: some View {
-        let isAllDone = viewModel.allHabitsCompleted
+        let days = viewModel.computedStreak
+        let milestone = StreakMilestone.tier(for: days)
+        let nextHint = StreakMilestone.nextTierHint(forDays: days)
 
         return VStack(spacing: 14) {
-            ZStack {
-                // Layer A — outer ambient bloom (dims until all done)
-                SwiftUI.Circle()
-                    .fill(Color.msGold.opacity(bloomOpacity * (isAllDone ? 1.0 : 0.28)))
-                    .frame(width: 200, height: 200)
-                    .blur(radius: 36)
-                    .scaleEffect(bloomScale)
+            StreakBeadView(
+                streakDays: days,
+                todayComplete: viewModel.allHabitsCompleted,
+                igniteTrigger: viewModel.beadIgniteCounter
+            )
 
-                // Layer B — Islamic star ring (slow rotation)
-                IslamicStar()
-                    .stroke(Color.msGold.opacity(isAllDone ? 0.20 : 0.08), lineWidth: 1)
-                    .frame(width: 154, height: 154)
-                    .rotationEffect(.degrees(starAngle))
-
-                // Layer C — soft mid ring
-                SwiftUI.Circle()
-                    .fill(Color.msGold.opacity(isAllDone ? 0.07 : 0.03))
-                    .frame(width: 132, height: 132)
-
-                // Layer D — inner halo glow
-                SwiftUI.Circle()
-                    .fill(Color(hex: "EEC050").opacity(isAllDone ? 0.18 : 0.06))
-                    .frame(width: 112, height: 112)
-                    .blur(radius: 12)
-
-                // Layer E — gold medallion (ignites when all done)
-                ZStack {
-                    SwiftUI.Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: isAllDone
-                                    ? [Color(hex: "F5D080"), Color(hex: "D4A240"), Color(hex: "A8781A")]
-                                    : [Color(hex: "8A7A5A"), Color(hex: "6A5E3A"), Color(hex: "4A4228")],
-                                center: UnitPoint(x: 0.35, y: 0.30),
-                                startRadius: 0,
-                                endRadius: 52
-                            )
-                        )
-                        .frame(width: 96, height: 96)
-                        .shadow(color: Color.msGold.opacity(isAllDone ? 0.60 : 0.12), radius: 26, x: 0, y: 8)
-                        .shadow(color: Color.msGold.opacity(isAllDone ? 0.25 : 0.05), radius: 8,  x: 0, y: 2)
-
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 40, weight: .medium))
-                        .foregroundStyle(isAllDone ? .white.opacity(0.95) : .white.opacity(0.28))
-                        .shadow(color: .white.opacity(isAllDone ? 0.30 : 0.05), radius: 6)
-                }
-                .scaleEffect(heartScale)
-                .animation(.easeInOut(duration: 0.6), value: isAllDone)
-            }
-
-            Text("\(viewModel.computedStreak) Day Streak")
+            Text("\(days) Day Streak")
                 .font(.system(size: 26, weight: .bold, design: .serif))
                 .foregroundStyle(Color.msTextPrimary)
+
+            VStack(spacing: 4) {
+                Text(milestone.caption)
+                    .font(.system(size: 14, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(Color.msTextPrimary.opacity(0.70))
+
+                if let nextHint {
+                    Text(nextHint)
+                        .font(.system(size: 12, weight: .regular, design: .serif).italic())
+                        .foregroundStyle(Color.msTextPrimary.opacity(0.55))
+                }
+            }
 
             Text(islamicQuote)
                 .font(.system(size: 13, weight: .regular, design: .serif).italic())

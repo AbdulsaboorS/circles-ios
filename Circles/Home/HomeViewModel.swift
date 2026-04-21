@@ -14,6 +14,10 @@ final class HomeViewModel {
     var errorMessage: String? = nil
     var circlePresence: [MemberPresence] = []
 
+    /// Increments when the user checks off the *last* pending habit of the day.
+    /// Views observe this (via `.onChange`) to trigger the Noor Bead ignite burst.
+    var beadIgniteCounter: Int = 0
+
     private let todayString: String = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -207,6 +211,7 @@ final class HomeViewModel {
 
     func toggleHabit(_ habit: Habit, userId: UUID) async {
         let alreadyCompleted = isCompleted(habitId: habit.id)
+        let wasAllDone = allHabitsCompleted
 
         if alreadyCompleted {
             // Undo path — blocked once check-in count reaches 3
@@ -247,6 +252,10 @@ final class HomeViewModel {
                     id: UUID(), habitId: habit.id, userId: userId,
                     date: todayString, completed: true, notes: nil, createdAt: Date()
                 ))
+            }
+
+            if !wasAllDone && allHabitsCompleted {
+                beadIgniteCounter &+= 1
             }
 
             // Progressive warnings
