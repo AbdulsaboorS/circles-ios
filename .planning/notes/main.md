@@ -1,54 +1,48 @@
-# main — Session Note (2026-04-22, Session 5)
+# main — Session Note (2026-04-22, Session 6)
 
 ## What Shipped This Session
 
 All commits pushed to `origin/main` (branch is clean):
 
-1. **`feat(intention): multi-select Gemini suggestions in intercept quiz`** (`e47ebad`) — from previous session, verified this session
-2. **`feat(intention): quiz delta re-entry screen for returning users`** (`2691dbf`) — from previous session, verified this session
-3. **`refactor(habit-detail): two-state check-in redesign with monthly calendar`** (`eca8761`) — from previous session, verified this session
-4. **`fix(noor): clarify NoorInfoSheet copy`** (`6deb3be`) — this session
+1. **`refactor(onboarding): Amir onboarding overhaul — flow reorder + personalization screen`** (`e982259`) — tasks 1-4 of Amir overhaul
 
-## Phase 14 QA Results
+## Amir Onboarding Overhaul — Tasks 1-4 Done
+
+### New flow
+```
+Landing → Shape Your Circle (3 questions) → shared habits → circle identity
+       → "Some growth is private" → quiz → AI gen → location → auth
+```
+
+### Changes shipped
+- **`AmiirSharedPersonalizationView`** (new): 3 chip-select questions — spirituality level, time commitment, heart of circle. All 3 required before Continue. Stores to coordinator (session-only, not persisted to Supabase).
+- **`AmiirStep3PersonalView`** deleted — quiz already writes the picked habit into `selectedPersonalHabits`; catalog was redundant and causing the Phase 14 QA bug.
+- **Routing bug fixed**: `transitionToAI` now routes to `proceedToOnboardingQuiz()` (was `proceedToPersonalIntentions()`).
+- **Dead code removed**: `Step.transitionToPersonal`, `Step.personalIntentions`, `proceedToTransitionToPersonal()`, `proceedToPersonalIntentions()`.
+- **Step indicators renumbered**: personalization=1, habits=2, identity=3; AI gen/location/activation unchanged at 4/5/6.
+
+### Coordinator state added (session-only)
+```swift
+var spiritualityLevel: String? = nil
+var timeCommitment: String? = nil
+var heartOfCircle: String? = nil
+```
+
+## Phase 14 QA — Pending
+
+QA deferred until tasks 5-6 are complete (next session).
 
 | Test | Status |
 |------|--------|
-| 1. Fresh Amir onboarding | ⚠️ Routing bug — old personal catalog shows after quiz |
-| 2. Fresh Member onboarding | ⏳ Pending re-test after Amir routing fix |
-| 3. Intercept gate (existing user, no quiz) | ✅ Verified |
-| 4. Niyyah step | ✅ Verified |
-| 5. Hamdulillah micro-moment | ✅ Verified |
-| 6. Noor Bead tier progression | ✅ Verified |
+| 1. Fresh Amir onboarding | ⏳ Pending — overhaul done, QA next session |
+| 2. Fresh Member onboarding | ⏳ Pending |
+| 3–6. All other Phase 14 tests | ✅ Verified (Session 5) |
 
-## NoorInfoSheet Overhaul
+## Next Session — Tasks 5-6
 
-- Added "HOW IT WORKS" labeled section with 3 bullets: all-habits rule, glow mechanic, personal vs group streak separation
-- Fixed Sanctuary dead-end (nil nextHint now shows encouragement line)
-- Added sparkle string (✦) to each ladder row keyed to `sparkleCount` — ghosted for unreached, gold for current/reached
+Full spec in `.planning/HANDOFF.md`.
 
-## Design Decisions Made
-
-- **Circle members presence row** — permanently parked. Nudges stay in Circles activity view.
-- **Gemini for shared habit suggestions** — parked post-MVP. Catalog + ranking sufficient.
-- **"Together" accountability model** — ships first. "Each their own" fork deferred.
-- **Amir onboarding reorder** — shared personalization → shared habits → circle identity → "Some growth is private" → private quiz → AI gen → location → auth
-
-## Next Session — Amir Onboarding Overhaul
-
-Full spec in `.planning/HANDOFF.md` under "Amir Onboarding Overhaul Handoff".
-
-### Tasks in order:
-
-1. **Routing bug fix** — `AmiirOnboardingFlowView` `transitionToAI` → change action to `proceedToAIGeneration()`
-2. **Dead code removal** — `transitionToPersonal`, `personalIntentions` steps + `AmiirStep3PersonalView.swift` + dead coordinator methods
-3. **New `AmiirSharedPersonalizationView`** — 3 questions (spirituality level, time commitment, heart of circle), chip-select UI, stores to coordinator
-4. **Flow reorder** — wire new screen before `coreHabits`; move "Some growth is private" transition between `circleIdentity` and `onboardingQuiz`
-5. **Catalog ranking** — `AmiirStep2HabitsView` reorders `curatedHabits` based on personalization answers
-6. **QA** — fresh Amir onboarding full pass + Member onboarding re-test
-
-### Key files:
-- `Circles/Onboarding/AmiirOnboardingFlowView.swift`
-- `Circles/Onboarding/AmiirOnboardingCoordinator.swift`
-- `Circles/Onboarding/AmiirStep2HabitsView.swift`
-- `Circles/Onboarding/AmiirStep3PersonalView.swift` (delete)
-- `Circles/Onboarding/AmiirSharedPersonalizationView.swift` (new)
+### Tasks:
+1. **Catalog ranking** (task 5): `AmiirStep2HabitsView` reorders `curatedHabits` based on coordinator's `spiritualityLevel`, `timeCommitment`, `heartOfCircle`.
+2. **QA** (task 6): fresh Amir onboarding full pass + Member onboarding re-test + Phase 14 test 2.
+3. After QA passes: merge `phase-15-social-pulse` worktree → Phase 15.

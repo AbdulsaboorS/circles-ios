@@ -13,9 +13,9 @@ progress:
 
 ## Current Focus
 
-**Next: Amir Onboarding Overhaul** — routing bug fix, flow reorder, 3 shared-personalization questions, catalog ranking. Full spec in `.planning/notes/main.md`.
+**Next: Amir Onboarding — Tasks 5-6** — catalog ranking in `AmiirStep2HabitsView` based on personalization answers, then full QA pass (Amir + Member). Full spec in `.planning/HANDOFF.md`.
 
-After that: Phase 15 — Social Pulse (merge `phase-15-social-pulse` worktree after Amir overhaul ships).
+After QA passes: merge `phase-15-social-pulse` worktree → Phase 15.
 
 ## Phase Status
 
@@ -25,24 +25,24 @@ After that: Phase 15 — Social Pulse (merge `phase-15-social-pulse` worktree af
 | 13 | UI/UX Pass (all waves) | ✓ Complete |
 | 13A | Journey Tab | ✓ Complete |
 | 13B | Profile Redesign | ✓ Complete |
-| 14 | Meaningful Habits (quiz, niyyah, Hamdulillah, Noor Bead) | ✓ Complete + QA'd |
+| 14 | Meaningful Habits (quiz, niyyah, Hamdulillah, Noor Bead) | ✓ Complete — QA in progress |
+| 14.1 | Amir Onboarding Overhaul (tasks 1-4 done) | 🔄 Tasks 5-6 pending |
 | 15 | Social Pulse | 🔄 In worktree, pending merge |
 | 16–19 | Naming, Videos, Landing Page, App Store | ⬜ Planned |
 
-## What Shipped — Session 26 (2026-04-22)
+## What Shipped — Session 27 (2026-04-22)
 
-- Phase 14 QA: tests 3–6 verified; test 1 routing bug found and scoped; test 2 pending after fix
-- **NoorInfoSheet**: "HOW IT WORKS" section (3 bullets), Sanctuary dead-end fix, sparkle ladder on tier rows
-- **Bug 1**: Multi-select Gemini in intercept quiz — verified
-- **Bug 2**: Quiz re-entry delta screen — verified
-- **Habit Detail two-state redesign**: CheckInOrb + HabitMonthCalendar — verified
+- **Amir Onboarding Overhaul tasks 1-4**: flow reordered, routing bug fixed, personalization screen added, dead personal-catalog code removed
+- New flow: personalization → habits → identity → "Some growth is private" → quiz → AI gen → location → auth
+- `AmiirSharedPersonalizationView` added (3 chip-select questions; session-only coordinator state)
+- `AmiirStep3PersonalView` deleted (quiz already captures personal habit)
 
 ## Design Decisions (permanent)
 
 - Circle members presence row on HabitDetailView — **parked**. Nudges stay in Circles activity view.
 - Gemini for shared habit suggestions — **parked post-MVP**. Catalog + ranking sufficient.
 - "Together" accountability model ships first. "Each their own" fork is post-MVP.
-- `AmiirStep3PersonalView` (old personal catalog) to be deleted — quiz replaced it.
+- Personalization answers (spirituality level, time commitment, heart of circle) — **session-only**, not persisted to Supabase.
 
 ## DB State
 
