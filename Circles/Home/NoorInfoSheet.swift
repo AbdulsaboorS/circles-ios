@@ -84,16 +84,40 @@ struct NoorInfoSheet: View {
                 .fill(Color.msGold.opacity(0.18))
                 .frame(height: 1)
 
-            Text("Check off your habits daily to grow your Noor.")
-                .font(.system(size: 14, design: .serif).italic())
-                .foregroundStyle(Color.msTextMuted)
-                .multilineTextAlignment(.center)
+            Text("HOW IT WORKS")
+                .font(.system(size: 10, weight: .semibold, design: .serif))
+                .tracking(1.5)
+                .foregroundStyle(Color.msTextMuted.opacity(0.5))
+
+            VStack(alignment: .leading, spacing: 8) {
+                howItWorksRow("Complete all your habits in a day to earn a streak day.")
+                howItWorksRow("Your Noor glows brighter and grows larger with each milestone.")
+                howItWorksRow("This is your personal streak — separate from your Circle's group streak.")
+            }
 
             if let hint = nextHint {
                 Text(hint)
                     .font(.system(size: 13, weight: .medium, design: .serif))
                     .foregroundStyle(Color.msGold.opacity(0.85))
+            } else {
+                Text("You've reached Sanctuary — keep the light going.")
+                    .font(.system(size: 13, weight: .medium, design: .serif))
+                    .foregroundStyle(Color.msGold.opacity(0.85))
+                    .multilineTextAlignment(.center)
             }
+        }
+    }
+
+    private func howItWorksRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("✦")
+                .font(.system(size: 9))
+                .foregroundStyle(Color.msGold.opacity(0.6))
+                .padding(.top, 3)
+            Text(text)
+                .font(.system(size: 13, design: .serif).italic())
+                .foregroundStyle(Color.msTextMuted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -132,6 +156,16 @@ struct NoorInfoSheet: View {
                     Text("· \(milestone.thresholdDay) day\(milestone.thresholdDay == 1 ? "" : "s")")
                         .font(.system(size: 12))
                         .foregroundStyle(Color.msTextMuted.opacity(isReached ? 0.45 : 0.25))
+
+                    if milestone.sparkleCount > 0 {
+                        Text(sparkleString(for: milestone.sparkleCount))
+                            .font(.system(size: 10))
+                            .foregroundStyle(
+                                isCurrent ? Color.msGold :
+                                isReached ? Color.msGold.opacity(0.6) :
+                                            Color.msGold.opacity(0.15)
+                            )
+                    }
                 }
 
                 if isCurrent {
@@ -159,6 +193,14 @@ struct NoorInfoSheet: View {
                     .padding(.leading, 54)
             }
         }
+    }
+
+    // MARK: - Helpers
+
+    private func sparkleString(for count: Int) -> String {
+        let capped = min(count, 5)
+        let suffix = count > 5 ? "+" : ""
+        return String(repeating: "✦", count: capped) + suffix
     }
 
     // MARK: - Tier copy
