@@ -66,7 +66,24 @@ Full fresh-install pass after task 5 ships:
 
 3. **Phase 14 tests 3-6** already verified — no re-test needed.
 
-After QA passes → mark Phase 14 QA complete in STATE.md → merge `phase-15-social-pulse`.
+After QA passes → move to Joiner onboarding flow testing and bug fixes (see below).
+
+## After Task 6 — Joiner Onboarding
+
+Before Phase 14 QA is marked complete, test and fix the Joiner onboarding flow end-to-end. Joiner = user who receives an invite link and joins an existing circle.
+
+Key files:
+- `Circles/Onboarding/JoinerLandingView.swift`
+- `Circles/Onboarding/JoinerIdentityView.swift`
+- `Circles/Onboarding/JoinerPersonalHabitsView.swift`
+- `Circles/Onboarding/JoinerAIGenerationView.swift`
+- `Circles/Onboarding/JoinerAuthGateView.swift`
+- `Circles/Onboarding/JoinerCircleAlignmentView.swift`
+- `Circles/Onboarding/Quiz/JoinerQuizStepView.swift`
+- `Circles/Onboarding/MemberOnboardingCoordinator.swift`
+- `Circles/Onboarding/MemberOnboardingFlowView.swift`
+
+After Joiner bugs are fixed and verified → mark Phase 14 QA complete in STATE.md → then (separately) merge `phase-15-social-pulse`.
 
 ## Integration Hotspots
 

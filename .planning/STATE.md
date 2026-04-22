@@ -13,9 +13,9 @@ progress:
 
 ## Current Focus
 
-**Next: Amir Onboarding — Tasks 5-6** — catalog ranking in `AmiirStep2HabitsView` based on personalization answers, then full QA pass (Amir + Member). Full spec in `.planning/HANDOFF.md`.
+**Next: Amir Onboarding — Tasks 5-6** — catalog ranking + QA pass (Amir + Member). Then Joiner onboarding flow test + bug fixes. Phase 14 QA is not complete until Joiner is verified. Full spec in `.planning/HANDOFF.md`.
 
-After QA passes: merge `phase-15-social-pulse` worktree → Phase 15.
+After Phase 14 QA is fully signed off: merge `phase-15-social-pulse` worktree → Phase 15.
 
 ## Phase Status
 
@@ -25,8 +25,8 @@ After QA passes: merge `phase-15-social-pulse` worktree → Phase 15.
 | 13 | UI/UX Pass (all waves) | ✓ Complete |
 | 13A | Journey Tab | ✓ Complete |
 | 13B | Profile Redesign | ✓ Complete |
-| 14 | Meaningful Habits (quiz, niyyah, Hamdulillah, Noor Bead) | ✓ Complete — QA in progress |
-| 14.1 | Amir Onboarding Overhaul (tasks 1-4 done) | 🔄 Tasks 5-6 pending |
+| 14 | Meaningful Habits (quiz, niyyah, Hamdulillah, Noor Bead) | 🔄 QA in progress |
+| 14.1 | Amir Onboarding Overhaul (tasks 1-4 done) | 🔄 Tasks 5-6 + Joiner QA pending |
 | 15 | Social Pulse | 🔄 In worktree, pending merge |
 | 16–19 | Naming, Videos, Landing Page, App Store | ⬜ Planned |
 
