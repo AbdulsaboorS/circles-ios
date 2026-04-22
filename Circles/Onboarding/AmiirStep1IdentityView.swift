@@ -107,10 +107,10 @@ struct AmiirStep1IdentityView: View {
                 Spacer()
 
                 // Step indicator + CTA
-                StepIndicator(current: 2, total: 7)
+                StepIndicator(current: 3, total: 7)
 
                 Button {
-                    coordinator.proceedToTransitionToPersonal()
+                    coordinator.proceedToTransitionToAI()
                 } label: {
                     Text("Continue")
                         .font(.system(size: 17, weight: .semibold))

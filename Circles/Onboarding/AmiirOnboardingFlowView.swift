@@ -11,30 +11,22 @@ struct AmiirOnboardingFlowView: View {
             AmiirLandingSanctuaryView()
                 .navigationDestination(for: AmiirOnboardingCoordinator.Step.self) { step in
                     switch step {
+                    case .sharedPersonalization:
+                        AmiirSharedPersonalizationView()
                     case .coreHabits:
                         AmiirStep2HabitsView()
-                    case .onboardingQuiz:
-                        AmiirQuizStepView()
                     case .circleIdentity:
                         AmiirStep1IdentityView()
-                    case .transitionToPersonal:
-                        // Islamic brotherhood quote — shown after circle creation, leads into habits
-                        OnboardingTransitionView(
-                            quote: OnboardingTransitionQuote.amirSharedToPrivate,
-                            attribution: nil
-                        ) {
-                            coordinator.proceedToStruggle()
-                        }
-                    case .personalIntentions:
-                        AmiirStep3PersonalView()
                     case .transitionToAI:
-                        // "Some growth is private" — shown after circle creation, leads into personal intentions
+                        // "Some growth is private" — bridges identity to the private quiz
                         OnboardingTransitionView(
                             quote: OnboardingTransitionQuote.amirPrivateToAI,
                             attribution: nil
                         ) {
-                            coordinator.proceedToPersonalIntentions()
+                            coordinator.proceedToOnboardingQuiz()
                         }
+                    case .onboardingQuiz:
+                        AmiirQuizStepView()
                     case .aiGeneration:
                         AmiirAIGenerationView {
                             coordinator.proceedToFoundation()

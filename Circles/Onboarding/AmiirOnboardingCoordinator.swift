@@ -7,15 +7,14 @@ import Supabase
 final class AmiirOnboardingCoordinator {
 
     enum Step: Hashable {
-        case coreHabits           // Step 2: The Struggle
-        case onboardingQuiz       // Phase 14: Meaningful-Habits quiz
-        case circleIdentity       // Step 3: Circle Identity
-        case transitionToPersonal // Islamic transition
-        case personalIntentions   // Step 4: Personal Intentions
-        case transitionToAI       // Islamic transition
-        case aiGeneration         // Step 5: AI Generation
-        case foundation           // Step 6: Foundation (location + push ask)
-        case activation           // Step 7: Auth Gate
+        case sharedPersonalization // Step 1: Circle + personal context
+        case coreHabits            // Step 2: Shared habits
+        case circleIdentity        // Step 3: Circle identity (name, gender)
+        case transitionToAI        // "Some growth is private" gate
+        case onboardingQuiz        // Phase 14: Meaningful-Habits quiz
+        case aiGeneration          // Step 4: AI generation
+        case foundation            // Step 5: Location + push ask
+        case activation            // Step 6: Auth gate
     }
 
     // MARK: - Curated Islamic Habits
@@ -44,11 +43,16 @@ final class AmiirOnboardingCoordinator {
     var cityLatitude: Double = 0
     var cityLongitude: Double = 0
 
+    // Shared-personalization answers (session-only, used for future catalog ranking).
+    var spiritualityLevel: String? = nil
+    var timeCommitment: String? = nil
+    var heartOfCircle: String? = nil
+
     // Phase 14 Meaningful-Habits struggles (flushed to profiles after auth).
     var strugglesIslamic: [String] = []
     var strugglesLife: [String] = []
 
-    // Selected habit from the quiz (used to seed Step 3 Personal Intentions).
+    // Habit picked in the quiz — seeded into selectedPersonalHabits and flushed post-auth.
     var quizSelectedHabitName: String? = nil
 
     // MARK: - Created Entities
@@ -76,28 +80,24 @@ final class AmiirOnboardingCoordinator {
     var canSelectMoreHabits: Bool { selectedHabits.count < 3 }
 
     // MARK: - Navigation Helpers
-    func proceedToStruggle() {
-        navigationPath.append(.coreHabits)
+    func proceedToSharedPersonalization() {
+        navigationPath.append(.sharedPersonalization)
     }
 
-    func proceedToOnboardingQuiz() {
-        navigationPath.append(.onboardingQuiz)
+    func proceedToStruggle() {
+        navigationPath.append(.coreHabits)
     }
 
     func proceedToIdentity() {
         navigationPath.append(.circleIdentity)
     }
 
-    func proceedToTransitionToPersonal() {
-        navigationPath.append(.transitionToPersonal)
-    }
-
-    func proceedToPersonalIntentions() {
-        navigationPath.append(.personalIntentions)
-    }
-
     func proceedToTransitionToAI() {
         navigationPath.append(.transitionToAI)
+    }
+
+    func proceedToOnboardingQuiz() {
+        navigationPath.append(.onboardingQuiz)
     }
 
     func proceedToAIGeneration() {

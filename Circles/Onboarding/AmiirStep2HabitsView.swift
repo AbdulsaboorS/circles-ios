@@ -125,10 +125,10 @@ struct AmiirStep2HabitsView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 1, total: 7)
+                    StepIndicator(current: 2, total: 7)
 
                     Button {
-                        coordinator.proceedToOnboardingQuiz()
+                        coordinator.proceedToIdentity()
                     } label: {
                         Text("Build the Foundation")
                             .font(.system(size: 17, weight: .semibold))
