@@ -26,7 +26,8 @@ Use branch-specific notes under `.planning/notes/` for session continuity within
 - Profile hero + settings card polish shipped (2026-04-20)
 - Bugs C (habit icon) and F (niyyah save) resolved
 - Moment gate tests 1–5 all verified
-- **Phase 14 — Meaningful Habits built and compiling, pending on-device QA (2026-04-20).** See "Phase 14 Handoff" section below for the test plan.
+- Phase 14 — Meaningful Habits: all 6 tasks shipped and QA'd (2026-04-22). Amir onboarding routing bug found during QA — scoped for next session.
+- Session bug fixes: multi-select Gemini (Bug 1), quiz re-entry delta (Bug 2), Habit Detail two-state redesign, NoorInfoSheet copy overhaul — all pushed (2026-04-22)
 
 ### Active Workstreams
 - `phase-15-social-pulse` *(notifications / Social Pulse workstream)*
@@ -37,11 +38,9 @@ Use branch-specific notes under `.planning/notes/` for session continuity within
   - conceptual mapping: phase numbering is now **Phase 15 — Social Pulse**. The branch name and worktree path now match that numbering.
 
 ### Next Workstream on `main`
-- **Phase 14 — Meaningful Habits** (Personalization Era scope locked 2026-04-20)
-  - Tasks 14.1 – 14.6 landed as six sequential commits (see log). Build is green.
-  - Next action on `main` is the on-device QA pass described under "Phase 14 Handoff" below. No new code for Phase 14 until QA finds regressions.
-  - Misc behaviour-bug fixes still ship as standalone commits on `main`.
-  - Habit-catalog overhaul absorbed into Phase 14 (no longer a separate workstream).
+- **Amir Onboarding Overhaul** — routing bug fix + flow reorder + shared personalization questions
+  - Full scope in "Amir Onboarding Overhaul Handoff" section below
+  - No new Phase 15 work until this is shipped and QA'd on `main`
 
 ### Recommended Merge Order
 1. Merge the lower-risk branch first
@@ -116,6 +115,94 @@ Update this file when:
 - one workstream creates a repo-wide constraint for another
 
 Do not update this file for ordinary per-session progress. Put that in the branch note instead.
+
+---
+
+## Amir Onboarding Overhaul Handoff (scoped 2026-04-22)
+
+### Context
+Phase 14 added a personal habits quiz to Amir onboarding, but the routing was never cleaned up. The old `AmiirStep3PersonalView` (personal habits catalog) still appears after the quiz because `transitionToAI` in `AmiirOnboardingFlowView` routes to `proceedToPersonalIntentions()` instead of `proceedToAIGeneration()`. The steps `transitionToPersonal` and `personalIntentions` are now dead code.
+
+Separately, the shared habits step has no personalization — users see a flat catalog with no context. Flow order also needs resequencing (shared habits before circle identity).
+
+### Bug Fix (routing)
+
+**Root cause:** `AmiirOnboardingFlowView`, `case .transitionToAI` — action calls `coordinator.proceedToPersonalIntentions()`. Should call `coordinator.proceedToAIGeneration()`.
+
+**Dead code to remove:**
+- `case .transitionToPersonal` in `AmiirOnboardingFlowView`
+- `case .personalIntentions` in `AmiirOnboardingFlowView`
+- `AmiirStep3PersonalView.swift` — the old personal catalog screen
+- `proceedToTransitionToPersonal()`, `proceedToPersonalIntentions()` in coordinator (confirm nothing else calls them first)
+- `.transitionToPersonal`, `.personalIntentions` cases from the `Step` enum
+
+### New Flow Order
+
+```
+Landing →
+Shared personalization (3 questions, new screen) →
+Pick shared habits (AmiirStep2HabitsView, catalog ranked by answers) →
+Circle identity (AmiirStep1IdentityView — name + Amir details + circle name) →
+"Some growth is private" transition →
+Private quiz (AmiirQuizStepView) →
+AI roadmap generation (AmiirAIGenerationView) →
+Location / foundation (AmiirStep3LocationView) →
+Auth (AmiirActivationView)
+```
+
+**"Some growth is private" transition:** Was positioned after AI generation. Moves to between circle identity and the quiz. Update `AmiirOnboardingFlowView` routing accordingly.
+
+### Shared Personalization Questions (new screen)
+
+New view: `AmiirSharedPersonalizationView` — shown before `AmiirStep2HabitsView`.
+
+Three questions, chip-select UI:
+
+**Q1 — Where is your group spiritually?**
+- Rebuilding — we've drifted, want to get back
+- Grounded — we have a foundation, want to go deeper
+- Mixed — different levels in our group
+
+**Q2 — Daily time commitment?**
+- Light (10–15 min)
+- Moderate (30 min)
+- Deep (1 hour+)
+
+**Q3 — Heart of your Circle?**
+- Salah & remembrance
+- Quran & knowledge
+- Growth & discipline
+- A bit of everything
+
+Store answers in `AmiirOnboardingCoordinator` (3 new properties). Pass to catalog ranking logic.
+
+### Catalog Ranking Logic
+
+`AmiirStep2HabitsView` reorders `curatedHabits` based on answers. Simple priority matrix:
+
+| Focus | Top habits |
+|-------|-----------|
+| Salah & remembrance | Fajr, Dhuhr, Asr, Maghrib, Isha, Dhikr |
+| Quran & knowledge | Quran, Tahajjud, Dhikr |
+| Growth & discipline | Fasting, Sadaqah, Tahajjud |
+| Everything | Default order |
+
+Rebuilding + Light → de-prioritize Tahajjud, Fasting (too demanding for entry level).
+Grounded + Deep → surface Tahajjud, Fasting at top.
+
+No Gemini. Catalog stays static, order changes.
+
+### Files to Touch
+- `Circles/Onboarding/AmiirOnboardingFlowView.swift` — routing fix + new step wiring
+- `Circles/Onboarding/AmiirOnboardingCoordinator.swift` — new properties, dead method removal, new Step cases
+- `Circles/Onboarding/AmiirStep2HabitsView.swift` — add ranking logic
+- `Circles/Onboarding/AmiirStep3PersonalView.swift` — **delete**
+- `Circles/Onboarding/AmiirSharedPersonalizationView.swift` — **new file**
+
+### Parked
+- Gemini for shared habit suggestions — post-MVP
+- "Each their own" accountability model fork — post-MVP
+- Member onboarding (test 2) re-QA — after Amir flow is fixed
 
 ---
 

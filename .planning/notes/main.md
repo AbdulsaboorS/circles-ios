@@ -1,71 +1,54 @@
-# main — Session Note (2026-04-21, Session 4)
+# main — Session Note (2026-04-22, Session 5)
 
 ## What Shipped This Session
 
-Three commits landed on `main`, each building green on iPhone 17 simulator (Xcode 26.3):
+All commits pushed to `origin/main` (branch is clean):
 
-1. **`feat(intention): multi-select Gemini suggestions in intercept quiz`** (`e47ebad`)
-2. **`feat(intention): quiz delta re-entry screen for returning users`** (`2691dbf`)
-3. **`refactor(habit-detail): two-state check-in redesign with monthly calendar`** (`eca8761`)
+1. **`feat(intention): multi-select Gemini suggestions in intercept quiz`** (`e47ebad`) — from previous session, verified this session
+2. **`feat(intention): quiz delta re-entry screen for returning users`** (`2691dbf`) — from previous session, verified this session
+3. **`refactor(habit-detail): two-state check-in redesign with monthly calendar`** (`eca8761`) — from previous session, verified this session
+4. **`fix(noor): clarify NoorInfoSheet copy`** (`6deb3be`) — this session
 
-### Bug 1 — Multi-select Gemini suggestions (intercept path only)
+## Phase 14 QA Results
 
-- `OnboardingQuizCoordinator`: `allowsMultiSelect` + `onFinishMany` (set only by intercept path).
-- `QuizHabitSelectionView`: `Set<UUID>` selection, multi-aware header + CTA (`"Create N habits"`).
-- `AddPrivateIntentionSheet`:
-  - `PendingHabitSpec` struct, `pendingQueue`, `pendingIndex`, `collectedSpecs`, `multiProgressLabel`.
-  - `beginPerHabitQueue(suggestions:)` seeds the first niyyah/familiarity round.
-  - Familiarity Continue either advances the queue or triggers `createAndGenerateAll`.
-  - `createAndGenerateAll` sequential create + roadmap with progress text `Building roadmaps… (i/N)`.
-  - Plural-aware "Your N roadmaps are ready" + "Open Home" copy.
-- Amir / Member onboarding stays single-select (`allowsMultiSelect = false` default).
+| Test | Status |
+|------|--------|
+| 1. Fresh Amir onboarding | ⚠️ Routing bug — old personal catalog shows after quiz |
+| 2. Fresh Member onboarding | ⏳ Pending re-test after Amir routing fix |
+| 3. Intercept gate (existing user, no quiz) | ✅ Verified |
+| 4. Niyyah step | ✅ Verified |
+| 5. Hamdulillah micro-moment | ✅ Verified |
+| 6. Noor Bead tier progression | ✅ Verified |
 
-### Bug 2 — Quiz re-entry delta screen
+## NoorInfoSheet Overhaul
 
-- `OnboardingQuizCoordinator.startFromExistingStruggles(islamicSlugs:lifeSlugs:)` jumps to processing.
-- `AddPrivateIntentionSheet`: `.quizDelta` Step, `savedStrugglesIslamic/Life`, `quizDeltaStep` view with chip list + two CTAs:
-  - "Same — show me habits" → `startFromExistingStruggles` → habit selection.
-  - "Things have changed" → full quiz (new coordinator, overwrites struggles on finish).
-- `resolveQuizGate` replaced with pure server-truth check against `profiles.struggles_*`.
-- Deleted `UserDefaults` helpers (`isQuizCompletedLocally`, `markQuizCompletedLocally`, `quizCompletionKey`).
+- Added "HOW IT WORKS" labeled section with 3 bullets: all-habits rule, glow mechanic, personal vs group streak separation
+- Fixed Sanctuary dead-end (nil nextHint now shows encouragement line)
+- Added sparkle string (✦) to each ladder row keyed to `sparkleCount` — ghosted for unreached, gold for current/reached
 
-### Redesign — Habit Detail two-state
+## Design Decisions Made
 
-- **New files** under `Circles/Home/`:
-  - `CheckInOrb.swift` — 1.2 s hold-to-confirm with reduce-motion support; fires haptic + `onComplete`.
-  - `HabitMonthCalendar.swift` — 6 × 7 heatmap, chevron-paged months, locale-aware weekdays.
-  - `FullRoadmapView.swift` — promoted from inline sheet; carries `RefinePlanSheet` + `EditMilestoneSheet`.
-- **Rewritten**: `HabitDetailView.swift`
-  - State 1: badge pill, serif habit name, contextual line, `CheckInOrb`.
-  - State 2: completion header, Today's Focus card (NavigationLink → `FullRoadmapView`), calendar, 3 stat pills.
-  - Orb completes → optimistic log append → State 2 renders → `HamdulillahOverlay` (1.5 s) → `HabitService.toggleHabitLog` in background + broadcast + group-streak + fetchStreak.
-  - Rolls back optimistic log on persistence failure.
-  - `fetchLogs()` now pulls full history (calendar + `longestStreak` need it).
-  - New computed: `longestStreak`, `completionRate` (this-month, sensible denominator).
-- **HomeView**: dropped `celebratingHabitId`, `celebrationTask`, `handleHabitToggle`, 3 `HamdulillahOverlay` mounts; `HeroHabitCard`/`SharedHabitCard`/`PersonalHabitCard` no longer take `onToggle` — check-in Buttons replaced with chevrons / checkmark-only icons; tap on whole row navigates to detail.
-- **Deleted**: `ReflectionLogStore.swift`.
+- **Circle members presence row** — permanently parked. Nudges stay in Circles activity view.
+- **Gemini for shared habit suggestions** — parked post-MVP. Catalog + ranking sufficient.
+- **"Together" accountability model** — ships first. "Each their own" fork deferred.
+- **Amir onboarding reorder** — shared personalization → shared habits → circle identity → "Some growth is private" → private quiz → AI gen → location → auth
 
-### Deferred (flagged in plan, not scoped this session)
+## Next Session — Amir Onboarding Overhaul
 
-- Circle members presence row on State 1 (spec said "split if sprawl" — skipped to keep redesign commit lean).
-- HabitDetailView.navigationTitle uses `"Today's Check-In"` / `habit.name` swap; nav toolbar already dark scheme.
-- Post-redesign QA on-device (hardware) — build green in Simulator only.
+Full spec in `.planning/HANDOFF.md` under "Amir Onboarding Overhaul Handoff".
 
-## Non-code Hygiene
+### Tasks in order:
 
-- `phase14.quiz.completed` grep returns 0 hits across code (only sits stale in this note's history).
-- Pre-existing warnings untouched (`AuthManager.swift` L21 await-no-async; `HomeViewModel.swift` L289 unused `try?`).
-- `phase-15-social-pulse` worktree untouched.
+1. **Routing bug fix** — `AmiirOnboardingFlowView` `transitionToAI` → change action to `proceedToAIGeneration()`
+2. **Dead code removal** — `transitionToPersonal`, `personalIntentions` steps + `AmiirStep3PersonalView.swift` + dead coordinator methods
+3. **New `AmiirSharedPersonalizationView`** — 3 questions (spirituality level, time commitment, heart of circle), chip-select UI, stores to coordinator
+4. **Flow reorder** — wire new screen before `coreHabits`; move "Some growth is private" transition between `circleIdentity` and `onboardingQuiz`
+5. **Catalog ranking** — `AmiirStep2HabitsView` reorders `curatedHabits` based on personalization answers
+6. **QA** — fresh Amir onboarding full pass + Member onboarding re-test
 
-## Next Session Focus
-
-1. Manual simulator smoke test pass (Bug 1 + Bug 2 + redesign paths — verification checklist at the end of `.claude/plans/read-planning-notes-main-md-in-full-tingly-pelican.md`).
-2. Decide whether to add the Circle members row onto HabitDetailView State 1 (plan §Task C "Circle members row — flag during exec").
-3. Phase 14 QA (8 drifts) still pending on-device — can run on top of all three redesign commits now.
-4. Consider pushing to `origin/main` (currently ahead by 5 commits after this session).
-
-## Scoped & Parked
-
-- Habit frequency (every N days) — post-MVP.
-- Onboarding multi-select — deferred.
-- HabitDetailView members-row presence — deferred follow-up (not a regression, just a design gap vs session-2 spec).
+### Key files:
+- `Circles/Onboarding/AmiirOnboardingFlowView.swift`
+- `Circles/Onboarding/AmiirOnboardingCoordinator.swift`
+- `Circles/Onboarding/AmiirStep2HabitsView.swift`
+- `Circles/Onboarding/AmiirStep3PersonalView.swift` (delete)
+- `Circles/Onboarding/AmiirSharedPersonalizationView.swift` (new)

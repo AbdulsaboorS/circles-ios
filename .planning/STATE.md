@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-20T00:00:00.000Z"
+last_updated: "2026-04-22T00:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 13
@@ -15,11 +15,13 @@ progress:
 
 ## Current Focus
 
-**Next: Phase 14 — Meaningful Habits** (Personalization Era, locked 2026-04-20). Make habit creation emotionally anchored, catalog less generic, check-off rewarding, and streak alive. Followed by Phase 15 — Social Pulse (notifications, nudges + comment push + real-device verification).
+**Next session: Amir Onboarding Overhaul** — fix routing bug (old personal habits catalog showing after quiz), reorder flow (personalization → shared habits → circle identity → private quiz), add 3 shared-habit personalization questions with catalog ranking. Full scope in HANDOFF.md.
+
+**Phase 14 — Meaningful Habits** — QA complete. Tests 3–6 all verified. Amir onboarding (test 1) has a routing bug scoped for next session. Member onboarding (test 2) pending re-test after Amir flow is fixed.
+
+**Phase 15 — Social Pulse** — worktree `phase-15-social-pulse` active; 15.1 and 15.2 built pending user verification. Not yet merged to `main`.
 
 Scope explicitly rejects: intention arcs, end_dates, past-intentions archive, photo evidence on check-ins, per-user streak seeding — all parked for post-MVP validation with real TestFlight users. See ROADMAP.md for full scope and parking lot.
-
-In-flight streak glow work on `main` **pauses** and folds into Phase 14's single master geometric pattern streak visual.
 
 **Phase 13 (UI/UX Pass)** — ✓ Complete. All waves signed off. Profile redesign shipped. Journey tab shipped and QA'd.
 
@@ -34,6 +36,28 @@ In-flight streak glow work on `main` **pauses** and folds into Phase 14's single
 | 5 | My Circles + Circle Detail | ✓ Complete |
 | 6 | Profile | ✓ Complete |
 | 7 | Auth | ⬜ Deferred unless final pass uncovers gaps |
+
+---
+
+## What's Built — Session 26 (2026-04-22)
+
+### Phase 14 QA — Complete
+
+- Tests 3–6 (intercept gate, niyyah step, Hamdulillah micro-moment, Noor Bead) — all verified in Simulator
+- Tests 1–2 (Amir + Member onboarding): routing bug discovered — old `AmiirStep3PersonalView` (personal habits catalog) still shows after quiz because `transitionToAI` routes to `proceedToPersonalIntentions()` instead of `proceedToAIGeneration()`. Scoped for next session.
+
+### Session Bug Fixes (all pushed)
+
+- **Bug 1**: Multi-select Gemini suggestions in intercept quiz — verified working
+- **Bug 2**: Quiz re-entry delta screen — verified working
+- **Habit Detail redesign**: two-state check-in (CheckInOrb + HabitMonthCalendar) — verified working
+- **NoorInfoSheet**: Rewrote explainer — "HOW IT WORKS" section (3 bullets: all-habits rule, glow mechanic, personal vs group streak), Sanctuary dead-end fixed, sparkle ladder added
+
+### Design Decisions
+
+- Circle members presence row on HabitDetailView State 1 — **permanently parked**. Nudges belong in Circles activity view only for now.
+- Gemini for shared habit suggestions — **parked post-MVP**. Catalog + ranking is sufficient for now.
+- "Together" accountability model for shared habits (all members do same habit, same standard) — shipping first. "Each their own" fork deferred.
 
 ---
 
