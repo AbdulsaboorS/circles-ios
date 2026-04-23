@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import Moment from '../components/Moment.astro';
+import Circle from '../components/Circle.astro';
 import { BRAND } from '../lib/brand';
 ---
 
@@ -32,14 +33,7 @@ import { BRAND } from '../lib/brand';
     <Moment />
 
     <!-- Section 3 — Your Circle -->
-    <section
-      id="circle"
-      class="mx-auto max-w-[1200px] px-6 py-20 md:py-32"
-      aria-labelledby="circle-title"
-    >
-      <h2 id="circle-title" class="text-4xl md:text-5xl">Your Circle</h2>
-      <p class="mt-4 text-ms-text-muted">placeholder</p>
-    </section>
+    <Circle />
 
     <!-- Section 4 — Habits that Hold -->
     <section
