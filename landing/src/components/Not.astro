@@ -1,0 +1,226 @@
+---
+/**
+ * Section 5 — "What It's Not"
+ *
+ * Dark strip. Three opinionated one-liners with a gold underline that
+ * draws in on scroll-enter (SPEC §4.5). Staggered so each line lands
+ * a beat after the previous.
+ *
+ * Zero-JS by default; a small inline IntersectionObserver script adds
+ * an `.is-in` class to each line when it enters the viewport. All
+ * animation is CSS. prefers-reduced-motion: lines render at end state
+ * (underlines full-width, no fade).
+ *
+ * Voice anchor: PROJECT.md §J anti-patterns list.
+ */
+
+const lines = [
+  'No public feed.',
+  'No followers.',
+  'No leaderboards.',
+];
+---
+
+<section
+  id="not"
+  class="not"
+  aria-labelledby="not-title"
+>
+  <div class="not__inner">
+    <header class="not__header">
+      <p class="not__eyebrow">What It Isn&rsquo;t</p>
+      <h2 id="not-title" class="not__title">
+        What this app is <em>not</em>.
+      </h2>
+    </header>
+
+    <ul class="not__list" role="list" data-not-list>
+      {lines.map((line, i) => (
+        <li class="not__line" style={`--not-index: ${i};`}>
+          <span class="not__text">{line}</span>
+          <span class="not__underline" aria-hidden="true"></span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<script>
+  // Tiny purpose-built IntersectionObserver — cheaper than an island
+  // for a no-dependency CSS animation and keeps this section zero-React.
+  const list = document.querySelector<HTMLElement>('[data-not-list]');
+  if (list) {
+    const items = Array.from(list.querySelectorAll<HTMLElement>('.not__line'));
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReduced) {
+      for (const el of items) el.classList.add('is-in');
+    } else {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              (entry.target as HTMLElement).classList.add('is-in');
+              io.unobserve(entry.target);
+            }
+          }
+        },
+        { rootMargin: '0px 0px -15% 0px', threshold: 0.1 }
+      );
+      for (const el of items) io.observe(el);
+    }
+  }
+</script>
+
+<style>
+  .not {
+    position: relative;
+    background-color: var(--ms-background-deep);
+    padding: 96px 0 112px;
+    overflow: hidden;
+    border-top: 0.5px solid rgba(212, 162, 64, 0.08);
+    border-bottom: 0.5px solid rgba(212, 162, 64, 0.08);
+  }
+
+  @media (min-width: 1024px) {
+    .not {
+      padding: 128px 0 144px;
+    }
+  }
+
+  /* Matching dark-backdrop wash so the section feels like a tonal shift,
+     not just another block. */
+  .not::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(212, 162, 64, 0.04), transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(19, 28, 20, 0.6), transparent 60%);
+    pointer-events: none;
+  }
+
+  .not__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .not__header {
+    text-align: center;
+    margin: 0 0 56px;
+  }
+
+  @media (min-width: 1024px) {
+    .not__header {
+      margin-bottom: 72px;
+    }
+  }
+
+  .not__eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ms-gold);
+    margin: 0 0 16px;
+  }
+
+  .not__title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(30px, 4.4vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--ms-text-primary);
+    margin: 0;
+  }
+
+  .not__title em {
+    font-style: italic;
+    color: var(--ms-gold);
+  }
+
+  /* ─── List ───────────────────────────────────────────── */
+  .not__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    align-items: center;
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .not__list {
+      gap: 36px;
+    }
+  }
+
+  .not__line {
+    position: relative;
+    display: inline-block;
+    padding: 4px 8px;
+  }
+
+  .not__text {
+    display: inline-block;
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(28px, 4.6vw, 46px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--ms-text-primary);
+
+    /* Fade-up — staggered by --not-index */
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 600ms ease-out,
+      transform 600ms ease-out;
+    transition-delay: calc(var(--not-index) * 140ms);
+  }
+
+  .not__underline {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 0;
+    height: 2px;
+    background: var(--ms-gold);
+    border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+    /* Underline draws after the text has settled. */
+    transition-delay: calc(var(--not-index) * 140ms + 260ms);
+    box-shadow: 0 0 8px rgba(212, 162, 64, 0.35);
+  }
+
+  /* Revealed state — toggled by the inline IntersectionObserver above. */
+  .not__line.is-in .not__text {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .not__line.is-in .not__underline {
+    transform: scaleX(1);
+  }
+
+  /* Reduced-motion fallback — end state, no transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    .not__text {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .not__underline {
+      transform: scaleX(1);
+      transition: none;
+    }
+  }
+</style>

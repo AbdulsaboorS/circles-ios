@@ -4,6 +4,9 @@ import Hero from '../components/Hero.astro';
 import Moment from '../components/Moment.astro';
 import Circle from '../components/Circle.astro';
 import Habits from '../components/Habits.astro';
+import Not from '../components/Not.astro';
+import Faq from '../components/Faq.astro';
+import Footer from '../components/Footer.astro';
 import { BRAND } from '../lib/brand';
 ---
 
@@ -40,41 +43,12 @@ import { BRAND } from '../lib/brand';
     <Habits />
 
     <!-- Section 5 — What It's Not -->
-    <section
-      id="not"
-      class="bg-ms-background-deep"
-      aria-labelledby="not-title"
-    >
-      <div class="mx-auto max-w-[1200px] px-6 py-20 md:py-32">
-        <h2 id="not-title" class="text-4xl md:text-5xl">What It's Not</h2>
-        <p class="mt-4 text-ms-text-muted">placeholder</p>
-      </div>
-    </section>
+    <Not />
 
     <!-- Section 6 — FAQ -->
-    <section
-      id="faq"
-      class="mx-auto max-w-[1200px] px-6 py-20 md:py-32"
-      aria-labelledby="faq-title"
-    >
-      <h2 id="faq-title" class="text-4xl md:text-5xl">FAQ</h2>
-      <p class="mt-4 text-ms-text-muted">placeholder</p>
-    </section>
-
-    <!-- Section 7 — Footer -->
-    <footer
-      id="footer"
-      class="border-t border-ms-gold/10 bg-ms-background-deep"
-      aria-labelledby="footer-title"
-    >
-      <div class="mx-auto max-w-[1200px] px-6 py-16">
-        <h2 id="footer-title" class="sr-only">Footer</h2>
-        <p class="font-serif text-xl">{BRAND.name}</p>
-        <p class="mt-2 text-sm text-ms-text-muted">{BRAND.tagline}</p>
-        <p class="mt-8 text-xs text-ms-text-muted">
-          Made for the ummah. © 2026.
-        </p>
-      </div>
-    </footer>
+    <Faq />
   </main>
+
+  <!-- Section 7 — Footer -->
+  <Footer />
 </Layout>

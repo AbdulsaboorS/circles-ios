@@ -1,0 +1,232 @@
+---
+/**
+ * Section 7 — Footer
+ *
+ * Real footer replacing the session-1 stub. Logo + tagline left,
+ * three link columns (Product / Support / Social). Links go to
+ * `#` for v1 per SPEC §4.7 — pages (privacy, terms, support) are
+ * out of scope for v1.
+ *
+ * Rendered outside <main> in index.astro so it's a page-level
+ * landmark (<footer> with implicit contentinfo role).
+ */
+
+import { BRAND } from '../lib/brand';
+
+const columns: Array<{
+  title: string;
+  links: Array<{ label: string; href: string; disabled?: boolean }>;
+}> = [
+  {
+    title: 'Product',
+    links: [
+      { label: 'Features',       href: '#hero' },
+      { label: 'The Moment',     href: '#moment' },
+      { label: 'Habits',         href: '#habits' },
+      { label: 'FAQ',            href: '#faq' },
+    ],
+  },
+  {
+    title: 'Support',
+    links: [
+      { label: 'Privacy',  href: '#', disabled: true },
+      { label: 'Terms',    href: '#', disabled: true },
+      { label: 'Contact',  href: `mailto:${BRAND.email}` },
+    ],
+  },
+  {
+    title: 'Social',
+    links: [
+      { label: 'Instagram', href: '#', disabled: true },
+      { label: 'X',         href: '#', disabled: true },
+    ],
+  },
+];
+---
+
+<footer
+  id="footer"
+  class="footer"
+  aria-labelledby="footer-title"
+>
+  <div class="footer__inner">
+    <h2 id="footer-title" class="sr-only">Footer</h2>
+
+    <div class="footer__top">
+      <div class="footer__brand">
+        <p class="footer__name">{BRAND.name}</p>
+        <p class="footer__tagline">{BRAND.tagline}</p>
+      </div>
+
+      <nav class="footer__cols" aria-label="Footer navigation">
+        {columns.map((col) => (
+          <div class="footer__col">
+            <p class="footer__col-title">{col.title}</p>
+            <ul class="footer__links" role="list">
+              {col.links.map((link) => (
+                <li>
+                  {link.disabled ? (
+                    <span class="footer__link footer__link--disabled" aria-disabled="true">
+                      {link.label}
+                    </span>
+                  ) : (
+                    <a class="footer__link" href={link.href}>
+                      {link.label}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </div>
+
+    <div class="footer__bottom">
+      <p class="footer__fine">Made for the ummah. &copy; 2026.</p>
+      <p class="footer__meta">Invite-only launch &middot; no waitlist yet.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    position: relative;
+    background-color: var(--ms-background-deep);
+    border-top: 0.5px solid rgba(212, 162, 64, 0.12);
+    color: var(--ms-text-primary);
+    padding: 72px 0 40px;
+  }
+
+  @media (min-width: 1024px) {
+    .footer {
+      padding: 96px 0 48px;
+    }
+  }
+
+  .footer__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ─── Top section ────────────────────────────────────── */
+  .footer__top {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding-bottom: 48px;
+    border-bottom: 0.5px solid rgba(212, 162, 64, 0.10);
+  }
+
+  @media (min-width: 1024px) {
+    .footer__top {
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 72px;
+      padding-bottom: 56px;
+    }
+  }
+
+  .footer__brand {
+    max-width: 360px;
+  }
+
+  .footer__name {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--ms-text-primary);
+    margin: 0 0 10px;
+  }
+
+  .footer__tagline {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ms-text-muted);
+    margin: 0;
+    max-width: 38ch;
+  }
+
+  /* ─── Columns ────────────────────────────────────────── */
+  .footer__cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+
+  @media (max-width: 639px) {
+    .footer__cols {
+      grid-template-columns: 1fr 1fr;
+      gap: 32px 24px;
+    }
+  }
+
+  .footer__col-title {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ms-gold);
+    margin: 0 0 16px;
+  }
+
+  .footer__links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footer__link {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--ms-text-muted);
+    text-decoration: none;
+    transition: color 200ms ease;
+  }
+
+  .footer__link:hover {
+    color: var(--ms-text-primary);
+  }
+
+  .footer__link--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ─── Bottom bar ─────────────────────────────────────── */
+  .footer__bottom {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  @media (min-width: 768px) {
+    .footer__bottom {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+  }
+
+  .footer__fine,
+  .footer__meta {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--ms-text-muted);
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .footer__meta {
+    opacity: 0.75;
+  }
+</style>

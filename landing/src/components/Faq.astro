@@ -1,0 +1,270 @@
+---
+/**
+ * Section 6 — FAQ
+ *
+ * Hand-written accordion using native <details>/<summary> so it works
+ * with JS disabled. Animated chevron rotation on [open] is pure CSS
+ * (SPEC §7 target #5). No island, no JS.
+ *
+ * 6–8 questions per SPEC §4.6. Copy is author-voice per PROJECT.md §J
+ * (no hype, no emoji, "Posted late" style).
+ */
+
+import { BRAND } from '../lib/brand';
+
+type FaqItem = { q: string; a: string };
+
+const items: FaqItem[] = [
+  {
+    q: 'Is it free?',
+    a: 'For now, yes — the app is free during the invite-only launch. We may introduce a small subscription for expanded features later (more than one circle, larger groups, deeper AI roadmaps). The core check-in loop will always be free.',
+  },
+  {
+    q: 'What is a circle?',
+    a: 'A private group of five or six people who already know each other — your family, your mosque friends, your dorm-mates. You only see what your circle shares. Nothing leaves it.',
+  },
+  {
+    q: 'Do I need Muslim friends on the app?',
+    a: 'Yes. This is an accountability tool, not a discovery app. You invite people you trust. If nobody in your life is on it yet, you can start a circle of two and grow from there.',
+  },
+  {
+    q: 'How is this different from BeReal?',
+    a: 'Same daily-capture mechanic — one window, front + back camera, no filters. What is different is the context: the window is anchored to a prayer time, you can set a private niyyah before the photo, and the result is only ever visible to your small circle. No global feed, no followers.',
+  },
+  {
+    q: 'Who sees my photos?',
+    a: 'Only members of the circle you post into. No public feed. No search. No algorithmic discovery. We do not sell, scrape, or train on your photos. Posts expire on the timeline you choose.',
+  },
+  {
+    q: 'What happens if I miss a day?',
+    a: 'Nothing punishing. A streak may reset, but the app never calls it a "fail" — late posts are marked "posted late" and still count as presence. Consistency is the journey, not the streak.',
+  },
+  {
+    q: 'Does it work across time zones and prayer methods?',
+    a: 'Prayer windows use the Aladhan API with the Muslim World League method by default. You can adjust the method and location in settings. Circle-wide moments are anchored to the prayer time of each member locally.',
+  },
+  {
+    q: 'When does it launch?',
+    a: 'Invite-only launch first. There is no public waitlist yet — if you know someone already building a circle, ask them for an invite. A broader release will follow.',
+  },
+];
+---
+
+<section
+  id="faq"
+  class="faq"
+  aria-labelledby="faq-title"
+>
+  <div class="faq__inner">
+    <header class="faq__header">
+      <p class="faq__eyebrow">Questions</p>
+      <h2 id="faq-title" class="faq__title">
+        Before you ask.
+      </h2>
+    </header>
+
+    <div class="faq__list">
+      {items.map((item) => (
+        <details class="faq__item">
+          <summary class="faq__summary">
+            <span class="faq__q">{item.q}</span>
+            <span class="faq__chev" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="m3 5 4 4 4-4"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </summary>
+          <div class="faq__answer">
+            <p>{item.a}</p>
+          </div>
+        </details>
+      ))}
+    </div>
+
+    <p class="faq__footer">
+      Still have a question? Email <a href={`mailto:${BRAND.email}`}>{BRAND.email}</a>.
+    </p>
+  </div>
+</section>
+
+<style>
+  .faq {
+    position: relative;
+    background-color: var(--ms-background);
+    padding: 96px 0 112px;
+    overflow: hidden;
+  }
+
+  @media (min-width: 1024px) {
+    .faq {
+      padding: 128px 0 144px;
+    }
+  }
+
+  .faq__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .faq__header {
+    text-align: center;
+    margin: 0 0 48px;
+  }
+
+  @media (min-width: 1024px) {
+    .faq__header {
+      margin-bottom: 64px;
+    }
+  }
+
+  .faq__eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ms-gold);
+    margin: 0 0 16px;
+  }
+
+  .faq__title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(34px, 5.4vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ms-text-primary);
+    margin: 0;
+  }
+
+  /* ─── List ───────────────────────────────────────────── */
+  .faq__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 0.5px solid rgba(212, 162, 64, 0.14);
+  }
+
+  .faq__item {
+    border-bottom: 0.5px solid rgba(212, 162, 64, 0.14);
+  }
+
+  /* Remove default Safari/Chrome disclosure marker */
+  .faq__item > summary::-webkit-details-marker {
+    display: none;
+  }
+  .faq__item > summary {
+    list-style: none;
+  }
+
+  .faq__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 4px;
+    cursor: pointer;
+    font-family: var(--font-serif);
+    font-weight: 500;
+    color: var(--ms-text-primary);
+    transition: color 200ms ease;
+  }
+
+  .faq__summary:hover {
+    color: var(--ms-gold);
+  }
+
+  .faq__q {
+    font-size: clamp(17px, 1.8vw, 20px);
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+  }
+
+  .faq__chev {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(212, 162, 64, 0.08);
+    border: 0.5px solid rgba(212, 162, 64, 0.22);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ms-gold);
+    transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 200ms ease;
+  }
+
+  .faq__item[open] .faq__chev {
+    transform: rotate(180deg);
+    background: rgba(212, 162, 64, 0.14);
+  }
+
+  /* ─── Answer ─────────────────────────────────────────── */
+  .faq__answer {
+    padding: 0 4px 24px;
+  }
+
+  .faq__answer p {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ms-text-muted);
+    margin: 0;
+    max-width: 62ch;
+  }
+
+  /* Subtle fade-in on open — pure CSS, no layout jank. */
+  .faq__item[open] .faq__answer {
+    animation: faq-reveal 280ms ease-out;
+  }
+
+  @keyframes faq-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ─── Footer line ────────────────────────────────────── */
+  .faq__footer {
+    margin: 40px 0 0;
+    text-align: center;
+    font-size: 14px;
+    color: var(--ms-text-muted);
+  }
+
+  .faq__footer a {
+    color: var(--ms-gold);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(212, 162, 64, 0.4);
+    padding-bottom: 1px;
+    transition: border-color 200ms ease;
+  }
+
+  .faq__footer a:hover {
+    border-bottom-color: var(--ms-gold);
+  }
+
+  /* Reduced-motion fallback */
+  @media (prefers-reduced-motion: reduce) {
+    .faq__chev {
+      transition: none;
+    }
+    .faq__item[open] .faq__answer {
+      animation: none;
+    }
+  }
+</style>
