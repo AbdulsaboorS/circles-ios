@@ -1,6 +1,6 @@
 # Phase 18 — Progress Log
 
-**Status:** pending user review after Session 3 (Hero + Moment + Circle + Habits shipped — four of seven sections).
+**Status:** pending user review after Session 3 — **all seven sections shipped**. All five SPEC §7 animation targets complete. Remaining Phase 18 work: user's manual testing/polish pass, mobile responsive audit, accessibility + Lighthouse audit, and `landing/README.md` — queued for Session 4.
 
 ---
 
@@ -186,17 +186,83 @@ Run `cd landing && npm run dev`, open `http://localhost:4321/`:
 5. Console → zero errors, zero failed requests.
 6. Mobile viewport (375px): all four sections stack cleanly, no horizontal overflow, phone shells shrink, copy stays readable.
 
-### What's next (Session 4)
+---
 
-Final session. Closes Phase 18 scope.
+## Session 3 extension — 2026-04-23 — Closing sections (What It's Not + FAQ + Footer)
 
-- **Section 5 — "What It's Not."** Dark strip (`--ms-background-deep`), three lines: "No public feed.", "No followers.", "No leaderboards." Gold underline reveal per line — good candidate for reusing `ScrollReveal` with `data-reveal` + a small CSS variant for the underline draw.
-- **Section 6 — FAQ.** 6–8 hand-written `<details>/<summary>` accordions with animated chevron rotation on `[open]` (SPEC §7 target #5 — pure CSS transition, no JS). Shadcn-style spacing. Draft questions already suggested in SPEC §4.6.
-- **Section 7 — Footer.** Logo + tagline left, Product / Support / Social columns (links to `#` placeholders), fine-print "Made for the ummah. © 2026." Replace the existing stub in `index.astro`.
-- **Mobile responsive polish pass.** Audit every section at 375 / 414 / 768, check phone-shell scaling (SPEC §8 says 60% on mobile — verify), ensure no horizontal overflow, make sure callouts and the hero ambient don't fight each other on small screens.
-- **Accessibility audit.** Landmarks, heading order, focus ring visibility on sticky header CTA, color contrast on `--ms-text-muted` against both `--ms-background` and `--ms-background-deep`, reduced-motion coverage re-sweep.
-- **Lighthouse pass.** Run local Lighthouse on `npm run build && npm run preview`; target ≥ 95 Performance + Accessibility per SPEC §12. Fix whatever falls short — likely font preload + explicit `width/height` on any remaining decorative elements.
-- **`landing/README.md`.** Run instructions: prerequisites, `npm install`, `npm run dev`, where things live, how to toggle hero copy (spoiler: it's locked to A — just note the path if a future change is needed), how to swap mockups for real screenshots later.
+Same chat as Session 3 above. User asked to push on and close sections 5–7 since they were light-lift (no new mockups, no GSAP). One consolidated commit because the three components share the same `index.astro` diff and ship as a single "close the page" slice.
 
-Session 4 should fit in a single chat since there are no new mockups or GSAP islands — all remaining animation is CSS or reuses `ScrollReveal`.
+### Commit — `feat(landing): closing sections — what it's not, faq, real footer` (`cab595f`)
+
+**Section 5 — `src/components/Not.astro`** (SPEC §4.5)
+
+- Dark strip (`--ms-background-deep`) with centered serif H2 "What this app is not." (italic gold `<em>` on "not").
+- Three opinionated one-liners: "No public feed.", "No followers.", "No leaderboards."
+- Each line fades up (+14px → 0, 600ms ease-out) then a gold 2px underline draws left-to-right (700ms cubic-bezier 0.22/1/0.36/1) with a soft gold glow. Staggered 140ms per line via a `--not-index` custom property on each `<li>`.
+- Revealed via a tiny inline `<script>` IntersectionObserver that adds `.is-in` on entry (threshold 0.1, rootMargin `-15%` bottom so the reveal triggers before the line fully scrolls on-screen). Zero React here — pure CSS transitions don't warrant an island.
+- `prefers-reduced-motion`: short-circuits the observer (all lines get `.is-in` immediately) plus a CSS `@media` rule that disables transitions so nothing jumps.
+- Matches the PROJECT.md §J anti-patterns list ("no public feed", "no leaderboards").
+
+**Section 6 — `src/components/Faq.astro`** (SPEC §4.6, §7 target #5)
+
+- Eight hand-written `<details>/<summary>` accordions. Native disclosure → works with JS disabled.
+- Chevron is inline SVG inside a 32px gold-tinted pill; `transform: rotate(180deg)` on `.faq__item[open] .faq__chev` via a 260ms `cubic-bezier(0.22, 1, 0.36, 1)` transition. Pure CSS, no JS.
+- Answer fades in on open via a 280ms keyframe (`faq-reveal`: opacity 0→1, translateY -4px → 0). `prefers-reduced-motion` disables both.
+- Questions shipped (single version, PROJECT.md §J voice):
+  1. Is it free?
+  2. What is a circle?
+  3. Do I need Muslim friends on the app?
+  4. How is this different from BeReal?
+  5. Who sees my photos?
+  6. What happens if I miss a day?
+  7. Does it work across time zones and prayer methods?
+  8. When does it launch?
+- Mailto footer under the list links to `BRAND.email` ("Still have a question? Email hello@circles.app.") with a gold underline that brightens on hover.
+
+**Section 7 — `src/components/Footer.astro`** (SPEC §4.7)
+
+- Replaces the session-1 stub. Rendered **outside** `<main>` in `index.astro` so the `<footer>` is a page-level landmark (implicit `contentinfo` role), not a section inside main.
+- Split layout: brand block left (serif 28px `BRAND.name` + 14px tagline), three-column nav right (Product / Support / Social). Brand stacks above cols under 1024px, cols drop to 2-up under 640px.
+- Link behaviour:
+  - **Product** — anchors to `#hero`, `#moment`, `#habits`, `#faq` (in-page nav).
+  - **Support** — Privacy + Terms rendered as disabled `<span>`s with `aria-disabled="true"` (pages are out of scope for v1 per SPEC §10); Contact is a real `mailto:` to `BRAND.email`.
+  - **Social** — Instagram + X as disabled `<span>`s (no accounts yet).
+- Bottom bar (stacks under 768px): "Made for the ummah. © 2026." left, "Invite-only launch · no waitlist yet." right.
+- All links inherit the global gold focus ring (SPEC §9); hover lifts muted text to primary.
+
+### Verified
+
+- `npm run build` — clean, 2.64s, zero warnings, 1 page
+- `npm run dev` — HTTP 200; markers present in rendered HTML: `not-title`, `What this app is`, `No public feed`, `No followers`, `No leaderboards`, `faq-title`, `Before you ask`, `Is it free`, `Who sees my photos`, `footer-title`, `Made for the ummah`, `Invite-only launch`
+- Full commit chain from this session: `975998f` → `3bd39d9` → `b046d10` → `cab595f`
+
+### Animation targets status
+
+Per SPEC §7:
+
+- [x] #1 Hero ambient gradient drift — session 2
+- [x] #2 Moment niyyah dissolve → feed reveal — session 2
+- [x] #3 Noor Bead streak fill — session 3
+- [x] #4 Scroll-reveal stagger (Your Circle columns; Not-section underlines use the same pattern inline) — session 3
+- [x] #5 FAQ accordion chevron rotation — session 3 extension
+
+All five shipped.
+
+### Manual test checklist (additions for sections 5–7)
+
+7. **Section 5 (What It's Not):** dark strip below Habits. Scroll in → each of the three lines fades up and the gold underline draws left-to-right ~260ms after the text settles. 140ms cascade between lines. Reduced-motion: all three appear instantly with underlines drawn.
+8. **Section 6 (FAQ):** eight questions, chevron rotates 180° on open with a 260ms ease. Answer fades down into place. Click multiple open at once — they all stay open (not radio-grouped — intentional). Mailto link focus-rings gold.
+9. **Section 7 (Footer):** product links scroll you back up to the right anchors. Privacy / Terms / Instagram / X render dimmed but still accessible via tab (aria-disabled). Bottom bar aligns right on desktop, stacks on mobile. At 640px the cols go 2-up (Product | Support on top row, Social alone on bottom).
+
+### What's next (Session 4 — user-driven polish)
+
+User flagged this session will be their testing + polish pass. Suggested focus areas (kept unchanged from last entry):
+
+- **Mobile responsive pass.** Audit every section at 375 / 414 / 768. Confirm phone-shell scaling per SPEC §8. Watch for: hero ambient vs. phone-float conflict on small screens, callout box widths on 375px, FAQ summary wrapping, footer col gaps when they drop to 2-up.
+- **Accessibility audit.** Heading order (`h1` in hero, `h2` per section, `h3` only inside Circle columns), keyboard tab order through header CTA → sections → FAQ summaries → footer links, focus ring visibility on `--ms-background-deep`, color contrast on `--ms-text-muted` against both backgrounds, `prefers-reduced-motion` sweep across all five animation targets.
+- **Lighthouse pass.** `npm run build && npm run preview`, target ≥ 95 Performance + Accessibility per SPEC §12. Probable wins: preload the two woff2 files, add explicit `width/height` to decorative SVGs that don't already have them, check that GSAP chunks aren't loading on first paint (they should only be pulled when the Moment / Habits sections approach the viewport).
+- **`landing/README.md`.** Prerequisites (Node ≥22.12), `npm install`, `npm run dev`, where components live, how to swap mockups for real screenshots later (HomeShell / MomentShell / HabitDetailShell), note that hero copy is locked to option A (edit `src/components/Hero.astro`).
+- **Phase 16 rename preflight.** Confirm every user-visible "Circles" string routes through `BRAND` in `src/lib/brand.ts`. If anything was hardcoded in the new sections, fix it before Phase 16 lands.
+
+No new mockups or GSAP islands expected in Session 4.
 
