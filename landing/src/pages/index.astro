@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
+import Moment from '../components/Moment.astro';
 import { BRAND } from '../lib/brand';
 ---
 
@@ -28,16 +29,7 @@ import { BRAND } from '../lib/brand';
     <Hero />
 
     <!-- Section 2 — The Moment -->
-    <section
-      id="moment"
-      class="bg-ms-background-deep"
-      aria-labelledby="moment-title"
-    >
-      <div class="mx-auto max-w-[1200px] px-6 py-20 md:py-32">
-        <h2 id="moment-title" class="text-4xl md:text-5xl">The Moment</h2>
-        <p class="mt-4 text-ms-text-muted">placeholder</p>
-      </div>
-    </section>
+    <Moment />
 
     <!-- Section 3 — Your Circle -->
     <section

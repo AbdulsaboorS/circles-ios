@@ -1,0 +1,159 @@
+---
+import PhoneFrame from './PhoneFrame.astro';
+import MomentShell from './mockups/MomentShell.astro';
+import MomentDissolve from './islands/MomentDissolve.tsx';
+---
+
+<section
+  id="moment"
+  class="moment"
+  aria-labelledby="moment-title"
+>
+  <div class="moment__inner">
+    <div class="moment__copy">
+      <p class="moment__eyebrow">The Moment</p>
+      <h2 id="moment-title" class="moment__title">
+        One window. Once a day.
+      </h2>
+      <div class="moment__body">
+        <p>
+          When the window opens, you have a few minutes. Step away from the screen,
+          set your niyyah, take the photo. Front and back, just like the world knows it
+          &mdash; but grounded in intention.
+        </p>
+        <p>
+          Your circle sees it. Nobody else. Ever.
+        </p>
+      </div>
+
+      <p class="moment__caption">
+        Posted late? That&rsquo;s still posted. Consistency is the journey, not the streak.
+      </p>
+    </div>
+
+    <div class="moment__mockup">
+      <MomentDissolve client:visible>
+        <PhoneFrame>
+          <MomentShell />
+        </PhoneFrame>
+      </MomentDissolve>
+    </div>
+  </div>
+</section>
+
+<style>
+  .moment {
+    position: relative;
+    background-color: var(--ms-background-deep);
+    padding: 96px 0 112px;
+    overflow: hidden;
+    border-top: 0.5px solid rgba(212, 162, 64, 0.08);
+    border-bottom: 0.5px solid rgba(212, 162, 64, 0.08);
+  }
+
+  .moment::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(212, 162, 64, 0.05), transparent 40%),
+      radial-gradient(ellipse at 80% 80%, rgba(26, 46, 30, 0.6), transparent 50%);
+    pointer-events: none;
+  }
+
+  .moment__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 56px;
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .moment {
+      padding: 128px 0 144px;
+    }
+
+    .moment__inner {
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 72px;
+    }
+  }
+
+  /* Mockup on the LEFT, copy on the RIGHT on desktop for rhythm (hero has copy-left → alternate) */
+  @media (min-width: 1024px) {
+    .moment__mockup {
+      order: 2;
+      justify-self: end;
+    }
+
+    .moment__copy {
+      order: 1;
+    }
+  }
+
+  /* ─── Copy ─────────────────────────────────────────── */
+  .moment__copy {
+    max-width: 540px;
+  }
+
+  .moment__eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ms-gold);
+    margin: 0 0 20px;
+  }
+
+  .moment__title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(34px, 5.4vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ms-text-primary);
+    margin: 0 0 28px;
+  }
+
+  .moment__body p {
+    font-family: var(--font-sans);
+    font-size: clamp(16px, 1.3vw, 18px);
+    line-height: 1.6;
+    color: var(--ms-text-muted);
+    margin: 0 0 18px;
+    max-width: 52ch;
+  }
+
+  .moment__body p:last-child {
+    color: var(--ms-text-primary);
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: clamp(17px, 1.4vw, 19px);
+    margin-bottom: 32px;
+  }
+
+  .moment__caption {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--ms-text-muted);
+    line-height: 1.5;
+    padding: 14px 16px;
+    background: rgba(212, 162, 64, 0.05);
+    border-left: 2px solid var(--ms-gold);
+    border-radius: 2px;
+    margin: 0;
+    max-width: 46ch;
+  }
+
+  /* ─── Mockup ───────────────────────────────────────── */
+  .moment__mockup {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+</style>

@@ -1,0 +1,462 @@
+---
+/**
+ * Static HTML replica of the Moment capture → niyyah → feed flow.
+ *
+ * Three layers, stacked inside the phone screen:
+ *   1. .moment-shell__viewfinder (bottom) — always visible
+ *   2. .moment-shell__niyyah     (middle) — dissolves on scroll
+ *   3. .moment-shell__feed       (top)    — fades in after niyyah dissolves
+ *
+ * The MomentDissolve React island drives opacity/transform of layers
+ * 2 and 3. Data-attributes (`data-moment-layer="..."`) are the hooks.
+ *
+ * Fidelity reference:
+ *   - Circles/Moment/NiyyahCaptureOverlay.swift (prompt + button + skip hint)
+ *   - Circles/Moment/MomentPreviewView.swift (photoReveal → dissolving → settled phases)
+ *   - Circles/Feed/FeedView.swift (moment card shape, reactions)
+ */
+
+const ariaCaption = 'Moment capture flow — niyyah overlay dissolves to reveal the circle feed';
+---
+
+<div class="moment-shell" role="img" aria-label={ariaCaption}>
+  <!-- ───── Layer 1 — Camera viewfinder (always visible) ───── -->
+  <div class="moment-shell__viewfinder" data-moment-layer="viewfinder">
+    <!-- Top bar: prayer + window countdown -->
+    <div class="moment-shell__topbar">
+      <button type="button" class="moment-shell__close" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 2l10 10M12 2L2 12" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="moment-shell__window">
+        <span class="moment-shell__window-dot"></span>
+        <span>Fajr · 12m left</span>
+      </div>
+      <button type="button" class="moment-shell__flip" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8a5 5 0 0 1 8-4l1 1M13 8a5 5 0 0 1-8 4l-1-1M11 5h2V3M5 11H3v2"
+            stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Captured photo stand-in (abstract gradient — no real imagery) -->
+    <div class="moment-shell__photo" aria-hidden="true"></div>
+
+    <!-- Picture-in-picture (selfie over back-camera, like BeReal) -->
+    <div class="moment-shell__pip" aria-hidden="true"></div>
+
+    <!-- Bottom shutter/tray -->
+    <div class="moment-shell__tray">
+      <div class="moment-shell__shutter">
+        <div class="moment-shell__shutter-inner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───── Layer 2 — Niyyah overlay (dissolves) ───── -->
+  <div class="moment-shell__niyyah" data-moment-layer="niyyah">
+    <div class="moment-shell__niyyah-card">
+      <p class="moment-shell__niyyah-prompt">What's on your heart today?</p>
+      <p class="moment-shell__niyyah-sub">
+        A private reflection for your day — only you will ever see it.
+      </p>
+
+      <div class="moment-shell__niyyah-input">
+        Seeking patience today.
+      </div>
+
+      <button type="button" class="moment-shell__niyyah-cta" aria-hidden="true">
+        Set Niyyah
+      </button>
+
+      <p class="moment-shell__niyyah-skip">
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="m1 2 4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Skip
+      </p>
+    </div>
+  </div>
+
+  <!-- ───── Layer 3 — Feed card (fades in after dissolve) ───── -->
+  <div class="moment-shell__feed" data-moment-layer="feed">
+    <div class="moment-shell__feed-header">
+      <div class="moment-shell__avatar moment-shell__avatar--author"></div>
+      <div>
+        <p class="moment-shell__feed-name">Yusuf</p>
+        <p class="moment-shell__feed-time">Fajr · posted in time</p>
+      </div>
+    </div>
+
+    <div class="moment-shell__feed-photo" aria-hidden="true">
+      <div class="moment-shell__feed-pip"></div>
+    </div>
+
+    <p class="moment-shell__feed-niyyah">
+      &ldquo;Seeking patience today.&rdquo;
+    </p>
+
+    <div class="moment-shell__feed-footer">
+      <div class="moment-shell__facepile" aria-hidden="true">
+        <span class="moment-shell__avatar moment-shell__avatar--stack moment-shell__avatar--1"></span>
+        <span class="moment-shell__avatar moment-shell__avatar--stack moment-shell__avatar--2"></span>
+        <span class="moment-shell__avatar moment-shell__avatar--stack moment-shell__avatar--3"></span>
+        <span class="moment-shell__facepile-count">+2</span>
+      </div>
+      <span class="moment-shell__reaction">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+          <path d="M6 10.5 5.1 9.7C2 6.9.5 5.5.5 3.8A2.3 2.3 0 0 1 2.8 1.5c.9 0 1.7.4 2.2 1.1l1 1.1 1-1.1c.5-.7 1.3-1.1 2.2-1.1a2.3 2.3 0 0 1 2.3 2.3c0 1.7-1.5 3.1-4.6 5.9Z"/>
+        </svg>
+        3
+      </span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .moment-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: var(--font-sans);
+  }
+
+  /* ─── Layer 1: Viewfinder ───────────────────────────── */
+  .moment-shell__viewfinder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+  }
+
+  .moment-shell__topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.55), transparent);
+  }
+
+  .moment-shell__close,
+  .moment-shell__flip {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .moment-shell__window {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(212, 162, 64, 0.18);
+    border: 0.5px solid rgba(212, 162, 64, 0.5);
+    border-radius: 999px;
+    color: var(--ms-gold);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .moment-shell__window-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ms-gold);
+    box-shadow: 0 0 8px var(--ms-gold);
+  }
+
+  .moment-shell__photo {
+    flex: 1;
+    background:
+      radial-gradient(circle at 35% 30%, rgba(212, 162, 64, 0.28), transparent 55%),
+      radial-gradient(circle at 70% 80%, rgba(36, 56, 40, 0.9), transparent 60%),
+      linear-gradient(140deg, #2a3a28 0%, #1a2a1c 55%, #0e1410 100%);
+    position: relative;
+  }
+
+  .moment-shell__photo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        95deg,
+        transparent 0 22px,
+        rgba(240, 234, 214, 0.035) 22px 23px
+      );
+    mix-blend-mode: soft-light;
+  }
+
+  .moment-shell__pip {
+    position: absolute;
+    top: 70px;
+    right: 16px;
+    width: 88px;
+    height: 120px;
+    border-radius: 14px;
+    border: 2px solid rgba(0, 0, 0, 0.75);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+    background:
+      radial-gradient(circle at 50% 35%, #58503f 0%, #2a2518 60%, #1a160c 100%);
+    overflow: hidden;
+  }
+
+  .moment-shell__pip::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 35%, rgba(240, 234, 214, 0.08), transparent 60%);
+  }
+
+  .moment-shell__tray {
+    padding: 20px 0 36px;
+    display: flex;
+    justify-content: center;
+    background: linear-gradient(0deg, rgba(0,0,0,0.65), transparent);
+  }
+
+  .moment-shell__shutter {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    padding: 4px;
+  }
+
+  .moment-shell__shutter-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+  /* ─── Layer 2: Niyyah overlay ────────────────────────── */
+  .moment-shell__niyyah {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: rgba(19, 28, 20, 0.55);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    will-change: opacity, transform;
+  }
+
+  .moment-shell__niyyah-card {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+  }
+
+  .moment-shell__niyyah-prompt {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--ms-text-primary);
+    line-height: 1.25;
+    margin: 0 0 8px;
+  }
+
+  .moment-shell__niyyah-sub {
+    font-size: 11px;
+    color: var(--ms-text-muted);
+    max-width: 30ch;
+    line-height: 1.5;
+    margin: 0 0 24px;
+  }
+
+  .moment-shell__niyyah-input {
+    width: 100%;
+    min-height: 80px;
+    padding: 16px;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ms-text-primary);
+    text-align: left;
+    background: rgba(36, 56, 40, 0.6);
+    border: 1px solid rgba(212, 162, 64, 0.25);
+    border-radius: 14px;
+    margin: 0 0 20px;
+  }
+
+  .moment-shell__niyyah-cta {
+    width: 100%;
+    height: 44px;
+    background: var(--ms-gold);
+    color: var(--ms-background);
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(212, 162, 64, 0.3);
+    cursor: pointer;
+  }
+
+  .moment-shell__niyyah-skip {
+    margin: 16px 0 0;
+    display: inline-flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 2px;
+    color: rgba(143, 175, 148, 0.5);
+    font-size: 11px;
+  }
+
+  /* ─── Layer 3: Feed card ─────────────────────────────── */
+  .moment-shell__feed {
+    position: absolute;
+    inset: 0;
+    padding: 20px 16px;
+    background: linear-gradient(180deg, var(--ms-background) 0%, var(--ms-background-deep) 100%);
+    opacity: 0;
+    transform: translateY(14px);
+    will-change: opacity, transform;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .moment-shell__feed-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .moment-shell__avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #8FAF94 0%, #415c46 100%);
+  }
+
+  .moment-shell__avatar--author {
+    background: linear-gradient(135deg, #D4A240 0%, #7a5e28 100%);
+    border: 1.5px solid rgba(212, 162, 64, 0.55);
+  }
+
+  .moment-shell__feed-name {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ms-text-primary);
+    margin: 0;
+  }
+
+  .moment-shell__feed-time {
+    font-size: 10px;
+    color: var(--ms-text-muted);
+    margin: 1px 0 0;
+  }
+
+  .moment-shell__feed-photo {
+    position: relative;
+    flex: 1;
+    border-radius: 20px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 35% 30%, rgba(212, 162, 64, 0.28), transparent 55%),
+      radial-gradient(circle at 70% 80%, rgba(36, 56, 40, 0.9), transparent 60%),
+      linear-gradient(140deg, #2a3a28 0%, #1a2a1c 55%, #0e1410 100%);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .moment-shell__feed-pip {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 56px;
+    height: 76px;
+    border-radius: 10px;
+    border: 2px solid rgba(0, 0, 0, 0.75);
+    background: radial-gradient(circle at 50% 35%, #58503f 0%, #2a2518 60%, #1a160c 100%);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+  }
+
+  .moment-shell__feed-niyyah {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-style: italic;
+    color: var(--ms-text-primary);
+    opacity: 0.85;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .moment-shell__feed-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .moment-shell__facepile {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .moment-shell__avatar--stack {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--ms-background-deep);
+    margin-left: -8px;
+  }
+
+  .moment-shell__avatar--stack:first-child {
+    margin-left: 0;
+  }
+
+  .moment-shell__avatar--1 { background: linear-gradient(135deg, #e8c891 0%, #8a6a2a 100%); }
+  .moment-shell__avatar--2 { background: linear-gradient(135deg, #a8c9ac 0%, #3d5a42 100%); }
+  .moment-shell__avatar--3 { background: linear-gradient(135deg, #c3b09b 0%, #5a4838 100%); }
+
+  .moment-shell__facepile-count {
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ms-text-muted);
+  }
+
+  .moment-shell__reaction {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(212, 162, 64, 0.14);
+    border: 0.5px solid rgba(212, 162, 64, 0.45);
+    color: var(--ms-gold);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ─── Reduced-motion fallback: show end state ─────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .moment-shell__niyyah {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .moment-shell__feed {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
