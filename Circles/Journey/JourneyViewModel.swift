@@ -215,7 +215,7 @@ final class JourneyViewModel {
     private func deduplicateMomentsByDay(_ moments: [CircleMoment]) -> [String: CircleMoment] {
         var result: [String: CircleMoment] = [:]
         for moment in moments {
-            let dayKey = String(moment.postedAt.prefix(10))
+            let dayKey = moment.momentDate
             if let existing = result[dayKey] {
                 if moment.postedAt > existing.postedAt {
                     result[dayKey] = moment
