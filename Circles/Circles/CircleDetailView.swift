@@ -197,7 +197,9 @@ struct CircleDetailView: View {
                                     .padding(.top, 12)
 
                                     if DailyMomentService.shared.isGateActive {
-                                        ReciprocityGateView {
+                                        ReciprocityGateView(
+                                            mode: DailyMomentService.shared.gateMode == .missedWindow ? .missed : .open
+                                        ) {
                                             draftMoment = nil
                                             showCamera = true
                                         }

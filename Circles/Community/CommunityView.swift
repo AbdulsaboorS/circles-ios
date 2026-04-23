@@ -261,7 +261,9 @@ struct CommunityView: View {
                     .refreshable { await loadGlobalFeed() }
 
                     if momentService.isGateActive {
-                        ReciprocityGateView {
+                        ReciprocityGateView(
+                            mode: momentService.gateMode == .missedWindow ? .missed : .open
+                        ) {
                             draftMoment = nil
                             showGlobalCamera = true
                         }

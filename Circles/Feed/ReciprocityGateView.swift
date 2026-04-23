@@ -1,6 +1,33 @@
 import SwiftUI
 
 struct ReciprocityGateView: View {
+    enum Mode {
+        case open
+        case missed
+
+        var title: String {
+            switch self {
+            case .open:   return "Time to share your Moment"
+            case .missed: return "You missed today's Moment"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .open:   return "Your circle is waiting. Share this moment to unlock."
+            case .missed: return "Post a late one to unlock everyone else's Moments."
+            }
+        }
+
+        var buttonTitle: String {
+            switch self {
+            case .open:   return "Share your Moment"
+            case .missed: return "Post a late Moment"
+            }
+        }
+    }
+
+    var mode: Mode = .open
     let onPostTapped: () -> Void
 
     var body: some View {
@@ -18,10 +45,10 @@ struct ReciprocityGateView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("Time to share your Moment")
+                    Text(mode.title)
                         .font(.appHeadline)
                         .foregroundStyle(Color(hex: "F0EAD6"))
-                    Text("Your circle is waiting. Share this moment to unlock.")
+                    Text(mode.subtitle)
                         .font(.appSubheadline)
                         .foregroundStyle(Color(hex: "8FAF94"))
                         .multilineTextAlignment(.center)
@@ -29,7 +56,7 @@ struct ReciprocityGateView: View {
                 }
 
                 Button(action: onPostTapped) {
-                    Text("Share your Moment")
+                    Text(mode.buttonTitle)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color(hex: "1A2E1E"))
                         .frame(maxWidth: .infinity)
