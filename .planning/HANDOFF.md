@@ -13,12 +13,18 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 - **Phase 14 QA tests 1-2 deferred to manual user pass** — checklist in `.planning/notes/main.md` session 9 block
 - **Next work target: Moment Mechanic Redesign (BeReal parity)** — alignment locked, scope below. Not yet planned/executed.
 
-## Active Branches
+## Active Branches / Parallel Work
 
 - `phase-15-social-pulse` — worktree at `.claude/worktrees/phase-15-social-pulse`
   - 15.1 + 15.2 built, pending user verification
   - Remaining: 15.3 circle check-in notifications, 15.4 habit reminders, hardening
   - **Do not merge until Amir overhaul tasks 5-6 ship and QA passes on `main`**
+
+- **Phase 18 landing page** — `/landing` folder on `main`, different agent
+  - Astro + Tailwind, local-only v1. Scope: `.planning/phases/18-web-landing-page/SPEC.md`
+  - Fully independent of Phases 14/15 — no file overlap with iOS app
+  - Agent brief: `.planning/phases/18-web-landing-page/HANDOFF.md`
+  - Phase 14/15 agents: **do not touch `/landing/`**. Landing agent: **do not touch `Circles/` or `supabase/`**
 
 ## Next on Main
 

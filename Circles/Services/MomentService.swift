@@ -51,6 +51,7 @@ final class MomentService {
             id: moment.id, circleId: moment.circleId, userId: moment.userId,
             photoUrl: resolvedUrl, secondaryPhotoUrl: moment.secondaryPhotoUrl,
             caption: moment.caption, postedAt: moment.postedAt,
+            momentDate: moment.momentDate,
             isOnTime: moment.isOnTime, hasNiyyah: moment.hasNiyyah
         )
     }
@@ -342,6 +343,7 @@ final class MomentService {
                     secondaryPhotoUrl: moment.secondaryPhotoUrl,
                     caption: moment.caption,
                     postedAt: moment.postedAt,
+                    momentDate: moment.momentDate,
                     isOnTime: moment.isOnTime,
                     hasNiyyah: moment.hasNiyyah
                 )

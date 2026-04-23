@@ -55,8 +55,8 @@ Finalize feature names, logo, app display name, bundle name. (~1–2 days)
 ### Phase 17 — Onboarding Videos + Animation Polish ⬜
 Real video assets, animation timing polish. Blocked on content creation.
 
-### Phase 18 — Web Landing Page ⬜
-App Store CTA, Midnight Sanctuary palette, plain HTML/Tailwind.
+### Phase 18 — Web Landing Page 🔄 In Progress (parallel)
+Astro + Tailwind in `/landing`. Midnight Sanctuary palette, HTML mockups of 3 app screens, 5 scoped animations. Local-only for v1 — no hosting, no waitlist backend, no real App Store link. Full scope in `.planning/phases/18-web-landing-page/SPEC.md`.
 
 ### Phase 19 — App Store Submission ⬜
 Metadata, screenshots, Privacy Manifest, TestFlight beta, review submission.

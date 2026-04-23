@@ -28,7 +28,8 @@ After Phase 14 QA is fully signed off: merge `phase-15-social-pulse` worktree �
 | 14 | Meaningful Habits (quiz, niyyah, Hamdulillah, Noor Bead) | 🔄 QA in progress |
 | 14.1 | Amir Onboarding Overhaul (tasks 1-5 done) | 🔄 Task 6 QA + Joiner pending |
 | 15 | Social Pulse | 🔄 In worktree, pending merge |
-| 16–19 | Naming, Videos, Landing Page, App Store | ⬜ Planned |
+| 18 | Web Landing Page (Astro + Tailwind, local-only v1) | 🔄 In progress (parallel, `/landing`) |
+| 16, 17, 19 | Naming, Videos, App Store | ⬜ Planned |
 
 ## What Shipped — Session 28 (2026-04-23)
 
