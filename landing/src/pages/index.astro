@@ -1,0 +1,108 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { BRAND } from '../lib/brand';
+---
+
+<Layout>
+  <!-- Thin pinned header (logo left, CTA right) -->
+  <header
+    class="sticky top-0 z-50 border-b border-ms-gold/10 bg-ms-background/80 backdrop-blur-md"
+  >
+    <div
+      class="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-6"
+    >
+      <span class="font-serif text-lg text-ms-text-primary">{BRAND.name}</span>
+      <button
+        type="button"
+        class="rounded-full border border-ms-gold/30 px-4 py-1.5 text-sm text-ms-text-muted"
+        disabled
+      >
+        Coming to the App Store
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Section 1 — Hero -->
+    <section
+      id="hero"
+      class="mx-auto max-w-[1200px] px-6 py-20 md:py-32"
+      aria-labelledby="hero-title"
+    >
+      <h1 id="hero-title" class="text-5xl md:text-7xl">Hero</h1>
+      <p class="mt-4 text-ms-text-muted">placeholder</p>
+    </section>
+
+    <!-- Section 2 — The Moment -->
+    <section
+      id="moment"
+      class="bg-ms-background-deep"
+      aria-labelledby="moment-title"
+    >
+      <div class="mx-auto max-w-[1200px] px-6 py-20 md:py-32">
+        <h2 id="moment-title" class="text-4xl md:text-5xl">The Moment</h2>
+        <p class="mt-4 text-ms-text-muted">placeholder</p>
+      </div>
+    </section>
+
+    <!-- Section 3 — Your Circle -->
+    <section
+      id="circle"
+      class="mx-auto max-w-[1200px] px-6 py-20 md:py-32"
+      aria-labelledby="circle-title"
+    >
+      <h2 id="circle-title" class="text-4xl md:text-5xl">Your Circle</h2>
+      <p class="mt-4 text-ms-text-muted">placeholder</p>
+    </section>
+
+    <!-- Section 4 — Habits that Hold -->
+    <section
+      id="habits"
+      class="bg-ms-background-deep"
+      aria-labelledby="habits-title"
+    >
+      <div class="mx-auto max-w-[1200px] px-6 py-20 md:py-32">
+        <h2 id="habits-title" class="text-4xl md:text-5xl">Habits that Hold</h2>
+        <p class="mt-4 text-ms-text-muted">placeholder</p>
+      </div>
+    </section>
+
+    <!-- Section 5 — What It's Not -->
+    <section
+      id="not"
+      class="bg-ms-background-deep"
+      aria-labelledby="not-title"
+    >
+      <div class="mx-auto max-w-[1200px] px-6 py-20 md:py-32">
+        <h2 id="not-title" class="text-4xl md:text-5xl">What It's Not</h2>
+        <p class="mt-4 text-ms-text-muted">placeholder</p>
+      </div>
+    </section>
+
+    <!-- Section 6 — FAQ -->
+    <section
+      id="faq"
+      class="mx-auto max-w-[1200px] px-6 py-20 md:py-32"
+      aria-labelledby="faq-title"
+    >
+      <h2 id="faq-title" class="text-4xl md:text-5xl">FAQ</h2>
+      <p class="mt-4 text-ms-text-muted">placeholder</p>
+    </section>
+
+    <!-- Section 7 — Footer -->
+    <footer
+      id="footer"
+      class="border-t border-ms-gold/10 bg-ms-background-deep"
+      aria-labelledby="footer-title"
+    >
+      <div class="mx-auto max-w-[1200px] px-6 py-16">
+        <h2 id="footer-title" class="sr-only">Footer</h2>
+        <p class="font-serif text-xl">{BRAND.name}</p>
+        <p class="mt-2 text-sm text-ms-text-muted">{BRAND.tagline}</p>
+        <p class="mt-8 text-xs text-ms-text-muted">
+          Made for the ummah. © 2026.
+        </p>
+      </div>
+    </footer>
+  </main>
+</Layout>

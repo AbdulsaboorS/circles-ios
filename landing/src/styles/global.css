@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "./tokens.css";
+
+/**
+ * Tailwind v4 CSS-first config. Exposes Midnight Sanctuary tokens
+ * as Tailwind utilities (e.g. `bg-ms-background`, `text-ms-gold`).
+ */
+@theme {
+  --color-ms-background:      #1A2E1E;
+  --color-ms-background-deep: #131C14;
+  --color-ms-card-shared:     #243828;
+  --color-ms-card-deep:       #1E3122;
+  --color-ms-card-done:       #2A4A30;
+  --color-ms-card-warm:       #201C14;
+  --color-ms-card-warm-done:  #2E2410;
+  --color-ms-gold:            #D4A240;
+  --color-ms-text-primary:    #F0EAD6;
+  --color-ms-text-muted:      #8FAF94;
+
+  --font-serif: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+
+  --radius-card:    12px;
+  --radius-card-lg: 20px;
+}
+
+html {
+  background-color: var(--ms-background);
+  color: var(--ms-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* Default to serif for headings */
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+/* Global focus ring — gold, 2px (per SPEC §9) */
+*:focus-visible {
+  outline: 2px solid var(--ms-gold);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Honor reduced motion globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

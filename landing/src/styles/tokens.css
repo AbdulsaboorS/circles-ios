@@ -1,0 +1,41 @@
+/**
+ * Midnight Sanctuary — design tokens
+ *
+ * Source of truth: Circles/DesignSystem/DesignTokens.swift
+ * Any change here should be mirrored there (and vice-versa).
+ */
+
+:root {
+  /* Backgrounds */
+  --ms-background:      #1A2E1E; /* primary app background — deep forest */
+  --ms-background-deep: #131C14; /* layered background */
+
+  /* Cards */
+  --ms-card-shared:     #243828; /* accountable habit card */
+  --ms-card-deep:       #1E3122; /* personal habit card */
+  --ms-card-done:       #2A4A30;
+  --ms-card-warm:       #201C14;
+  --ms-card-warm-done:  #2E2410;
+
+  /* Accents */
+  --ms-gold:            #D4A240; /* CTAs, icons, highlights */
+
+  /* Text */
+  --ms-text-primary:    #F0EAD6; /* cream */
+  --ms-text-muted:      #8FAF94; /* sage */
+
+  /* Borders */
+  --ms-border:          rgba(212, 162, 64, 0.18);
+
+  /* Typography */
+  --font-serif: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+
+  /* Radii */
+  --radius-card:     12px;
+  --radius-card-lg:  20px;
+  --radius-pill:     999px;
+
+  /* Layout */
+  --content-max: 1200px;
+}
