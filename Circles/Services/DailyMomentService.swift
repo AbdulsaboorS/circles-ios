@@ -2,100 +2,97 @@ import Foundation
 import Observation
 import Supabase
 
-/// Manages the Prayer of the Day gate state.
-/// Determines which prayer is today's "Moment", when the 30-min window opens,
-/// and whether the current user has already posted today.
+/// Manages the daily Moment gate state (BeReal-style).
+/// The active window opens at a server-selected random UTC `moment_time`
+/// (seeded by pg_cron daily at 00:05 UTC). Prayer anchoring lives in habits, not here.
 @Observable
 @MainActor
 final class DailyMomentService {
     static let shared = DailyMomentService()
     private init() {}
 
+    /// Pivot from `.windowOpen` to `.missedWindow` this many seconds after `windowStart`.
+    /// This governs gate copy only (open vs missed CTA). On-time pill uses a tighter
+    /// 5-minute threshold in `MomentService.computeIsOnTime` (D1).
+    private static let missedWindowCutoff: TimeInterval = 30 * 60
+
+    enum GateMode: Sendable {
+        case preWindow       // today's window hasn't opened yet
+        case windowOpen      // within 30 min of windowStart, not posted
+        case missedWindow    // past 30 min, not posted — late-post CTA
+        case posted          // already posted today
+    }
+
     struct ActiveMomentRange: Sendable {
         let start: Date
         let endExclusive: Date
 
-        var startISO8601: String {
-            DailyMomentService.iso8601String(from: start)
-        }
-
-        var endExclusiveISO8601: String {
-            DailyMomentService.iso8601String(from: endExclusive)
-        }
+        var startISO8601: String { DailyMomentService.iso8601String(from: start) }
+        var endExclusiveISO8601: String { DailyMomentService.iso8601String(from: endExclusive) }
     }
 
     // MARK: - Published State
+
+    /// Legacy: kept for back-compat callers. Mechanic no longer anchors on prayers.
     var todayPrayerName: String = "asr"
-    var windowStart: Date? = nil              // nil = couldn't determine prayer time
+    var windowStart: Date? = nil
     var hasPostedToday: Bool = false
     var isLoading: Bool = false
+    /// Today's `daily_moments.moment_date` string ("YYYY-MM-DD" UTC). Source of truth
+    /// for the `moment_date` column stamped on each posted `circle_moments` row.
+    var currentWindowDate: String? = nil
 
-    /// Prevents redundant Aladhan API + DB calls when already loaded today
     private var lastLoadedDate: String? = nil
 
     // MARK: - Computed Gate State
 
-    /// Gate is active once the window opens AND user hasn't posted yet.
-    var isGateActive: Bool {
-        guard let start = windowStart else { return false }
-        return Date() >= start && !hasPostedToday
+    var gateMode: GateMode {
+        if hasPostedToday { return .posted }
+        guard let start = windowStart else { return .preWindow }
+        let now = Date()
+        if now < start { return .preWindow }
+        if now < start.addingTimeInterval(Self.missedWindowCutoff) { return .windowOpen }
+        return .missedWindow
     }
 
-    var prayerDisplayName: String {
-        todayPrayerName.capitalized
+    /// Gate should render for both open and missed-window states.
+    var isGateActive: Bool {
+        switch gateMode {
+        case .windowOpen, .missedWindow: return true
+        case .preWindow, .posted: return false
+        }
     }
+
+    var prayerDisplayName: String { todayPrayerName.capitalized }
 
     // MARK: - Load
 
     func load(userId: UUID) async {
         let today = todayUTCString()
 
-        // Skip DB calls if already loaded today and window is set
         if lastLoadedDate == today, windowStart != nil {
             return
         }
 
         isLoading = true
 
-        // 1. Compute all values locally before touching published state —
-        //    prevents the gate from flickering on during intermediate states
-
         let dailyMoment = await fetchTodayDailyMoment()
         let prayer = dailyMoment?.prayerName ?? "asr"
+        let newWindowStart: Date? = dailyMoment?.momentTime.flatMap(utcTimeToDate)
+        let windowDate = dailyMoment?.momentDate ?? today
 
-        let newWindowStart: Date?
-        if let timeStr = dailyMoment?.momentTime {
-            // New: BeReal-style — use server-set random UTC time directly
-            newWindowStart = utcTimeToDate(timeStr)
-        } else {
-            // Legacy fallback: calculate from prayer time via Aladhan API
-            if let profile = try? await AvatarService.shared.fetchProfile(userId: userId),
-               let lat = profile.latitude, lat != 0,
-               let lng = profile.longitude, lng != 0,
-               let tz = profile.timezone, !tz.isEmpty {
-                newWindowStart = await fetchPrayerTime(prayer: prayer, lat: lat, lng: lng, timezone: tz)
-            } else {
-                newWindowStart = Calendar.current.startOfDay(for: Date())
-            }
-        }
+        let postedToday = await computeHasPostedToday(userId: userId, momentDate: windowDate)
 
-        let postedToday: Bool
-        if let ws = newWindowStart {
-            postedToday = await computeHasPostedToday(userId: userId, since: ws)
-        } else {
-            postedToday = false
-        }
-
-        // 2. Batch publish — hasPostedToday first so gate never flickers on
         todayPrayerName = prayer
         hasPostedToday = postedToday
         windowStart = newWindowStart
+        currentWindowDate = windowDate
         lastLoadedDate = today
 
         isLoading = false
     }
 
-    /// Call immediately after the user successfully posts a Moment to lift the gate.
+    /// Call immediately after a successful post to lift the gate.
     func markPostedToday() {
         hasPostedToday = true
     }
@@ -106,7 +103,6 @@ final class DailyMomentService {
     }
 
     #if DEBUG
-    /// Forces the gate open immediately — deletes today's DB rows, resets client state.
     func forceOpenWindow(userId: UUID) async {
         try? await MomentService.shared.deleteMyTodayMoments(userId: userId)
         try? await NiyyahService.shared.deleteTodayNiyyah(userId: userId)
@@ -116,6 +112,20 @@ final class DailyMomentService {
         print("[DailyMomentService] DEBUG: force window opened, today's moments deleted")
     }
     #endif
+
+    // MARK: - Ranges (back-compat)
+
+    /// Back-compat range used by callers still filtering `circle_moments.posted_at` by
+    /// the active day (Feed/MomentService update + delete paths). Returns today's
+    /// UTC-day boundaries, matching the `moment_date` stamp.
+    func fetchActiveMomentRange(referenceDate: Date = Date()) async -> ActiveMomentRange {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC") ?? cal.timeZone
+        let start = cal.startOfDay(for: referenceDate)
+        let end = cal.date(byAdding: .day, value: 1, to: start)
+            ?? start.addingTimeInterval(24 * 60 * 60)
+        return ActiveMomentRange(start: start, endExclusive: end)
+    }
 
     // MARK: - Private Helpers
 
@@ -131,34 +141,6 @@ final class DailyMomentService {
         return rows.first
     }
 
-    func fetchActiveMomentRange(referenceDate: Date = Date()) async -> ActiveMomentRange {
-        let calendar = Calendar(identifier: .gregorian)
-        let fallbackStart = calendar.startOfDay(for: referenceDate)
-        let fallbackEnd = calendar.date(byAdding: .day, value: 1, to: fallbackStart) ?? fallbackStart.addingTimeInterval(24 * 60 * 60)
-
-        let nearby = await fetchNearbyDailyMoments(referenceDate: referenceDate)
-        let triggers = nearby.compactMap { dailyMoment -> (date: Date, row: DailyMoment)? in
-            guard let triggerDate = triggerDate(for: dailyMoment) else { return nil }
-            return (date: triggerDate, row: dailyMoment)
-        }
-        .sorted { $0.date < $1.date }
-
-        guard !triggers.isEmpty else {
-            return ActiveMomentRange(start: fallbackStart, endExclusive: fallbackEnd)
-        }
-
-        let now = referenceDate
-        let activeStart = triggers.last(where: { $0.date <= now })?.date ?? triggers.first?.date ?? fallbackStart
-        let nextStart = triggers.first(where: { $0.date > now })?.date
-        let endExclusive = nextStart ?? calendar.date(byAdding: .day, value: 1, to: activeStart) ?? activeStart.addingTimeInterval(24 * 60 * 60)
-
-        guard endExclusive > activeStart else {
-            return ActiveMomentRange(start: fallbackStart, endExclusive: fallbackEnd)
-        }
-
-        return ActiveMomentRange(start: activeStart, endExclusive: endExclusive)
-    }
-
     /// Parse "HH:MM" as a UTC time and combine with today's UTC date.
     private func utcTimeToDate(_ timeString: String) -> Date? {
         let formatter = DateFormatter()
@@ -168,114 +150,21 @@ final class DailyMomentService {
         return formatter.date(from: "\(today) \(timeString)")
     }
 
-    private func fetchPrayerTime(prayer: String, lat: Double, lng: Double, timezone: String) async -> Date? {
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let urlString = "https://api.aladhan.com/v1/timings/\(timestamp)?latitude=\(lat)&longitude=\(lng)&method=3"
-        guard let url = URL(string: urlString) else { return nil }
-
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-
-            struct AladhanTimings: Decodable {
-                let Fajr: String
-                let Dhuhr: String
-                let Asr: String
-                let Maghrib: String
-                let Isha: String
-            }
-            struct AladhanData: Decodable { let timings: AladhanTimings }
-            struct AladhanResponse: Decodable { let data: AladhanData }
-
-            let response = try JSONDecoder().decode(AladhanResponse.self, from: data)
-            let t = response.data.timings
-
-            let timeString: String
-            switch prayer {
-            case "fajr":    timeString = t.Fajr
-            case "dhuhr":   timeString = t.Dhuhr
-            case "asr":     timeString = t.Asr
-            case "maghrib": timeString = t.Maghrib
-            case "isha":    timeString = t.Isha
-            default:        timeString = t.Asr
-            }
-
-            // Aladhan returns "HH:mm" or "HH:mm (EST)" — strip anything after space
-            let cleanTime = String(timeString.split(separator: " ").first ?? Substring(timeString))
-            return combineToDate(timeString: cleanTime, timezone: timezone)
-        } catch {
-            return nil
-        }
-    }
-
-    private func combineToDate(timeString: String, timezone: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        formatter.timeZone = TimeZone(identifier: timezone) ?? .current
-        let todayString = localDateString(timezone: timezone)
-        return formatter.date(from: "\(todayString) \(timeString)")
-    }
-
-    private func computeHasPostedToday(userId: UUID, since windowStart: Date) async -> Bool {
-        let startISO = Self.iso8601String(from: windowStart)
-        let endISO = Self.iso8601String(from: windowStart.addingTimeInterval(25 * 60 * 60))
+    private func computeHasPostedToday(userId: UUID, momentDate: String) async -> Bool {
         struct Row: Decodable { let id: UUID }
         let rows: [Row] = (try? await SupabaseService.shared.client
             .from("circle_moments")
             .select("id")
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: startISO)
-            .lt("posted_at", value: endISO)
+            .eq("moment_date", value: momentDate)
             .limit(1)
             .execute()
             .value) ?? []
         return !rows.isEmpty
     }
 
-    private func fetchNearbyDailyMoments(referenceDate: Date) async -> [DailyMoment] {
-        let calendar = Calendar(identifier: .gregorian)
-        guard
-            let previousDate = calendar.date(byAdding: .day, value: -1, to: referenceDate),
-            let nextDate = calendar.date(byAdding: .day, value: 1, to: referenceDate)
-        else {
-            return []
-        }
-
-        let startDate = Self.utcDateString(from: previousDate)
-        let endDate = Self.utcDateString(from: nextDate)
-
-        return (try? await SupabaseService.shared.client
-            .from("daily_moments")
-            .select()
-            .gte("moment_date", value: startDate)
-            .lte("moment_date", value: endDate)
-            .order("moment_date", ascending: true)
-            .execute()
-            .value) ?? []
-    }
-
-    private func triggerDate(for dailyMoment: DailyMoment) -> Date? {
-        if let momentTime = dailyMoment.momentTime, !momentTime.isEmpty {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH:mm"
-            formatter.timeZone = TimeZone(identifier: "UTC")
-            return formatter.date(from: "\(dailyMoment.momentDate) \(momentTime)")
-        }
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        return formatter.date(from: dailyMoment.momentDate)
-    }
-
     private func todayUTCString() -> String {
         Self.utcDateString(from: Date())
-    }
-
-    private func localDateString(timezone: String) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone(identifier: timezone) ?? .current
-        return f.string(from: Date())
     }
 
     private static func utcDateString(from date: Date) -> String {

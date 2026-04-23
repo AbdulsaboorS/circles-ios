@@ -123,12 +123,14 @@ final class MomentService {
     ) async throws -> CircleMoment {
         let photoUrl = try await uploadPhoto(image: image, userId: userId)
         let isOnTime = Self.computeIsOnTime(windowStart: windowStart)
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? Self.todayDateString()
 
         var row: [String: AnyJSON] = [
             "circle_id": .string(circleId.uuidString),
             "user_id": .string(userId.uuidString),
             "photo_url": .string(photoUrl),
-            "is_on_time": .bool(isOnTime)
+            "is_on_time": .bool(isOnTime),
+            "moment_date": .string(momentDate)
         ]
         if let caption = caption, !caption.isEmpty {
             row["caption"] = .string(caption)
@@ -175,6 +177,7 @@ final class MomentService {
             nil
         }
         let isOnTime = Self.computeIsOnTime(windowStart: windowStart)
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? Self.todayDateString()
 
         var succeeded: [CircleMoment] = []
         var failedCircleIds: [UUID] = []
@@ -187,7 +190,8 @@ final class MomentService {
                     "user_id": .string(userId.uuidString),
                     "photo_url": .string(photoUrl),
                     "is_on_time": .bool(isOnTime),
-                    "has_niyyah": .bool(niyyahText != nil)
+                    "has_niyyah": .bool(niyyahText != nil),
+                    "moment_date": .string(momentDate)
                 ]
                 if let caption = caption, !caption.isEmpty {
                     row["caption"] = .string(caption)
@@ -426,19 +430,18 @@ final class MomentService {
         return formatter.string(from: Date())
     }
 
-    /// Determine if current time is within 30 minutes of window start.
-    /// windowStart is an ISO8601 TIMESTAMPTZ string from the circles.moment_window_start column.
+    /// Determine if current time is within the 5-minute on-time window from windowStart.
+    /// windowStart is an ISO8601 TIMESTAMPTZ string from the active daily_moments row.
     static func computeIsOnTime(windowStart: String?) -> Bool {
         guard let windowStart = windowStart else { return false }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let startDate = formatter.date(from: windowStart) else {
-            // Try without fractional seconds
             formatter.formatOptions = [.withInternetDateTime]
             guard let startDate = formatter.date(from: windowStart) else { return false }
-            return Date().timeIntervalSince(startDate) < 1800  // 30 minutes
+            return Date().timeIntervalSince(startDate) < 300
         }
-        return Date().timeIntervalSince(startDate) < 1800
+        return Date().timeIntervalSince(startDate) < 300
     }
 }
 
