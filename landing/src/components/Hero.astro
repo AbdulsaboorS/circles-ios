@@ -5,29 +5,17 @@ import HomeShell from './mockups/HomeShell.astro';
 import { BRAND } from '../lib/brand';
 
 /**
- * HERO — two copy options (agent draft, user to pick).
+ * HERO — copy locked to option A (aspirational / spiritual) in session 2.
  *
- * Both follow PROJECT.md §J (Muslim-Native Copy Guidelines):
+ * Follows PROJECT.md §J (Muslim-Native Copy Guidelines):
  *   • No "Islamic BeReal"
  *   • No exclamation marks in headers
  *   • "circle" not "group"
- *
- * To switch: change `COPY_OPTION` below to 'A' or 'B'.
  */
-const COPY_OPTION: 'A' | 'B' = 'A';
-
 const copy = {
-  A: {
-    label: 'Aspirational / spiritual',
-    headline: 'Consistency, witnessed.',
-    sub: 'A sacred check-in with the few who keep you close to your deen.',
-  },
-  B: {
-    label: 'Mechanic-forward',
-    headline: 'Your circle. Your moment. Nothing public.',
-    sub: 'One photo a day, anchored to a prayer time. Only the people in your circle ever see it.',
-  },
-}[COPY_OPTION];
+  headline: 'Consistency, witnessed.',
+  sub: 'A sacred check-in with the few who keep you close to your deen.',
+};
 ---
 
 <section

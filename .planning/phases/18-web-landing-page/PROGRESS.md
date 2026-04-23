@@ -102,10 +102,14 @@ Shipped:
 
 Suggested: Sections 3 "Your Circle" (3-column feature strip + stagger-fade scroll reveal — SPEC §7 target #4) and 4 "Habits that Hold" (split layout with `FeedShell`-ish habit card and Noor Bead fill — SPEC §7 target #3). Then Sections 5 + 6 + 7 + mobile polish + README in one more session.
 
-### Open questions for the user
+### Decisions locked in (end of session 2)
 
-1. **Hero copy** — A or B? Currently defaulting to **A** ("Consistency, witnessed."). To switch, change `COPY_OPTION` in `src/components/Hero.astro` from `'A'` to `'B'`. Or tell me which and I'll lock it in next session and drop the toggle.
-2. **Mockup left/right rhythm** — Hero has mockup right, Moment has mockup left. If you want them both on the same side (e.g. always right) say so and I'll flip Moment.
+1. **Hero copy = option A** ("Consistency, witnessed." / "A sacred check-in with the few who keep you close to your deen."). A/B toggle removed from `Hero.astro`.
+2. **Mockup rhythm = alternating** (hero right, moment left). Keep this pattern — section 4 mockup goes right.
+
+### Handoff
+
+Session 3 will happen in a fresh chat. See `SESSION-3-HANDOFF.md` for the next agent's brief (sections 3 + 4 + Noor Bead fill animation).
 
 ### Manual test checklist (reviewer)
 
