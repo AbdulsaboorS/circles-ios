@@ -1,0 +1,268 @@
+---
+/**
+ * Static HTML replica of a habit detail card with a Noor ring progress
+ * and a row of streak beads. The NoorBeadFill React island animates:
+ *   - ring stroke-dashoffset from full (hidden) → target (60% fill)
+ *   - beads left-to-right with a small scale pop (muted → gold)
+ *
+ * Fidelity references:
+ *   - Circles/DesignSystem/NoorRingView.swift (glow / ring pattern)
+ *   - Circles/Home/HomeView.swift lines 1034–1151 (SharedHabitCard — typography + grain + card depth)
+ *
+ * Ring math:
+ *   r = 78  →  circumference = 2πr ≈ 490.088
+ *   Track drawn full, progress starts at full dashoffset (hidden) and the
+ *   island animates it down to ~196 (i.e. 60% filled — 7 of a ~12-day arc).
+ */
+
+const R = 78;
+const CIRC = 2 * Math.PI * R; // ≈ 490.088
+const HIDDEN = CIRC.toFixed(2);
+// 60% filled → dashoffset = CIRC * 0.4
+const TARGET = (CIRC * 0.4).toFixed(2);
+---
+
+<div class="habit-shell">
+  <!-- Grain layer (matches HomeShell) -->
+  <svg class="habit-shell__grain" aria-hidden="true">
+    <filter id="habit-grain-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.028 0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#habit-grain-filter)" />
+  </svg>
+
+  <!-- Top nav -->
+  <header class="habit-shell__topnav">
+    <button type="button" class="habit-shell__back" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="m9.5 3-5 5 5 5" stroke="var(--ms-gold)" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <p class="habit-shell__title">Read Qur&rsquo;an</p>
+    <span aria-hidden="true" style="width:32px"></span>
+  </header>
+
+  <!-- Noor ring + icon -->
+  <div class="habit-shell__ring-wrap">
+    <svg
+      class="habit-shell__ring"
+      viewBox="0 0 200 200"
+      width="200"
+      height="200"
+      aria-hidden="true"
+    >
+      <!-- Cream / muted track -->
+      <circle
+        cx="100"
+        cy="100"
+        r={R}
+        fill="none"
+        stroke="rgba(240, 234, 214, 0.10)"
+        stroke-width="4"
+      />
+      <!-- Gold progress — rotated -90° so the arc starts at 12 o'clock -->
+      <circle
+        data-noor-ring
+        cx="100"
+        cy="100"
+        r={R}
+        fill="none"
+        stroke="var(--ms-gold)"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-dasharray={CIRC.toFixed(2)}
+        stroke-dashoffset={HIDDEN}
+        transform="rotate(-90 100 100)"
+        style={`--noor-target: ${TARGET};`}
+      />
+    </svg>
+
+    <!-- Habit icon (moon.stars.fill equivalent) centered inside ring -->
+    <div class="habit-shell__icon" aria-hidden="true">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="var(--ms-gold)">
+        <path d="M12 2.3a9.7 9.7 0 1 0 9.4 12 7.7 7.7 0 0 1-9.4-9.7c0-.8.1-1.6.3-2.3Z" />
+        <circle cx="19" cy="6"  r="1.2" />
+        <circle cx="22" cy="10" r="0.9" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- Streak label -->
+  <div class="habit-shell__label">
+    <p class="habit-shell__streak">7 day streak</p>
+    <p class="habit-shell__meta">10 minutes · after Fajr</p>
+  </div>
+
+  <!-- Beads row (days of the week) -->
+  <div class="habit-shell__beads" aria-hidden="true">
+    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+      <span
+        class="habit-shell__bead"
+        data-bead-index={i}
+      ></span>
+    ))}
+  </div>
+
+  <!-- Reflection note (single line) -->
+  <p class="habit-shell__note">
+    &ldquo;Slower reading today, but present.&rdquo;
+  </p>
+</div>
+
+<style>
+  .habit-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 4px 16px 24px;
+    background: linear-gradient(180deg, var(--ms-background) 0%, var(--ms-background-deep) 100%);
+    font-family: var(--font-sans);
+    color: var(--ms-text-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .habit-shell__grain {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* ─── Top nav ────────────────────────────────────────── */
+  .habit-shell__topnav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 4px 0;
+  }
+
+  .habit-shell__back {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(212, 162, 64, 0.10);
+    border: 0.5px solid rgba(212, 162, 64, 0.28);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .habit-shell__title {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ms-text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  /* ─── Noor ring ──────────────────────────────────────── */
+  .habit-shell__ring-wrap {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin-top: 8px;
+    filter: drop-shadow(0 0 24px rgba(212, 162, 64, 0.18));
+  }
+
+  .habit-shell__ring {
+    display: block;
+    will-change: auto;
+  }
+
+  .habit-shell__ring [data-noor-ring] {
+    will-change: stroke-dashoffset;
+  }
+
+  .habit-shell__icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 0 12px rgba(212, 162, 64, 0.55));
+  }
+
+  /* ─── Streak label ───────────────────────────────────── */
+  .habit-shell__label {
+    text-align: center;
+  }
+
+  .habit-shell__streak {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ms-text-primary);
+    margin: 0 0 2px;
+  }
+
+  .habit-shell__meta {
+    font-size: 11px;
+    color: var(--ms-text-muted);
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── Beads row ──────────────────────────────────────── */
+  .habit-shell__beads {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0 2px;
+  }
+
+  .habit-shell__bead {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1.5px solid rgba(143, 175, 148, 0.35);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    will-change: transform, background-color, border-color;
+  }
+
+  .habit-shell__bead[data-filled="true"] {
+    background: var(--ms-gold);
+    border-color: var(--ms-gold);
+    box-shadow: 0 0 6px rgba(212, 162, 64, 0.55);
+  }
+
+  /* ─── Reflection ─────────────────────────────────────── */
+  .habit-shell__note {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ms-text-primary);
+    opacity: 0.8;
+    margin: auto 0 0;
+    text-align: center;
+    max-width: 28ch;
+    line-height: 1.4;
+  }
+
+  /* ─── Reduced-motion fallback: end state ─────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .habit-shell__ring [data-noor-ring] {
+      stroke-dashoffset: var(--noor-target);
+    }
+    .habit-shell__bead[data-bead-index="0"],
+    .habit-shell__bead[data-bead-index="1"],
+    .habit-shell__bead[data-bead-index="2"],
+    .habit-shell__bead[data-bead-index="3"],
+    .habit-shell__bead[data-bead-index="4"],
+    .habit-shell__bead[data-bead-index="5"],
+    .habit-shell__bead[data-bead-index="6"] {
+      background: var(--ms-gold);
+      border-color: var(--ms-gold);
+      box-shadow: 0 0 6px rgba(212, 162, 64, 0.55);
+    }
+  }
+</style>

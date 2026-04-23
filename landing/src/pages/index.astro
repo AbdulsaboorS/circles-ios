@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import Moment from '../components/Moment.astro';
 import Circle from '../components/Circle.astro';
+import Habits from '../components/Habits.astro';
 import { BRAND } from '../lib/brand';
 ---
 
@@ -36,16 +37,7 @@ import { BRAND } from '../lib/brand';
     <Circle />
 
     <!-- Section 4 — Habits that Hold -->
-    <section
-      id="habits"
-      class="bg-ms-background-deep"
-      aria-labelledby="habits-title"
-    >
-      <div class="mx-auto max-w-[1200px] px-6 py-20 md:py-32">
-        <h2 id="habits-title" class="text-4xl md:text-5xl">Habits that Hold</h2>
-        <p class="mt-4 text-ms-text-muted">placeholder</p>
-      </div>
-    </section>
+    <Habits />
 
     <!-- Section 5 — What It's Not -->
     <section
