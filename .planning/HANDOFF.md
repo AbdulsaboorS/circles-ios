@@ -4,14 +4,15 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 
 ---
 
-## On Main (2026-04-23)
+## On Main (2026-04-23, session 10 close)
 
 - Phases 1–14 complete (pending user QA pass)
 - Amir Onboarding Overhaul tasks 1-5 shipped
 - Session 8: Amir identity step layout/nav parity fix
 - Session 9: Joiner `transitionToAI → proceedToAIGeneration` fix + moment-mechanic BeReal alignment
-- **Phase 14 QA tests 1-2 deferred to manual user pass** — checklist in `.planning/notes/main.md` session 9 block
-- **Next work target: Moment Mechanic Redesign (BeReal parity)** — alignment locked, scope below. Not yet planned/executed.
+- **Session 10: Moment Mechanic Redesign shipped end-to-end** — migration run, Swift services + UI + Journey updated, build green, pushed. Commits `79bc28b → 5777c7a`. Manual QA pending. Full checklist + fast-path in `.planning/notes/main.md` (Session 11 handoff block).
+- **Phase 14 QA tests 1-2 deferred to manual user pass** — carried into the same Session 11 QA block as items 10–12.
+- **Next session target: QA pass.** User runs tests, records bugs inline, agent fixes blockers. No new feature work until QA green.
 
 ## Active Branches / Parallel Work
 
@@ -69,7 +70,9 @@ Key files:
 
 After Joiner bugs are fixed and verified → mark Phase 14 QA complete in STATE.md → then (separately) merge `phase-15-social-pulse`.
 
-## Moment Mechanic — Redesign (next session target)
+## Moment Mechanic — Redesign (SHIPPED session 10, QA pending)
+
+Status: code complete, migration run, pushed. Commits `79bc28b → 5777c7a`. QA list is in `.planning/notes/main.md` session 11 handoff block.
 
 **Rule**: exact BeReal copy. Prayer anchoring is dropped from the mechanic. See `CLAUDE.md` Product Rules + memory `project_moment_mechanic.md`.
 
