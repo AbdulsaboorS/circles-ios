@@ -9,9 +9,9 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 - Phases 1–14 complete
 - Amir Onboarding Overhaul tasks 1-5 shipped: flow reorder, personalization screen, dead code removed, routing bug fixed, catalog ranking done
 - Session 8: Amir identity step layout/nav parity fix shipped
-- Phase 14 QA tests 1-2 still pending (Task 6 next session)
-- **Joiner routing bug identified** — one-line fix, see below
-- **Moment mechanic bugs identified** — UTC day-key + missing closed-window UI, see session 8 note in `.planning/notes/main.md`
+- Session 9: Joiner `transitionToAI → proceedToAIGeneration` fix shipped (build verified)
+- **Phase 14 QA tests 1-2 deferred to manual user pass** — full checklist in `.planning/notes/main.md` session 9 block ("Pending — Manual User QA")
+- **Moment mechanic bugs identified** — UTC day-key + missing closed-window UI, see session 8 note in `.planning/notes/main.md` (next fix target)
 
 ## Active Branches
 
@@ -48,19 +48,7 @@ After QA passes → move to Joiner onboarding flow testing and bug fixes (see be
 
 ## After Task 6 — Joiner Onboarding
 
-Before Phase 14 QA is marked complete, test and fix the Joiner onboarding flow end-to-end. Joiner = user who receives an invite link and joins an existing circle.
-
-**Known critical bug (session 8 diagnosis)** — fix first before full QA:
-
-`Circles/Onboarding/MemberOnboardingFlowView.swift` ~line 35, `case .transitionToAI`:
-
-```swift
-coordinator.proceedToPersonalHabits()  // ❌ loops back
-// should be:
-coordinator.proceedToAIGeneration()
-```
-
-Coordinator already has `proceedToAIGeneration()` at `MemberOnboardingCoordinator.swift:97`. Joiner flow is unshippable until this is fixed.
+Joiner routing bug (`MemberOnboardingFlowView.swift:36`) ✅ fixed in Session 9. Full Joiner flow still needs manual user pass — see "QA Pass B" in `.planning/notes/main.md` session 9 block.
 
 Key files:
 - `Circles/Onboarding/JoinerLandingView.swift`

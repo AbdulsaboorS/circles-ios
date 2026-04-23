@@ -1,3 +1,57 @@
+# main — Session Note (2026-04-23, Session 9)
+
+## What Shipped This Session
+
+1. **`fix(onboarding): Joiner transitionToAI advances to AI generation`** — `MemberOnboardingFlowView.swift:36` now calls `coordinator.proceedToAIGeneration()` instead of `proceedToPersonalHabits()`. Joiner flow no longer loops back to personal habits from the "Some growth is private" transition.
+
+Build verified: `** BUILD SUCCEEDED **` (zero errors, iPhone 17 Pro simulator target).
+
+## Pending — Manual User QA (Sessions 8 + 9)
+
+User will run this pass manually after remaining bugs are fixed. Document below is the consolidated checklist.
+
+### QA Pass A — Fresh Amir Onboarding
+Reset: delete app from simulator OR sign out + clear `onboardingComplete_<uid>` from UserDefaults.
+
+1. Landing → **Shape Your Circle** (personalization) screen appears — NOT old circleIdentity.
+2. Pick all 3 chips (spirituality level / time commitment / heart of circle) → Continue enables.
+3. Habits screen — catalog order should reflect `habitScore(_:)` ranking for picked answers (Session 7 task 5). E.g. "More than an hour" + high spirituality → Tahajjud/Fasting float near top; "5–10 min" → they sink.
+4. Tap "Build the Foundation" → circleIdentity screen (Session 8 fix: gold chevron back button visible, StepIndicator + Continue pinned to bottom, not scrolling).
+5. Tap back chevron → returns to habits (Session 8 fix verification).
+6. Continue → "Some growth is private" transition quote.
+7. Transition → onboarding quiz (Phase 14).
+8. Finish quiz → AI generation directly (dead `AmiirStep3PersonalView` catalog must NOT appear).
+9. AI gen → location → auth.
+10. **StepIndicator sequence**: 1 personalization → 2 habits → 3 identity → 4 AI gen → 5 location → 6 auth.
+
+### QA Pass B — Fresh Joiner (Member) Onboarding
+Use an invite code from an existing circle. Same reset procedure.
+
+1. Joiner landing → enter invite → `transitionToCircle` ("amirSharedToPrivate" quote renders).
+2. Continue → `circleAlignment` (rich circle preview + habit selection, min 1).
+3. Continue → `onboardingQuiz` (Phase 14 quiz).
+4. Finish quiz → `personalHabits` (max 2).
+5. Continue → `transitionToAI` ("amirPrivateToAI" quote).
+6. **Session 9 fix check**: tap Continue → `aiGeneration` (NOT back to personalHabits).
+7. AI gen → `identity` (name + location).
+8. Continue → `authGate` → sign in.
+9. Post-auth → `flushToSupabase` writes profile + joins circle + creates habits + fires plan gen.
+10. Land on main app feed.
+
+### QA Pass C — Phase 14 Meaningful Habits (spot re-check)
+Tests 3–6 already verified in Session 5, no re-test needed. Only rerun if Pass A surfaces quiz regressions.
+
+### Bugs Found During QA
+For anything that surfaces: add to "Deferred" section below with file:line + repro, then fix in its own focused commit.
+
+### Sign-off Steps (after all passes green)
+1. Update `.planning/STATE.md` — Phase 14 row → ✓ Complete; Phase 14.1 row → ✓ Complete.
+2. Update `.planning/HANDOFF.md` "On Main" — Phase 14 done, next = merge `phase-15-social-pulse` worktree.
+3. Commit the doc updates.
+4. Merge `phase-15-social-pulse` (after 15.3/15.4 hardening done on that branch).
+
+---
+
 # main — Session Note (2026-04-23, Session 8)
 
 ## What Shipped This Session
@@ -18,23 +72,7 @@ Changes:
 
 No behavior change — pure layout/nav parity with `AmiirSharedPersonalizationView` and `AmiirStep2HabitsView`.
 
-## Deferred — Joiner Routing Bug (critical, one-liner)
-
-**File**: `Circles/Onboarding/MemberOnboardingFlowView.swift` ~line 35
-
-```swift
-case .transitionToAI:
-    OnboardingTransitionView(
-        quote: OnboardingTransitionQuote.amirPrivateToAI,
-        attribution: nil
-    ) {
-        coordinator.proceedToPersonalHabits()  // ❌ loops back
-    }
-```
-
-Should call `coordinator.proceedToAIGeneration()`. The "Some growth is private" transition currently sends Joiners back to the personal-habits step instead of advancing to AI generation. Flow is unshippable for Joiners until this is fixed.
-
-Coordinator already has `proceedToAIGeneration()` at `MemberOnboardingCoordinator.swift:97`.
+## Joiner Routing Bug — ✅ Fixed in Session 9 (`MemberOnboardingFlowView.swift:36`)
 
 ## Deferred — Moment Mechanic Overhaul
 
