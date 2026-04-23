@@ -6,12 +6,12 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 
 ## On Main (2026-04-23)
 
-- Phases 1–14 complete
-- Amir Onboarding Overhaul tasks 1-5 shipped: flow reorder, personalization screen, dead code removed, routing bug fixed, catalog ranking done
-- Session 8: Amir identity step layout/nav parity fix shipped
-- Session 9: Joiner `transitionToAI → proceedToAIGeneration` fix shipped (build verified)
-- **Phase 14 QA tests 1-2 deferred to manual user pass** — full checklist in `.planning/notes/main.md` session 9 block ("Pending — Manual User QA")
-- **Moment mechanic bugs identified** — UTC day-key + missing closed-window UI, see session 8 note in `.planning/notes/main.md` (next fix target)
+- Phases 1–14 complete (pending user QA pass)
+- Amir Onboarding Overhaul tasks 1-5 shipped
+- Session 8: Amir identity step layout/nav parity fix
+- Session 9: Joiner `transitionToAI → proceedToAIGeneration` fix + moment-mechanic BeReal alignment
+- **Phase 14 QA tests 1-2 deferred to manual user pass** — checklist in `.planning/notes/main.md` session 9 block
+- **Next work target: Moment Mechanic Redesign (BeReal parity)** — alignment locked, scope below. Not yet planned/executed.
 
 ## Active Branches
 
@@ -63,16 +63,35 @@ Key files:
 
 After Joiner bugs are fixed and verified → mark Phase 14 QA complete in STATE.md → then (separately) merge `phase-15-social-pulse`.
 
-## Moment Mechanic — Deferred Overhaul (Session 8)
+## Moment Mechanic — Redesign (next session target)
 
-User report: "Took a moment picture yesterday (after forcing the window open). It uploaded fine but attached to the next day on the Journey calendar."
+**Rule**: exact BeReal copy. Prayer anchoring is dropped from the mechanic. See `CLAUDE.md` Product Rules + memory `project_moment_mechanic.md`.
 
-Two root causes — full diagnosis in `.planning/notes/main.md` session 8 note:
+**Why**: user report "posted a moment, it attached to the next day on Journey" surfaced two bugs that are both symptoms of the mechanic having drifted from BeReal.
 
-1. **UTC day-key** in `JourneyViewModel.deduplicateMomentsByDay` (`Circles/Journey/JourneyViewModel.swift:218`) slices the raw UTC prefix of `postedAt`. `JourneyDateSupport.calendar` is also UTC. Users in UTC+ (UK/EU/ME) posting late evening local time land on tomorrow's cell.
-2. **Missing "window closed + not posted" UI** in `Circles/Community/CommunityView.swift`. Gate overlay and pinned own-card both hide in this state → feels broken, user had to force-open the window.
+**Aligned scope** (design locked 2026-04-23, not yet planned):
 
-Scope next session after confirming UX direction with user.
+1. **Drop prayer anchoring** — `DailyMomentService` stops using Aladhan prayer times. `daily_moments.moment_time` is repurposed to a random UTC window-open time, picked by a pg_cron job. Global drop (all circles fire at the same UTC instant, BeReal-style).
+2. **Stamp `moment_date` at insert** — add `circle_moments.moment_date DATE`, written at post time from the active window's date. Journey cells key off this column, not `postedAt` UTC prefix. Fixes Bug 1 structurally.
+3. **Missed-window UX** — extend `ReciprocityGateView` (`Circles/Community/CommunityView.swift`) to cover the "closed + !hasPostedToday" state. Blurred others' feed + "Post a late moment" CTA. No pinned-yesterday-own.
+4. **Soft gate** — can post until next window opens (replaces current 25hr hard cap).
+5. **Timestamps** — "on time" if within window, else "Xh ago" / "Xm ago". No late badge.
+6. **Schema**: `circle_moments.moment_date DATE` (new). `daily_moments.moment_time` semantics change — no schema change, just cron logic. Existing rows left alone; optional historical `moment_date` backfill via `postedAt::date`.
+
+**Not in scope (v2 future)**: region/calendar-aware random windows to avoid iftar/tarawih/jumu'ah overlap. Pure BeReal first; constrain range later if users complain.
+
+**Key files**:
+- `Circles/Services/DailyMomentService.swift` — strip prayer math, read randomized `moment_time`
+- `Circles/Services/MomentService.swift` — stamp `moment_date` at insert
+- `Circles/Journey/JourneyViewModel.swift:218` — swap `postedAt.prefix(10)` for `moment.momentDate`
+- `Circles/Journey/JourneyDateSupport.swift` — calendar timezone decision (local vs stay UTC — probably local now that day-key is DB-stamped)
+- `Circles/Community/CommunityView.swift` — third gate state (missed window blur)
+- `Circles/Feed/ReciprocityGateView.swift` — extend for missed-window copy
+- `Circles/Models/CircleMoment.swift` — add `momentDate` property + CodingKeys
+- pg_cron job for `daily_moments.moment_time` (Supabase SQL Editor)
+- APNs push scheduling — now fires at random `moment_time`, not prayer time
+
+**Discussion history**: session 9 note in `.planning/notes/main.md` captures the full discussion on direction (BeReal parity, why pure copy beats prayer-hybrid, niyyah as differentiator, Ramadan v2 mitigation).
 
 ## Integration Hotspots
 

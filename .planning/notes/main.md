@@ -2,9 +2,35 @@
 
 ## What Shipped This Session
 
-1. **`fix(onboarding): Joiner transitionToAI advances to AI generation`** — `MemberOnboardingFlowView.swift:36` now calls `coordinator.proceedToAIGeneration()` instead of `proceedToPersonalHabits()`. Joiner flow no longer loops back to personal habits from the "Some growth is private" transition.
+1. **`fix(onboarding): Joiner transitionToAI advances to AI generation`** (`7a747fb`) — `MemberOnboardingFlowView.swift:36` now calls `coordinator.proceedToAIGeneration()` instead of `proceedToPersonalHabits()`. Joiner flow no longer loops back to personal habits from the "Some growth is private" transition.
+2. **`docs: session 9 — joiner fix shipped, consolidated QA checklist`** (`24291f0`) — HANDOFF + notes updated.
+3. **`docs: CLAUDE.md — moment mechanic rule = exact BeReal copy`** (`616f8fd`) — product rule locked in CLAUDE.md + memory.
 
 Build verified: `** BUILD SUCCEEDED **` (zero errors, iPhone 17 Pro simulator target).
+
+## Moment Mechanic — Alignment Locked
+
+**Rule**: moment mechanic is an exact BeReal copy. Prayer anchoring dropped. Differentiation lives in context (niyyah, private circles, no discovery), never in the mechanic. When a design question arises, default to "what does BeReal do." Full rule persisted in `CLAUDE.md` + memory `project_moment_mechanic.md`.
+
+### Decisions from discussion
+
+- **Day-key fix (Bug 1)**: skip the half-fix of swapping to local timezone. Go straight to stamping `circle_moments.moment_date DATE` at insert time, sourced from the active window's date. Journey cells key off this column. Fully unambiguous, BeReal-exact.
+- **Missed-window UX (Bug 2)**: extend `ReciprocityGateView` to cover the "closed + !hasPostedToday" state. Blurred others' feed + "Post a late moment" CTA. NOT pinned-yesterday-own-moment (that was my wrong BeReal recall).
+- **Gate softening**: yes. Remove the 25hr hard cap. Posting allowed until the next window opens.
+- **Timestamps**: "on time" within window, else "Xh ago" / "Xm ago". No late badge.
+- **`daily_moments` table**: keep, repurpose `moment_time` from prayer-time to pg_cron-picked random UTC window-open time. Global drop — all circles fire at the same UTC instant.
+- **Prayer times**: stay in habits / Daily Intentions only. Never in moments.
+- **Ramadan / jumu'ah overlap**: v2 concern. Region-aware random range is the future mitigation. Don't build now.
+
+### Rejected directions (for future-self)
+
+- Prayer-window-bucketed randomness ("random drop within a random prayer window") — poetic but collapses the "what does BeReal do" decision rule. Muddy. Rejected.
+- Pinning yesterday's own moment on missed-window — not what BeReal does. Rejected.
+- Shipping local-timezone fix first as a stepping stone to `moment_date` — would be ripped out when mechanic redesign touches the write path anyway. Rejected.
+
+### Next session = the redesign
+
+Full scope in `.planning/HANDOFF.md` → "Moment Mechanic — Redesign" section. Not yet planned — next session opens with `/gsd:plan-phase` or equivalent on that scope.
 
 ## Pending — Manual User QA (Sessions 8 + 9)
 

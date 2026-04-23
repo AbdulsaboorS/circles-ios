@@ -77,17 +77,7 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 
 ## Product Rules
 
-### Moment Mechanic = BeReal Copy (exact)
-
-The daily moment mechanic is a direct BeReal copy. No prayer anchoring, no custom window logic. When any moment-related design question arises, **the default answer is "what does BeReal do."** Only deviate with explicit user sign-off.
-
-- Prayer times live in habits / Daily Intentions, NOT in moments.
-- Differentiation vs BeReal is in *context* only: niyyah per moment, small private circles, no likes/discovery. Never muddy the mechanic.
-- Missed-window UX: blurred others' feed + "Post a late moment" CTA (extending `ReciprocityGateView`). Not pinned-yesterday-own.
-- Timestamps: "on time" or "Xh ago" / "Xm ago". No late badge.
-- Soft gate: can post until the next window opens.
-- `daily_moments.moment_time` = randomized UTC window-open time (pg_cron job), not a prayer time.
-- Moments stamped at insert with the `moment_date` of the window they answered — this is the only correct day-key for Journey cells.
+**Moment mechanic = exact BeReal copy.** For any moment-related design question, default to "what does BeReal do." Prayer times stay out of the mechanic (they live in habits). Differentiation is context only — niyyah, private circles, no discovery — never the mechanic. Full details: memory `project_moment_mechanic.md`.
 
 ## Working Rules
 
