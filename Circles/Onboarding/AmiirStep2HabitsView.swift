@@ -8,6 +8,50 @@ struct AmiirStep2HabitsView: View {
 
     private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
 
+    private func habitScore(_ habit: (name: String, icon: String)) -> Int {
+        var score = 0
+        switch coordinator.spiritualityLevel {
+        case "Just starting out":
+            if ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].contains(habit.name) { score += 1 }
+        case "Building a foundation":
+            if ["Fajr", "Quran", "Dhikr"].contains(habit.name) { score += 1 }
+        case "Steady and growing":
+            if ["Tahajjud", "Quran", "Sadaqah"].contains(habit.name) { score += 1 }
+        case "Deeply rooted":
+            if ["Tahajjud", "Sadaqah", "Fasting"].contains(habit.name) { score += 1 }
+        default: break
+        }
+        switch coordinator.heartOfCircle {
+        case "Salah, together":
+            if ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].contains(habit.name) { score += 1 }
+        case "Quran in our lives":
+            if habit.name == "Quran" { score += 1 }
+        case "Remembrance of Allah":
+            if habit.name == "Dhikr" { score += 1 }
+        case "Brotherhood through hardship":
+            if ["Sadaqah", "Fasting"].contains(habit.name) { score += 1 }
+        default: break
+        }
+        switch coordinator.timeCommitment {
+        case "5–10 minutes":
+            if ["Tahajjud", "Fasting"].contains(habit.name) { score -= 1 }
+        case "More than an hour":
+            if ["Tahajjud", "Quran", "Fasting"].contains(habit.name) { score += 1 }
+        default: break
+        }
+        return score
+    }
+
+    private var rankedHabits: [(name: String, icon: String)] {
+        AmiirOnboardingCoordinator.curatedHabits
+            .enumerated()
+            .sorted { a, b in
+                let sa = habitScore(a.element), sb = habitScore(b.element)
+                return sa != sb ? sa > sb : a.offset < b.offset
+            }
+            .map(\.element)
+    }
+
     var body: some View {
         ZStack {
             Color.msBackground.ignoresSafeArea()
@@ -39,7 +83,7 @@ struct AmiirStep2HabitsView: View {
                             columns: [GridItem(.flexible()), GridItem(.flexible())],
                             spacing: 12
                         ) {
-                            ForEach(AmiirOnboardingCoordinator.curatedHabits, id: \.name) { habit in
+                            ForEach(rankedHabits, id: \.name) { habit in
                                 let isSelected = coordinator.selectedHabits.contains(habit.name)
                                 let isDisabled = !isSelected && !coordinator.canSelectMoreHabits
 
