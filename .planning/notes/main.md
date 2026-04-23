@@ -1,3 +1,92 @@
+# main — Session Note (2026-04-23, Session 8)
+
+## What Shipped This Session
+
+1. **`fix(onboarding): Amir identity step layout + back button`** — `AmiirStep1IdentityView` now matches the pattern used by the other Amir steps.
+
+## Amir Identity Step Fix
+
+`AmiirStep1IdentityView.swift` was out of pattern with the rest of the flow:
+
+- System back button was visible (every other step hides it + renders a gold chevron).
+- `StepIndicator` + Continue button were in the scrolling content, not pinned — they'd scroll away with the keyboard.
+
+Changes:
+- Added `.navigationBarBackButtonHidden()` + custom toolbar chevron calling `coordinator.navigationPath.removeLast()`.
+- Split into `VStack(spacing: 0) { ScrollView {...}; VStack { StepIndicator; Button }.background(Color.msBackground) }` to pin the footer.
+- Extracted `continueDisabled` computed var.
+
+No behavior change — pure layout/nav parity with `AmiirSharedPersonalizationView` and `AmiirStep2HabitsView`.
+
+## Deferred — Joiner Routing Bug (critical, one-liner)
+
+**File**: `Circles/Onboarding/MemberOnboardingFlowView.swift` ~line 35
+
+```swift
+case .transitionToAI:
+    OnboardingTransitionView(
+        quote: OnboardingTransitionQuote.amirPrivateToAI,
+        attribution: nil
+    ) {
+        coordinator.proceedToPersonalHabits()  // ❌ loops back
+    }
+```
+
+Should call `coordinator.proceedToAIGeneration()`. The "Some growth is private" transition currently sends Joiners back to the personal-habits step instead of advancing to AI generation. Flow is unshippable for Joiners until this is fixed.
+
+Coordinator already has `proceedToAIGeneration()` at `MemberOnboardingCoordinator.swift:97`.
+
+## Deferred — Moment Mechanic Overhaul
+
+User reported: "took a moment picture yesterday (after forcing the window open), it uploaded fine but attached to the next day on the Journey calendar." Two root causes diagnosed:
+
+### Bug 1 — UTC day-key in Journey
+`Circles/Journey/JourneyViewModel.swift:218` in `deduplicateMomentsByDay`:
+
+```swift
+let dayKey = String(moment.postedAt.prefix(10))  // raw UTC prefix
+```
+
+`postedAt` is an ISO8601 string with UTC offset. Slicing `.prefix(10)` gives the UTC date. For a user in UTC+ (e.g. UK in BST, Europe, Middle East) who posts late evening local time, the moment lands on tomorrow's calendar cell.
+
+`Circles/Journey/JourneyDateSupport.swift` — the `calendar` uses `TimeZone(identifier: "UTC")`, so calendar cells are also UTC. Mismatch is baked into both sides.
+
+**Fix plan** (next session):
+- Switch `JourneyDateSupport.calendar` to `TimeZone.current`.
+- Parse `moment.postedAt` as `Date` via `ISO8601DateFormatter` with fractional seconds + `withInternetDateTime`, then extract the day via the local calendar.
+- Widen `MomentService.fetchMoments` DB query bounds by ±1 UTC day so boundary moments aren't missed.
+
+### Bug 2 — "Window closed" UI state missing
+`Circles/Community/CommunityView.swift`:
+- Gate overlay: shown only when `momentService.isGateActive == true`.
+- Pinned own-moment card: shown only when `hasPostedToday == true` AND feed contains user's moment.
+- **Gap**: window closed + user didn't post → no UI, feels broken. That's why user had to "force it open."
+
+**Fix plan** (next session): Add a third state — countdown card to next prayer window, OR a "you missed today's window — see yesterday's moment" affordance. Confirm with user which direction to go.
+
+### `DailyMomentService` (reference)
+- `isGateActive` requires `windowStart != nil && Date() >= start && !hasPostedToday`.
+- `computeHasPostedToday` uses `windowStart` → `windowStart + 25hr` range.
+
+## Phase 14 QA — Still Pending
+
+| Test | Status |
+|------|--------|
+| 1. Fresh Amir onboarding (new identity + ranked catalog) | ⏳ Pending |
+| 2. Fresh Member onboarding | ⏳ Pending |
+| 3–6. All other Phase 14 tests | ✅ Verified (Session 5) |
+
+## Next Session — Priority Order
+
+1. **Joiner one-line fix** (`MemberOnboardingFlowView.swift:35`) — 2 min.
+2. **Task 6 Amir QA** — fresh install pass, full flow including new identity layout.
+3. **Member onboarding re-test** — Phase 14 test 2.
+4. **Joiner onboarding full flow test + any additional bug fixes.**
+5. **Moment mechanic overhaul** — Journey UTC bug + closed-window UI. Confirm UX direction with user before building step 5.
+6. After Phase 14 QA signed off → merge `phase-15-social-pulse` worktree → Phase 15.
+
+---
+
 # main — Session Note (2026-04-23, Session 7)
 
 ## What Shipped This Session

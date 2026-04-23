@@ -8,7 +8,10 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 
 - Phases 1–14 complete
 - Amir Onboarding Overhaul tasks 1-5 shipped: flow reorder, personalization screen, dead code removed, routing bug fixed, catalog ranking done
+- Session 8: Amir identity step layout/nav parity fix shipped
 - Phase 14 QA tests 1-2 still pending (Task 6 next session)
+- **Joiner routing bug identified** — one-line fix, see below
+- **Moment mechanic bugs identified** — UTC day-key + missing closed-window UI, see session 8 note in `.planning/notes/main.md`
 
 ## Active Branches
 
@@ -47,6 +50,18 @@ After QA passes → move to Joiner onboarding flow testing and bug fixes (see be
 
 Before Phase 14 QA is marked complete, test and fix the Joiner onboarding flow end-to-end. Joiner = user who receives an invite link and joins an existing circle.
 
+**Known critical bug (session 8 diagnosis)** — fix first before full QA:
+
+`Circles/Onboarding/MemberOnboardingFlowView.swift` ~line 35, `case .transitionToAI`:
+
+```swift
+coordinator.proceedToPersonalHabits()  // ❌ loops back
+// should be:
+coordinator.proceedToAIGeneration()
+```
+
+Coordinator already has `proceedToAIGeneration()` at `MemberOnboardingCoordinator.swift:97`. Joiner flow is unshippable until this is fixed.
+
 Key files:
 - `Circles/Onboarding/JoinerLandingView.swift`
 - `Circles/Onboarding/JoinerIdentityView.swift`
@@ -59,6 +74,17 @@ Key files:
 - `Circles/Onboarding/MemberOnboardingFlowView.swift`
 
 After Joiner bugs are fixed and verified → mark Phase 14 QA complete in STATE.md → then (separately) merge `phase-15-social-pulse`.
+
+## Moment Mechanic — Deferred Overhaul (Session 8)
+
+User report: "Took a moment picture yesterday (after forcing the window open). It uploaded fine but attached to the next day on the Journey calendar."
+
+Two root causes — full diagnosis in `.planning/notes/main.md` session 8 note:
+
+1. **UTC day-key** in `JourneyViewModel.deduplicateMomentsByDay` (`Circles/Journey/JourneyViewModel.swift:218`) slices the raw UTC prefix of `postedAt`. `JourneyDateSupport.calendar` is also UTC. Users in UTC+ (UK/EU/ME) posting late evening local time land on tomorrow's cell.
+2. **Missing "window closed + not posted" UI** in `Circles/Community/CommunityView.swift`. Gate overlay and pinned own-card both hide in this state → feels broken, user had to force-open the window.
+
+Scope next session after confirming UX direction with user.
 
 ## Integration Hotspots
 
