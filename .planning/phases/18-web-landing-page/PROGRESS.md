@@ -1,6 +1,6 @@
 # Phase 18 — Progress Log
 
-**Status:** pending user review after Session 2 (Hero + Moment shipped).
+**Status:** pending user review after Session 3 (Hero + Moment + Circle + Habits shipped — four of seven sections).
 
 ---
 
@@ -121,4 +121,82 @@ Run `cd landing && npm run dev`, open `http://localhost:4321/`:
 - DevTools → Rendering → "Emulate CSS prefers-reduced-motion: reduce" → both animations skip; hero static, moment shows end-state (feed card) immediately
 - DevTools console → zero errors, zero failed requests
 - Mobile viewport (375px) → hero + moment both stack, phone shells shrink, copy stays readable
+
+---
+
+## Session 3 — 2026-04-23 — Your Circle + Habits that Hold
+
+Two focused commits plus a log. Four of seven sections now live; SPEC §7 animation targets #1, #2, #3, #4 are all landed.
+
+### Commit 1 — `feat(landing): your circle section with staggered scroll reveal` (`975998f`)
+
+Shipped:
+
+- `src/components/islands/ScrollReveal.tsx` — reusable React island. Fades direct children (or `[data-reveal]` descendants) +16px → 0 / opacity 0 → 1 over 600ms on viewport entry. `stagger` prop cascades siblings (default 100ms). Vanilla `IntersectionObserver` only — no GSAP here per SPEC §7 target #4 ("CSS + IntersectionObserver vanilla JS"), which keeps the island payload tiny. `replay` prop is available for future sections that want scroll-up replay. `prefers-reduced-motion` skips the observer entirely and shows the end state.
+- `src/components/Circle.astro` — Section 3. Centered eyebrow + serif H2 ("Small, private, and yours."), then a responsive 3-column grid (stacks mobile, 3-col ≥768px). Each column: gold-tinted 48px icon pill → serif 22px headline → muted 15px body. Inline SVG glyphs (lock-keyhole / two-person users / moon) to match the HomeShell + MomentShell house style — not `lucide-astro`, which would add a component layer for three icons.
+- Wraps the grid in `<ScrollReveal client:visible stagger={120}>` so columns cascade 120ms apart when the section crosses 80% of the viewport.
+- Semantic: `<section aria-labelledby="circle-title">` with three `<article>` + `<h3>` columns, all icons `aria-hidden="true"`.
+- `index.astro`: replaces the placeholder with `<Circle />`.
+
+### Commit 2 — `feat(landing): habits section with noor bead fill animation` (`3bd39d9`)
+
+Shipped:
+
+- `src/components/mockups/HabitDetailShell.astro` — new phone-shell screen. Top nav (back chevron + serif habit title) → large circular Noor ring (cream track + gold progress arc, `r=78`, dasharray ≈ `490.088`, rotated -90° so fill starts at 12 o'clock, target offset = `CIRC * 0.4` = 60% fill) wrapping a centered gold `moon.stars` icon → "7 day streak" label + "10 minutes · after Fajr" meta → row of seven beads (`data-bead-index="0..6"`, muted-border default, gold+glow when `data-filled="true"`) → italic serif reflection line. Grain overlay via SVG `feTurbulence` mirrors the HomeShell pattern. Pulls visual cues from `Circles/DesignSystem/NoorRingView.swift` and `SharedHabitCard` (HomeView.swift 1034–1151).
+- `src/components/islands/NoorBeadFill.tsx` — React island using GSAP + ScrollTrigger (same shape as `MomentDissolve.tsx`). Timeline:
+  1. Ring `stroke-dashoffset` animates from starting value → CSS `--noor-target` custom property over 1.2s `power2.inOut`
+  2. Beads fill left-to-right on a 0.12s offset, each with a `scale: 1 → 1.15 → 1` pop over 0.3s as it flips muted → gold (via `data-filled` attribute swap)
+- Reduced-motion fallback: island short-circuits to end state (ring at target, all beads filled); mockup CSS also enforces end state independently as a belt-and-braces guard.
+- `onLeaveBack` resets state so scrolling up and re-entering replays the full ritual (same UX as the Moment dissolve).
+- `src/components/Habits.astro` — Section 4. Split layout (copy left, mockup right ≥1024px; stacks below). Full-bleed `--ms-background` with a subtle reversed radial tint (warm top-right, forest bottom-left). Copy:
+  - Eyebrow: "Habits that Hold"
+  - H2: "Built around your niyyah, not your streak."
+  - Two-paragraph body about the 28-day roadmap + "presence, not perfection"
+  - Gold-left-border callout (matches Moment's style): "Your streak can break. Your intention doesn't."
+- `index.astro`: replaces the placeholder with `<Habits />`.
+- Mockup rhythm continues the alternating pattern: hero right → moment left → habits right.
+
+### Verified
+
+- `npm run build` — clean, 1.33s, zero warnings, 1 page
+- `npm run dev` — HTTP 200
+- Markers present in rendered HTML: `circle-title`, `Small, private, and yours.`, `Private by default`, `Small by design`, `Gender-aware`, `scroll-reveal-root`, `habit-shell`, `habits-title`, `Built around your niyyah`, `7 day streak`, `data-bead-index`, `data-noor-ring`, `noor-bead-fill-root`, `component-url="/src/components/islands/NoorBeadFill.tsx"`
+- Both islands hydrate `client:visible` → GSAP (bead fill) and the IntersectionObserver (reveal) only load when the sections approach the viewport
+
+### Animation targets status
+
+Per SPEC §7:
+
+- [x] #1 Hero ambient gradient drift — shipped session 2
+- [x] #2 Moment niyyah dissolve → feed reveal — shipped session 2
+- [x] #3 Noor Bead streak fill — shipped this session
+- [x] #4 Scroll-reveal stagger (Your Circle columns) — shipped this session; `ScrollReveal` is reusable for Section 5's "What it's not" lines
+- [ ] #5 FAQ accordion chevron rotation — Session 4
+
+### Manual test checklist (reviewer)
+
+Run `cd landing && npm run dev`, open `http://localhost:4321/`:
+
+1. Hero + Moment still behave as session 2 described (ambient drift, breathing hero card, niyyah dissolve, feed fade-up, replay on scroll back).
+2. **Section 3 (Your Circle):** on desktop the three columns sit in a row; on mobile they stack. Scroll them into view — each column cascades up with a 120ms delay after its neighbour (first left, then middle, then right). Scroll past and back → with default settings they stay revealed (no replay); that's intentional.
+3. **Section 4 (Habits):** on desktop the habit-shell mockup is on the right, copy left; mobile stacks. Scroll into view → the gold ring fills over ~1.2s, then the seven beads pop-fill one after another left-to-right (~0.12s apart). Scroll up above the section and back down → the ritual replays.
+4. DevTools → Rendering → "Emulate CSS prefers-reduced-motion: reduce":
+   - Your Circle: columns render in their end state, no fade-up
+   - Habits: ring arrives at its target offset immediately; all seven beads render filled; no pop
+5. Console → zero errors, zero failed requests.
+6. Mobile viewport (375px): all four sections stack cleanly, no horizontal overflow, phone shells shrink, copy stays readable.
+
+### What's next (Session 4)
+
+Final session. Closes Phase 18 scope.
+
+- **Section 5 — "What It's Not."** Dark strip (`--ms-background-deep`), three lines: "No public feed.", "No followers.", "No leaderboards." Gold underline reveal per line — good candidate for reusing `ScrollReveal` with `data-reveal` + a small CSS variant for the underline draw.
+- **Section 6 — FAQ.** 6–8 hand-written `<details>/<summary>` accordions with animated chevron rotation on `[open]` (SPEC §7 target #5 — pure CSS transition, no JS). Shadcn-style spacing. Draft questions already suggested in SPEC §4.6.
+- **Section 7 — Footer.** Logo + tagline left, Product / Support / Social columns (links to `#` placeholders), fine-print "Made for the ummah. © 2026." Replace the existing stub in `index.astro`.
+- **Mobile responsive polish pass.** Audit every section at 375 / 414 / 768, check phone-shell scaling (SPEC §8 says 60% on mobile — verify), ensure no horizontal overflow, make sure callouts and the hero ambient don't fight each other on small screens.
+- **Accessibility audit.** Landmarks, heading order, focus ring visibility on sticky header CTA, color contrast on `--ms-text-muted` against both `--ms-background` and `--ms-background-deep`, reduced-motion coverage re-sweep.
+- **Lighthouse pass.** Run local Lighthouse on `npm run build && npm run preview`; target ≥ 95 Performance + Accessibility per SPEC §12. Fix whatever falls short — likely font preload + explicit `width/height` on any remaining decorative elements.
+- **`landing/README.md`.** Run instructions: prerequisites, `npm install`, `npm run dev`, where things live, how to toggle hero copy (spoiler: it's locked to A — just note the path if a future change is needed), how to swap mockups for real screenshots later.
+
+Session 4 should fit in a single chat since there are no new mockups or GSAP islands — all remaining animation is CSS or reuses `ScrollReveal`.
 
