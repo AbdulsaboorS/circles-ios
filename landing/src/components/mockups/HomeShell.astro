@@ -1,0 +1,414 @@
+---
+/**
+ * Static HTML replica of the iOS HomeView ("Daily Intentions").
+ *
+ * Fidelity reference:
+ *   - Circles/Home/HomeView.swift — HeroHabitCard (909–1030), SharedHabitCard (1034–1151)
+ *   - Circles/DesignSystem/DesignTokens.swift — Midnight Sanctuary palette
+ *
+ * Not pixel-perfect by design (SPEC §6). Close enough to be recognizable.
+ */
+---
+
+<div class="home-shell">
+  <!-- Grain layer (SVG feTurbulence — matches Canvas noise in HomeView.GrainTexture) -->
+  <svg class="home-grain" aria-hidden="true">
+    <filter id="home-grain-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.028 0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#home-grain-filter)" />
+  </svg>
+
+  <!-- Top nav: "Daily Intentions" -->
+  <header class="home-topnav">
+    <div>
+      <p class="home-eyebrow">Thursday · Dhuhr</p>
+      <h3 class="home-title">Daily Intentions</h3>
+    </div>
+    <div class="home-noor" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="11" stroke="var(--ms-gold)" stroke-width="1.25" opacity="0.35" />
+        <circle cx="14" cy="14" r="11" stroke="var(--ms-gold)" stroke-width="1.5"
+          stroke-dasharray="69.1" stroke-dashoffset="22" stroke-linecap="round" transform="rotate(-90 14 14)" />
+        <circle cx="14" cy="14" r="4.5" fill="var(--ms-gold)" opacity="0.85" />
+      </svg>
+      <span class="home-noor-label">6</span>
+    </div>
+  </header>
+
+  <!-- Hero habit card (HeroHabitCard) -->
+  <article class="hero-card" aria-label="Read Qur'an — tap to check in">
+    <div class="hero-card__main">
+      <div class="hero-card__icon" aria-hidden="true">
+        <!-- Moon + stars glyph (SF Symbol: moon.stars.fill) -->
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--ms-gold)">
+          <path d="M12 2.3a9.7 9.7 0 1 0 9.4 12 7.7 7.7 0 0 1-9.4-9.7c0-.8.1-1.6.3-2.3Z" />
+          <circle cx="19" cy="6"  r="1.2" />
+          <circle cx="22" cy="10" r="0.9" />
+        </svg>
+      </div>
+      <div class="hero-card__text">
+        <p class="hero-card__name">Read Qur&rsquo;an</p>
+        <p class="hero-card__meta">10 minutes · after Fajr</p>
+      </div>
+    </div>
+    <div class="hero-card__chev" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="m5 2.5 4.5 4.5L5 11.5" stroke="var(--ms-gold)" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </div>
+
+    <!-- Noor source — radial gold glow from top-leading -->
+    <div class="hero-card__noor" aria-hidden="true"></div>
+  </article>
+
+  <!-- Shared habit grid (SharedHabitCard × 4) -->
+  <div class="home-grid">
+    <article class="shared-card shared-card--done">
+      <div class="shared-card__row">
+        <div class="shared-card__icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--ms-gold)">
+            <path d="M7 1.5 8.6 5l3.8.4-2.9 2.5.9 3.6L7 9.7l-3.4 1.8.9-3.6L1.6 5.4 5.4 5Z" />
+          </svg>
+        </div>
+        <div class="shared-card__check" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--ms-gold)">
+            <path d="M7 0a7 7 0 1 0 7 7A7 7 0 0 0 7 0Zm3.3 5.5-4 4.3L3.7 7.2l1-1 1.6 1.7 3-3.2Z" />
+          </svg>
+        </div>
+      </div>
+      <p class="shared-card__name">Pray 5 daily</p>
+      <p class="shared-card__streak">7 day streak</p>
+    </article>
+
+    <article class="shared-card">
+      <div class="shared-card__row">
+        <div class="shared-card__icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--ms-gold)" opacity="0.75">
+            <path d="M2 3h10v2H2Zm0 3h8v2H2Zm0 3h6v2H2Z" />
+          </svg>
+        </div>
+        <div class="shared-card__chev" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="m3 2 3 3-3 3" stroke="var(--ms-text-muted)" stroke-width="1.6"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+      </div>
+      <p class="shared-card__name">Dhikr morning</p>
+      <p class="shared-card__cta">Tap to check in</p>
+    </article>
+
+    <article class="shared-card shared-card--done">
+      <div class="shared-card__row">
+        <div class="shared-card__icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--ms-gold)">
+            <circle cx="7" cy="7" r="3.4" />
+            <circle cx="7" cy="7" r="6" fill="none" stroke="var(--ms-gold)" stroke-width="1.2" opacity="0.55" />
+          </svg>
+        </div>
+        <div class="shared-card__check" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--ms-gold)">
+            <path d="M7 0a7 7 0 1 0 7 7A7 7 0 0 0 7 0Zm3.3 5.5-4 4.3L3.7 7.2l1-1 1.6 1.7 3-3.2Z" />
+          </svg>
+        </div>
+      </div>
+      <p class="shared-card__name">No phone after Isha</p>
+      <p class="shared-card__streak">3 day streak</p>
+    </article>
+
+    <article class="shared-card">
+      <div class="shared-card__row">
+        <div class="shared-card__icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--ms-gold)" opacity="0.75">
+            <path d="M7 1.2 12 4v3c0 3.1-2.1 5.6-5 6.4-2.9-.8-5-3.3-5-6.4V4Z" />
+          </svg>
+        </div>
+        <div class="shared-card__chev" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="m3 2 3 3-3 3" stroke="var(--ms-text-muted)" stroke-width="1.6"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+      </div>
+      <p class="shared-card__name">Sadaqah daily</p>
+      <p class="shared-card__cta">Tap to check in</p>
+    </article>
+  </div>
+
+  <!-- Tab bar -->
+  <nav class="home-tabs" aria-hidden="true">
+    <span class="home-tab home-tab--active">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="var(--ms-gold)"><circle cx="10" cy="10" r="3.5"/></svg>
+    </span>
+    <span class="home-tab">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="var(--ms-text-muted)"><rect x="4" y="4" width="5" height="5" rx="1"/><rect x="11" y="4" width="5" height="5" rx="1"/><rect x="4" y="11" width="5" height="5" rx="1"/><rect x="11" y="11" width="5" height="5" rx="1"/></svg>
+    </span>
+    <span class="home-tab">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="var(--ms-text-muted)"><circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.5"/></svg>
+    </span>
+    <span class="home-tab">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="var(--ms-text-muted)"><circle cx="10" cy="7" r="3"/><path d="M3 17c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </span>
+  </nav>
+</div>
+
+<style>
+  .home-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 4px 16px 0;
+    background: linear-gradient(180deg, var(--ms-background) 0%, var(--ms-background-deep) 100%);
+    font-family: var(--font-sans);
+    color: var(--ms-text-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .home-grain {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* ─── Top nav ────────────────────────────────────────── */
+  .home-topnav {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 8px 4px 0;
+  }
+
+  .home-eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ms-text-muted);
+    margin: 0 0 2px;
+  }
+
+  .home-title {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--ms-text-primary);
+    margin: 0;
+  }
+
+  .home-noor {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+  }
+
+  .home-noor-label {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ms-gold);
+  }
+
+  /* ─── Hero habit card ─────────────────────────────────── */
+  .hero-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px;
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--ms-card-shared) 85%, #000 15%);
+    overflow: hidden;
+    border: 1.5px solid rgba(212, 162, 64, 0.45);
+    box-shadow:
+      0 10px 32px rgba(0, 0, 0, 0.40),
+      0 0 22px rgba(212, 162, 64, 0.15);
+  }
+
+  .hero-card__main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .hero-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(212, 162, 64, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 0 8px rgba(212, 162, 64, 0.55));
+  }
+
+  .hero-card__name {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ms-text-primary);
+    margin: 0 0 2px;
+  }
+
+  .hero-card__meta {
+    font-size: 11px;
+    color: var(--ms-text-muted);
+    margin: 0;
+  }
+
+  .hero-card__chev {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(212, 162, 64, 0.14);
+    border: 1.5px solid rgba(212, 162, 64, 0.5);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero-card__noor {
+    position: absolute;
+    top: -30%;
+    left: -30%;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle at 50% 50%, rgba(212, 162, 64, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Breathing border — mirrors HeroHabitCard.borderGlow loop (6s, 0.45 → 0.88). */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-card {
+      animation: hero-breathe 6s ease-in-out infinite alternate;
+    }
+  }
+
+  @keyframes hero-breathe {
+    from {
+      border-color: rgba(212, 162, 64, 0.45);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.40), 0 0 22px rgba(212, 162, 64, 0.15);
+    }
+    to {
+      border-color: rgba(212, 162, 64, 0.88);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45), 0 0 30px rgba(212, 162, 64, 0.35);
+    }
+  }
+
+  /* ─── Shared habit grid ───────────────────────────────── */
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .shared-card {
+    padding: 14px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--ms-card-shared) 78%, #000 22%);
+    border: 0.5px solid rgba(212, 162, 64, 0.22);
+    box-shadow: 0 14px 20px rgba(0, 0, 0, 0.38);
+    min-height: 96px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .shared-card--done {
+    background: color-mix(in srgb, var(--ms-card-done) 82%, #000 18%);
+    border-color: rgba(212, 162, 64, 0.55);
+  }
+
+  .shared-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .shared-card__icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(212, 162, 64, 0.10);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .shared-card__check,
+  .shared-card__chev {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .shared-card__name {
+    font-family: var(--font-serif);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ms-text-primary);
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .shared-card__streak {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ms-text-muted);
+    margin: 0;
+  }
+
+  .shared-card__cta {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(212, 162, 64, 0.8);
+    text-align: right;
+    margin: 0;
+  }
+
+  /* ─── Tab bar ─────────────────────────────────────────── */
+  .home-tabs {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 12px 8px 24px;
+    border-top: 0.5px solid rgba(212, 162, 64, 0.18);
+    background: color-mix(in srgb, var(--ms-background-deep) 92%, #000 8%);
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+
+  .home-tab {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .home-tab--active {
+    position: relative;
+  }
+
+  .home-tab--active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--ms-gold);
+  }
+</style>

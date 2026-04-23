@@ -1,0 +1,137 @@
+---
+/**
+ * Reusable iPhone-ish phone shell. Renders the bezel, rounded screen,
+ * notch, and a fixed status bar. Children go inside the screen via <slot />.
+ *
+ * Sized for desktop: 360x780px (close to a scaled iPhone 14 viewport).
+ * Scales down on mobile per SPEC §8.
+ */
+interface Props {
+  /** Status bar time (defaults to 9:41, the Apple keynote classic). */
+  time?: string;
+  /** Extra classes for the outer wrapper (e.g. scale / rotate). */
+  class?: string;
+}
+
+const { time = '9:41', class: className = '' } = Astro.props;
+---
+
+<div class={`phone-frame ${className}`}>
+  <div class="phone-bezel">
+    <div class="phone-screen">
+      <!-- Status bar -->
+      <div class="phone-statusbar" aria-hidden="true">
+        <span class="phone-time">{time}</span>
+        <span class="phone-notch"></span>
+        <span class="phone-glyphs">
+          <!-- Signal -->
+          <svg width="16" height="10" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0"  y="7" width="2.5" height="3" rx="0.5" fill="currentColor" />
+            <rect x="4"  y="5" width="2.5" height="5" rx="0.5" fill="currentColor" />
+            <rect x="8"  y="3" width="2.5" height="7" rx="0.5" fill="currentColor" />
+            <rect x="12" y="1" width="2.5" height="9" rx="0.5" fill="currentColor" opacity="0.55" />
+          </svg>
+          <!-- Wifi -->
+          <svg width="15" height="11" viewBox="0 0 15 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7.5 2.2c2.4 0 4.7.9 6.4 2.6l-1 1A7.6 7.6 0 0 0 7.5 3.6 7.6 7.6 0 0 0 2.1 5.8l-1-1A8.9 8.9 0 0 1 7.5 2.2Zm0 3.1c1.6 0 3.1.6 4.2 1.7l-1 1A4.5 4.5 0 0 0 7.5 6.7 4.5 4.5 0 0 0 4.3 8l-1-1a6 6 0 0 1 4.2-1.7Zm0 3.1c.8 0 1.5.3 2 .8L7.5 10.7 5.5 9.2a2.9 2.9 0 0 1 2-.8Z" fill="currentColor" />
+          </svg>
+          <!-- Battery -->
+          <svg width="25" height="11" viewBox="0 0 25 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0.5" y="0.5" width="21" height="10" rx="2.2" stroke="currentColor" opacity="0.55" fill="none" />
+            <rect x="2"   y="2"   width="15" height="7"  rx="1.2" fill="currentColor" />
+            <rect x="23"  y="3.5" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.55" />
+          </svg>
+        </span>
+      </div>
+
+      <!-- Screen content -->
+      <div class="phone-content">
+        <slot />
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .phone-frame {
+    /* Intrinsic size — caller can scale via transform */
+    width: 360px;
+    height: 780px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.45));
+  }
+
+  .phone-bezel {
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    border-radius: 52px;
+    background:
+      linear-gradient(145deg, #2a2a2f 0%, #0f0f12 50%, #1a1a1f 100%);
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .phone-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 44px;
+    overflow: hidden;
+    background-color: var(--ms-background);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .phone-statusbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    padding: 0 24px;
+    color: var(--ms-text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 2;
+  }
+
+  .phone-time {
+    letter-spacing: -0.01em;
+  }
+
+  .phone-notch {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 30px;
+    background: #000;
+    border-radius: 999px;
+  }
+
+  .phone-glyphs {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ms-text-primary);
+  }
+
+  .phone-content {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Responsive: shrink on narrow viewports per SPEC §8 */
+  @media (max-width: 640px) {
+    .phone-frame {
+      transform: scale(0.78);
+      transform-origin: top center;
+      margin-bottom: -170px; /* reclaim the scaled whitespace */
+    }
+  }
+</style>

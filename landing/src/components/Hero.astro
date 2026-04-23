@@ -1,0 +1,191 @@
+---
+import AmbientGradient from './AmbientGradient.astro';
+import PhoneFrame from './PhoneFrame.astro';
+import HomeShell from './mockups/HomeShell.astro';
+import { BRAND } from '../lib/brand';
+
+/**
+ * HERO — two copy options (agent draft, user to pick).
+ *
+ * Both follow PROJECT.md §J (Muslim-Native Copy Guidelines):
+ *   • No "Islamic BeReal"
+ *   • No exclamation marks in headers
+ *   • "circle" not "group"
+ *
+ * To switch: change `COPY_OPTION` below to 'A' or 'B'.
+ */
+const COPY_OPTION: 'A' | 'B' = 'A';
+
+const copy = {
+  A: {
+    label: 'Aspirational / spiritual',
+    headline: 'Consistency, witnessed.',
+    sub: 'A sacred check-in with the few who keep you close to your deen.',
+  },
+  B: {
+    label: 'Mechanic-forward',
+    headline: 'Your circle. Your moment. Nothing public.',
+    sub: 'One photo a day, anchored to a prayer time. Only the people in your circle ever see it.',
+  },
+}[COPY_OPTION];
+---
+
+<section
+  id="hero"
+  class="hero"
+  aria-labelledby="hero-title"
+>
+  <AmbientGradient />
+
+  <div class="hero__inner">
+    <div class="hero__copy">
+      <p class="hero__eyebrow">{BRAND.name} · coming soon</p>
+      <h1 id="hero-title" class="hero__title">
+        {copy.headline}
+      </h1>
+      <p class="hero__sub">{copy.sub}</p>
+
+      <div class="hero__actions">
+        <button
+          type="button"
+          class="hero__cta"
+          aria-disabled="true"
+          tabindex="-1"
+        >
+          <span class="hero__cta-label">Coming to the App Store</span>
+        </button>
+        <p class="hero__hint">An invite-only launch. No waitlist yet.</p>
+      </div>
+    </div>
+
+    <div class="hero__mockup" aria-label="Preview of the Daily Intentions screen" role="img">
+      <PhoneFrame>
+        <HomeShell />
+      </PhoneFrame>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background-color: var(--ms-background);
+    padding: 64px 0 96px;
+  }
+
+  .hero__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .hero {
+      padding: 96px 0 128px;
+    }
+
+    .hero__inner {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 72px;
+    }
+  }
+
+  /* ─── Copy column ──────────────────────────────────────── */
+  .hero__copy {
+    max-width: 560px;
+  }
+
+  .hero__eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ms-gold);
+    margin: 0 0 20px;
+  }
+
+  .hero__title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(40px, 7vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    color: var(--ms-text-primary);
+    margin: 0 0 22px;
+  }
+
+  .hero__sub {
+    font-family: var(--font-sans);
+    font-size: clamp(16px, 1.4vw, 19px);
+    line-height: 1.55;
+    color: var(--ms-text-muted);
+    margin: 0 0 40px;
+    max-width: 42ch;
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .hero__cta {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ms-background);
+    background: var(--ms-gold);
+    padding: 14px 28px;
+    border-radius: 999px;
+    border: none;
+    cursor: not-allowed;
+    opacity: 0.9;
+    box-shadow: 0 8px 24px rgba(212, 162, 64, 0.22);
+    transition: opacity 0.2s ease;
+  }
+
+  .hero__cta[aria-disabled="true"] {
+    opacity: 0.75;
+  }
+
+  .hero__hint {
+    font-size: 13px;
+    color: var(--ms-text-muted);
+    margin: 0;
+    opacity: 0.8;
+  }
+
+  /* ─── Mockup column ────────────────────────────────────── */
+  .hero__mockup {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .hero__mockup {
+      justify-content: flex-end;
+    }
+  }
+
+  /* Phone-shell "float" — ultra-subtle vertical drift (SPEC animation #1 pairs with ambient). */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__mockup :global(.phone-frame) {
+      animation: phone-float 9s ease-in-out infinite alternate;
+    }
+  }
+
+  @keyframes phone-float {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-10px); }
+  }
+</style>

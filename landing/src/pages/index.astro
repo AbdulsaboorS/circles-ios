@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
 import { BRAND } from '../lib/brand';
 ---
 
@@ -24,14 +25,7 @@ import { BRAND } from '../lib/brand';
 
   <main>
     <!-- Section 1 — Hero -->
-    <section
-      id="hero"
-      class="mx-auto max-w-[1200px] px-6 py-20 md:py-32"
-      aria-labelledby="hero-title"
-    >
-      <h1 id="hero-title" class="text-5xl md:text-7xl">Hero</h1>
-      <p class="mt-4 text-ms-text-muted">placeholder</p>
-    </section>
+    <Hero />
 
     <!-- Section 2 — The Moment -->
     <section
