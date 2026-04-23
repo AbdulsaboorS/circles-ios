@@ -33,7 +33,7 @@ struct MemberOnboardingFlowView: View {
                             quote: OnboardingTransitionQuote.amirPrivateToAI,
                             attribution: nil
                         ) {
-                            coordinator.proceedToPersonalHabits()
+                            coordinator.proceedToAIGeneration()
                         }
 
                     case .aiGeneration:
