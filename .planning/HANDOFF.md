@@ -4,11 +4,11 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 
 ---
 
-## On Main (2026-04-22)
+## On Main (2026-04-23)
 
 - Phases 1–14 complete
-- Amir Onboarding Overhaul tasks 1-4 shipped (`e982259`): flow reorder, personalization screen, dead code removed, routing bug fixed
-- Phase 14 QA tests 1-2 still pending (deferred until tasks 5-6 done)
+- Amir Onboarding Overhaul tasks 1-5 shipped: flow reorder, personalization screen, dead code removed, routing bug fixed, catalog ranking done
+- Phase 14 QA tests 1-2 still pending (Task 6 next session)
 
 ## Active Branches
 
@@ -19,34 +19,9 @@ Repo-wide coordination only. Session detail lives in `.planning/notes/`.
 
 ## Next on Main
 
-**Amir Onboarding Overhaul — Tasks 5-6** (continuation of previous session).
+**Amir Onboarding Overhaul — Task 6 (QA) + Joiner onboarding**
 
-### Task 5 — Catalog Ranking
-
-Reorder `AmiirOnboardingCoordinator.curatedHabits` in `AmiirStep2HabitsView` based on the three personalization answers collected in `AmiirSharedPersonalizationView`.
-
-**Key files:**
-- `Circles/Onboarding/AmiirStep2HabitsView.swift` — `ForEach(AmiirOnboardingCoordinator.curatedHabits, ...)` at line 42; replace static array with a ranked computed result
-- `Circles/Onboarding/AmiirOnboardingCoordinator.swift` — coordinator holds `spiritualityLevel`, `timeCommitment`, `heartOfCircle` (all `String?`)
-
-**Ranking logic to implement (suggested — iterate with user):**
-
-Personalization answers → priority boost for matching habits:
-
-| Answer | Habits to surface first |
-|--------|------------------------|
-| `spiritualityLevel` = "Just starting out" | Fajr, Dhuhr, Asr, Maghrib, Isha (consistency, not depth) |
-| `spiritualityLevel` = "Building a foundation" | Fajr, Quran, Dhikr |
-| `spiritualityLevel` = "Steady and growing" | Tahajjud, Quran, Sadaqah |
-| `spiritualityLevel` = "Deeply rooted" | Tahajjud, Sadaqah, Fasting |
-| `heartOfCircle` = "Salah, together" | All 5 prayers first |
-| `heartOfCircle` = "Quran in our lives" | Quran first |
-| `heartOfCircle` = "Remembrance of Allah" | Dhikr first |
-| `heartOfCircle` = "Brotherhood through hardship" | Sadaqah, Fasting first |
-| `timeCommitment` = "5–10 minutes" | de-prioritize Tahajjud, Fasting |
-| `timeCommitment` = "More than an hour" | Tahajjud, Quran, Fasting at top |
-
-Ranking approach: score each curated habit with a point for each matching rule, then sort descending. Custom habit tile always stays last.
+Task 5 (catalog ranking) is ✅ shipped (`036c26f`). Start with Task 6.
 
 ### Task 6 — QA
 

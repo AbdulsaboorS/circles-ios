@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-22T00:00:00.000Z"
+last_updated: "2026-04-23T00:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 14
@@ -13,7 +13,7 @@ progress:
 
 ## Current Focus
 
-**Next: Amir Onboarding — Tasks 5-6** — catalog ranking + QA pass (Amir + Member). Then Joiner onboarding flow test + bug fixes. Phase 14 QA is not complete until Joiner is verified. Full spec in `.planning/HANDOFF.md`.
+**Next: Task 6 (QA) + Joiner onboarding** — fresh Amir onboarding pass (verify catalog ranking), Member onboarding re-test, then full Joiner flow test + bug fixes. Phase 14 QA is not complete until Joiner is verified. Full spec in `.planning/HANDOFF.md`.
 
 After Phase 14 QA is fully signed off: merge `phase-15-social-pulse` worktree → Phase 15.
 
@@ -26,9 +26,13 @@ After Phase 14 QA is fully signed off: merge `phase-15-social-pulse` worktree �
 | 13A | Journey Tab | ✓ Complete |
 | 13B | Profile Redesign | ✓ Complete |
 | 14 | Meaningful Habits (quiz, niyyah, Hamdulillah, Noor Bead) | 🔄 QA in progress |
-| 14.1 | Amir Onboarding Overhaul (tasks 1-4 done) | 🔄 Tasks 5-6 + Joiner QA pending |
+| 14.1 | Amir Onboarding Overhaul (tasks 1-5 done) | 🔄 Task 6 QA + Joiner pending |
 | 15 | Social Pulse | 🔄 In worktree, pending merge |
 | 16–19 | Naming, Videos, Landing Page, App Store | ⬜ Planned |
+
+## What Shipped — Session 28 (2026-04-23)
+
+- **Amir Onboarding Overhaul task 5**: `AmiirStep2HabitsView` ranks habit tiles via `habitScore(_:)` + `rankedHabits` computed var; scoring based on spiritualityLevel, heartOfCircle, timeCommitment
 
 ## What Shipped — Session 27 (2026-04-22)
 

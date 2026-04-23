@@ -1,3 +1,37 @@
+# main — Session Note (2026-04-23, Session 7)
+
+## What Shipped This Session
+
+All commits pushed to `origin/main` (branch is clean):
+
+1. **`feat(onboarding): catalog ranking in AmiirStep2HabitsView`** (`036c26f`) — Task 5 of Amir overhaul
+
+## Amir Onboarding Overhaul — Task 5 Done
+
+`AmiirStep2HabitsView` now ranks the curated habits tile grid based on the three personalization answers stored on the coordinator:
+
+- `habitScore(_:)` private helper: +1 per matching spirituality/heart-of-circle rule, ±1 for time commitment ("5–10 min" deprioritises Tahajjud/Fasting; "More than an hour" boosts them)
+- `rankedHabits` computed var: sorts by score descending, index ascending for ties (stable)
+- `ForEach` changed from `curatedHabits` → `rankedHabits`
+
+## Phase 14 QA — Still Pending
+
+| Test | Status |
+|------|--------|
+| 1. Fresh Amir onboarding (incl. ranked catalog) | ⏳ Pending — Task 6 next session |
+| 2. Fresh Member onboarding | ⏳ Pending |
+| 3–6. All other Phase 14 tests | ✅ Verified (Session 5) |
+
+## Next Session — Task 6 + Joiner
+
+Full spec in `.planning/HANDOFF.md`.
+
+1. **Task 6 — QA**: fresh Amir onboarding full pass + Member onboarding re-test
+2. **Joiner onboarding**: full flow test, find + fix bugs
+3. After Joiner passes: mark Phase 14 QA complete → merge `phase-15-social-pulse`
+
+---
+
 # main — Session Note (2026-04-22, Session 6)
 
 ## What Shipped This Session
