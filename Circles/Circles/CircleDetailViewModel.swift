@@ -29,8 +29,9 @@ final class CircleDetailViewModel {
         completionStats?.overallFraction ?? 0
     }
 
-    init(circleId: UUID) {
+    init(circleId: UUID, initialTab: DetailTab = .huddle) {
         self.circleId = circleId
+        self.activeTab = initialTab
     }
 
     func load(userId: UUID) async {

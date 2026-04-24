@@ -19,9 +19,9 @@ struct CircleDetailView: View {
 
     @Environment(AuthManager.self) private var auth
 
-    init(circle: Circle) {
+    init(circle: Circle, initialDetailTab: CircleDetailViewModel.DetailTab = .huddle) {
         _circle = State(initialValue: circle)
-        _detailVM = State(initialValue: CircleDetailViewModel(circleId: circle.id))
+        _detailVM = State(initialValue: CircleDetailViewModel(circleId: circle.id, initialTab: initialDetailTab))
     }
 
     private var isAmir: Bool {

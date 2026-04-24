@@ -1,5 +1,7 @@
 # Circles — Product Vision & Requirements (v2.3)
 
+> Vision doc only. Do not use this file for current execution state; use `STATE.md` and `HANDOFF.md` instead.
+
 **Date:** 2026-03-26 (vision); **execution status:** 2026-04-07 — Phase 12 complete, Phase 13 active (see `STATE.md` / `HANDOFF.md` for current iteration state).
 **Status:** Finalized for Execution (Private MVP)
 

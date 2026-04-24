@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(ThemeManager.self) private var themeManager
     @Environment(\.pendingInviteCode) private var pendingInviteCode
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var amiirCoordinator = AmiirOnboardingCoordinator()
     @State private var memberCoordinator = MemberOnboardingCoordinator()
@@ -42,6 +43,19 @@ struct ContentView: View {
             if let code = pendingInviteCode, !code.isEmpty {
                 memberCoordinator.inviteCodeInput = code
                 amiirCoordinator.shouldSwitchToJoinerFlow = true
+            }
+        }
+        .task(id: auth.session?.user.id) {
+            if let userId = auth.session?.user.id {
+                await NotificationService.shared.configureForAuthenticatedUser(userId: userId)
+            } else {
+                NotificationService.shared.resetForSignedOutUser()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active, auth.isAuthenticated else { return }
+            Task {
+                await NotificationService.shared.handleAppDidBecomeActive()
             }
         }
     }

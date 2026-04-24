@@ -145,6 +145,7 @@ private struct ProfileSettingsSheet: View {
     let joinedDateFooter: String
 
     @State private var draft: ProfileEditDraft
+    @State private var notificationService = NotificationService.shared
 
     init(
         viewModel: ProfileViewModel,
@@ -164,6 +165,7 @@ private struct ProfileSettingsSheet: View {
     private enum Route: Hashable {
         case editProfile
         case location
+        case notifications
     }
 
     private var identitySummary: String {
@@ -191,11 +193,14 @@ private struct ProfileSettingsSheet: View {
                         .buttonStyle(.plain)
 
                         VStack(spacing: 0) {
-                            settingsRow(icon: "bell.fill", label: "Notifications") {
-                                if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    UIApplication.shared.open(url)
-                                }
+                            NavigationLink(value: Route.notifications) {
+                                SettingsRowLabel(
+                                    icon: "bell.fill",
+                                    label: "Notifications",
+                                    detail: notificationService.permissionStatusSummary
+                                )
                             }
+                            .buttonStyle(.plain)
 
                             Divider()
                                 .foregroundStyle(Color.msBorder)
@@ -265,6 +270,8 @@ private struct ProfileSettingsSheet: View {
                     )
                 case .location:
                     ProfileLocationPickerView(draft: $draft)
+                case .notifications:
+                    NotificationSettingsView(userId: userId)
                 }
             }
             .alert("Profile Save Failed", isPresented: .constant(viewModel.saveError != nil)) {
@@ -273,13 +280,9 @@ private struct ProfileSettingsSheet: View {
                 Text(viewModel.saveError ?? "")
             }
         }
-    }
-
-    private func settingsRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            SettingsRowLabel(icon: icon, label: label)
+        .task {
+            await notificationService.refreshPermissionStatus()
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

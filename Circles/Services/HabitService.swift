@@ -33,13 +33,15 @@ final class HabitService {
             "ramadan_amount": .string(ramadanAmount),
             "is_active": .bool(true)
         ]
-        return try await client
+        let habit: Habit = try await client
             .from("habits")
             .upsert(row, onConflict: "user_id,name")
             .select()
             .single()
             .execute()
             .value
+        await NotificationService.shared.refreshHabitReminderScheduling()
+        return habit
     }
 
     /// Update accepted_amount on an existing habit (after user accepts AI suggestion).
@@ -107,13 +109,15 @@ final class HabitService {
             "is_accountable": .bool(false),
             "plan_notes": .string("Familiarity: \(familiarity)")
         ]
-        return try await client
+        let habit: Habit = try await client
             .from("habits")
             .upsert(row, onConflict: "user_id,name")
             .select()
             .single()
             .execute()
             .value
+        await NotificationService.shared.refreshHabitReminderScheduling()
+        return habit
     }
 
     // MARK: - Accountable Habit Creation
@@ -130,13 +134,15 @@ final class HabitService {
             "circle_id": .string(circleId.uuidString),
             "ramadan_amount": .string("daily")
         ]
-        return try await client
+        let habit: Habit = try await client
             .from("habits")
             .upsert(row, onConflict: "user_id,name")
             .select()
             .single()
             .execute()
             .value
+        await NotificationService.shared.refreshHabitReminderScheduling()
+        return habit
     }
 
     // MARK: - Accountable Habit Broadcast
@@ -171,6 +177,7 @@ final class HabitService {
             .insert(row)
             .execute()
         NotificationCenter.default.post(name: .habitCheckinBroadcast, object: nil)
+        try? await sendCircleCheckInNotification(circleId: circleId, actorUserId: userId)
     }
 
     /// Inserts a streak_milestone event into activity_feed.
@@ -221,6 +228,7 @@ final class HabitService {
             .update(Payload(is_active: false))
             .eq("id", value: habitId.uuidString)
             .execute()
+        await NotificationService.shared.refreshHabitReminderScheduling()
     }
 
     // MARK: - Streaks
@@ -325,6 +333,23 @@ final class HabitService {
         }
 
         return CircleCompletionStats(habits: habits, memberCompletions: completions, memberIds: memberIds)
+    }
+
+    private func sendCircleCheckInNotification(circleId: UUID, actorUserId: UUID) async throws {
+        struct Body: Encodable {
+            let circleId: String
+            let actorUserId: String
+        }
+
+        try await client.functions.invoke(
+            "send-circle-check-in",
+            options: .init(
+                body: Body(
+                    circleId: circleId.uuidString,
+                    actorUserId: actorUserId.uuidString
+                )
+            )
+        )
     }
 }
 

@@ -163,6 +163,7 @@ final class ProfileViewModel {
             }
 
             avatarUrl = draft.avatarUrl
+            await NotificationService.shared.refreshHabitReminderScheduling()
             return true
         } catch {
             print("[ProfileViewModel] Save profile failed: \(error)")

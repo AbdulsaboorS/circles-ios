@@ -7,6 +7,7 @@ struct AmiirStep3LocationView: View {
     @State private var searchText = ""
     @State private var pushRequested = false
     @State private var pushDenied = false
+    @State private var showPermissionPrompt = false
 
     private var filteredCities: [(name: String, country: String, tz: String, lat: Double, lng: Double)] {
         if searchText.isEmpty { return LocationPickerView.cities }
@@ -61,14 +62,7 @@ struct AmiirStep3LocationView: View {
                             Spacer()
 
                             Button {
-                                Task {
-                                    let granted = await NotificationService.shared.requestPermission()
-                                    pushRequested = true
-                                    if !granted {
-                                        let status = await UNUserNotificationCenter.current().notificationSettings()
-                                        pushDenied = status.authorizationStatus == .denied
-                                    }
-                                }
+                                showPermissionPrompt = true
                             } label: {
                                 Text("Enable")
                                     .font(.system(size: 13, weight: .semibold))
@@ -170,6 +164,38 @@ struct AmiirStep3LocationView: View {
                         .foregroundStyle(Color.msGold)
                 }
             }
+        }
+        .sheet(isPresented: $showPermissionPrompt, onDismiss: {
+            Task { await syncNotificationState() }
+        }) {
+            NotificationPermissionModal(
+                isPresented: $showPermissionPrompt,
+                prayerTimeName: DailyMomentService.shared.prayerDisplayName
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .task {
+            await syncNotificationState()
+        }
+    }
+
+    private func syncNotificationState() async {
+        await NotificationService.shared.refreshPermissionStatus()
+        let status = NotificationService.shared.permissionStatus
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            pushRequested = true
+            pushDenied = false
+        case .denied:
+            pushRequested = true
+            pushDenied = true
+        case .notDetermined:
+            pushRequested = false
+            pushDenied = false
+        @unknown default:
+            pushRequested = false
+            pushDenied = false
         }
     }
 }

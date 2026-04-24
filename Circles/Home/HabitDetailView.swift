@@ -49,6 +49,7 @@ struct HabitDetailView: View {
     @State private var revealedGlow: Set<Int> = []
     @State private var showFullRoadmapSheet = false
     @State private var selectedTab: DetailTab = .path
+    @State private var isTogglingToday = false
 
     // MARK: - Computed helpers
 
@@ -256,11 +257,61 @@ struct HabitDetailView: View {
                 StatPill(text: habitStreak > 0 ? "\(habitStreak) Day Streak" : "Start a Streak")
                 StatPill(text: "\(totalCompletions)/28 Completions")
             }
+
+            todayActionCard
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 20)
         .padding(.bottom, 4)
         .padding(.horizontal, 16)
+    }
+
+    private var todayActionCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Today")
+                .font(.appCaptionMedium)
+                .foregroundStyle(Color.msGold.opacity(0.9))
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isCompletedToday ? "Completed for today" : "Still waiting for today's check-in")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.msTextPrimary)
+
+                    Text(isCompletedToday ? "You can undo if this needs to be corrected." : "Reminder taps land here so you can check in without hunting through Home.")
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted)
+                }
+
+                Spacer(minLength: 12)
+
+                Button {
+                    Task { await toggleTodayCompletion() }
+                } label: {
+                    Group {
+                        if isTogglingToday {
+                            ProgressView()
+                                .tint(Color.msBackground)
+                                .frame(width: 124, height: 44)
+                        } else {
+                            Text(isCompletedToday ? "Undo" : "Check In")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.msBackground)
+                                .frame(width: 124, height: 44)
+                        }
+                    }
+                    .background(Color.msGold, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isTogglingToday)
+            }
+        }
+        .padding(18)
+        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 22))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(Color.msBorder, lineWidth: 1)
+        )
     }
 
     // MARK: - Path tab
@@ -718,7 +769,7 @@ struct HabitDetailView: View {
             .map { $0.offset }
         for (i, idx) in completedIndices.enumerated() {
             try? await Task.sleep(nanoseconds: UInt64(i * 80_000_000))
-            withAnimation(.easeOut(duration: 0.35)) {
+            _ = withAnimation(.easeOut(duration: 0.35)) {
                 revealedGlow.insert(idx)
             }
         }
@@ -797,6 +848,60 @@ struct HabitDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func toggleTodayCompletion() async {
+        guard let userId = auth.session?.user.id, !isTogglingToday else { return }
+
+        let wasCompleted = isCompletedToday
+        isTogglingToday = true
+
+        if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
+            logs[existingIndex].completed.toggle()
+        } else {
+            logs.append(
+                HabitLog(
+                    id: UUID(),
+                    habitId: habit.id,
+                    userId: userId,
+                    date: todayDateString,
+                    completed: true,
+                    notes: nil,
+                    createdAt: Date()
+                )
+            )
+        }
+
+        if wasCompleted {
+            revealedGlow.remove(last28Days.count - 1)
+        } else {
+            _ = withAnimation(.easeOut(duration: 0.35)) {
+                revealedGlow.insert(last28Days.count - 1)
+            }
+        }
+
+        do {
+            _ = try await HabitToggleService.shared.toggleToday(
+                habit: habit,
+                userId: userId,
+                date: todayDateString,
+                alreadyCompleted: wasCompleted
+            )
+        } catch {
+            if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
+                logs[existingIndex].completed = wasCompleted
+            }
+            if wasCompleted {
+                _ = withAnimation(.easeOut(duration: 0.2)) {
+                    revealedGlow.insert(last28Days.count - 1)
+                }
+            } else {
+                revealedGlow.remove(last28Days.count - 1)
+            }
+            errorMessage = error.localizedDescription
+        }
+
+        isTogglingToday = false
     }
 
     private func applyMilestoneEdit(_ updated: HabitMilestone) {

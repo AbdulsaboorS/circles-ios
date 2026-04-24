@@ -14,6 +14,9 @@ struct CommunityView: View {
     @State private var expandedOwnMoment: MomentFeedItem? = nil
     @State private var momentStripId = UUID()
     private var momentService = DailyMomentService.shared
+    private var notificationService = NotificationService.shared
+    @State private var selectedCircle: Circle?
+    @State private var selectedCircleDetailTab: CircleDetailViewModel.DetailTab = .huddle
 
     var body: some View {
         NavigationStack {
@@ -42,6 +45,7 @@ struct CommunityView: View {
                 async let feedLoad: Void = loadGlobalFeed()
                 async let gateLoad: Void = DailyMomentService.shared.load(userId: userId)
                 _ = await (feedLoad, gateLoad)
+                applyPendingNotificationRouteIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
                 Task { await loadGlobalFeed() }
@@ -114,8 +118,19 @@ struct CommunityView: View {
                     viewModel.showJoinSheet = true
                 }
             }
-            .sheet(isPresented: $viewModel.shouldShowPermissionPrompt) {
-                NotificationPermissionModal(isPresented: $viewModel.shouldShowPermissionPrompt)
+            .onChange(of: notificationService.pendingRoute) { _, _ in
+                applyPendingNotificationRouteIfNeeded()
+            }
+            .onChange(of: viewModel.circles.map(\.id)) { _, _ in
+                applyPendingNotificationRouteIfNeeded()
+            }
+            .sheet(isPresented: $viewModel.shouldShowPermissionPrompt, onDismiss: {
+                Task { await NotificationService.shared.refreshPermissionStatus() }
+            }) {
+                NotificationPermissionModal(
+                    isPresented: $viewModel.shouldShowPermissionPrompt,
+                    prayerTimeName: DailyMomentService.shared.prayerDisplayName
+                )
                     .presentationDetents([.large])
             }
             .sheet(isPresented: $viewModel.showLayoutEditor) {
@@ -125,6 +140,9 @@ struct CommunityView: View {
                 Button("OK") { postAlertMessage = nil }
             } message: {
                 Text(postAlertMessage ?? "")
+            }
+            .navigationDestination(item: $selectedCircle) { circle in
+                CircleDetailView(circle: circle, initialDetailTab: selectedCircleDetailTab)
             }
         }
     }
@@ -292,6 +310,7 @@ struct CommunityView: View {
                     cardDataMap: viewModel.cardDataMap,
                     pinnedCircleIDs: viewModel.pinnedCircleIDs,
                     sendingNudgeCircleIDs: viewModel.sendingNudgeCircleIDs,
+                    selectedCircle: $selectedCircle,
                     onNudge: { circleId in
                         guard let userId = auth.session?.user.id else { return }
                         Task { await viewModel.sendNudge(circleId: circleId, userId: userId) }
@@ -508,6 +527,41 @@ struct CommunityView: View {
             ? "\(failCount) circle\(failCount == 1 ? "" : "s") failed."
             : "Failed circles: \(failedNames.joined(separator: ", "))."
         return "Posted to \(result.succeeded.count) of \(total) circles. \(failureSummary)"
+    }
+
+    private func applyPendingNotificationRouteIfNeeded() {
+        guard let route = notificationService.pendingRoute, route.tab == .circles else { return }
+
+        switch route.circlesDestination {
+        case .root:
+            selectedPage = 1
+            selectedCircle = nil
+            notificationService.updateCurrentRoute(.circles)
+            notificationService.consumePendingRoute()
+        case .feed:
+            selectedPage = 0
+            selectedCircle = nil
+            notificationService.updateCurrentRoute(.circles)
+            notificationService.consumePendingRoute()
+        case .circleDetail:
+            selectedPage = 1
+            if let circleId = route.circleId,
+               let circle = viewModel.circles.first(where: { $0.id == circleId }) {
+                selectedCircleDetailTab = detailTab(from: route.circleDetailTab)
+                selectedCircle = circle
+                notificationService.updateCurrentRoute(.circles)
+                notificationService.consumePendingRoute()
+            }
+        }
+    }
+
+    private func detailTab(from routeTab: CircleNotificationDetailTab?) -> CircleDetailViewModel.DetailTab {
+        switch routeTab {
+        case .gallery:
+            return .gallery
+        case .huddle, .none:
+            return .huddle
+        }
     }
 }
 
