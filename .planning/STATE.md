@@ -32,7 +32,7 @@ progress:
 
 - Phase 13 UI/UX pass: complete
 - Phase 13A Journey: shipped
-- Phase 14 Meaningful Habits: built, QA pending
+- Phase 14 Meaningful Habits: built, QA pending (matrix: `.planning/phases/14-meaningful-habits/QA.md`)
 - Phase 15 Social Pulse: merged to `main`, QA deferred
 - Phase 16 Naming + Branding: planned
 - Phase 17 Animation Polish: planned
