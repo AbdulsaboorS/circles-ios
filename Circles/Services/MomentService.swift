@@ -17,17 +17,14 @@ final class MomentService {
     // MARK: - Fetch
 
     /// Fetch all Moments for a circle in the currently active daily-moment cycle.
+    /// Filters by `moment_date` so cross-UTC-midnight posts land on their window's day.
     func fetchTodayMoments(circleId: UUID) async throws -> [CircleMoment] {
-        let windowStart = DailyMomentService.shared.windowStart
-            ?? Calendar(identifier: .gregorian).startOfDay(for: Date())
-        let startISO = DailyMomentService.iso8601String(from: windowStart)
-        let endISO = DailyMomentService.iso8601String(from: windowStart.addingTimeInterval(25 * 60 * 60))
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? Self.todayDateString()
         let moments: [CircleMoment] = try await client
             .from("circle_moments")
             .select()
             .eq("circle_id", value: circleId.uuidString)
-            .gte("posted_at", value: startISO)
-            .lt("posted_at", value: endISO)
+            .eq("moment_date", value: momentDate)
             .order("posted_at")
             .execute()
             .value
@@ -40,8 +37,7 @@ final class MomentService {
             .from("circle_moments")
             .select()
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: "\(date)T00:00:00Z")
-            .lt("posted_at", value: "\(date)T23:59:59Z")
+            .eq("moment_date", value: date)
             .limit(1)
             .execute()
             .value
@@ -233,7 +229,7 @@ final class MomentService {
                 try await NiyyahService.shared.saveNiyyah(
                     userId: userId,
                     text: text,
-                    photoDate: Self.todayDateString()
+                    photoDate: momentDate
                 )
             } catch {
                 print("[MomentService] niyyah save failed (non-fatal): \(error)")
@@ -408,15 +404,14 @@ final class MomentService {
     #if DEBUG
     /// Delete all of today's moments for the given user (debug testing only).
     func deleteMyTodayMoments(userId: UUID) async throws {
-        let activeRange = await DailyMomentService.shared.fetchActiveMomentRange()
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? Self.todayDateString()
         try await client
             .from("circle_moments")
             .delete()
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: activeRange.startISO8601)
-            .lt("posted_at", value: activeRange.endExclusiveISO8601)
+            .eq("moment_date", value: momentDate)
             .execute()
-        print("[MomentService] DEBUG: deleted today's moments for userId=\(userId)")
+        print("[MomentService] DEBUG: deleted moments for userId=\(userId) momentDate=\(momentDate)")
     }
     #endif
 
@@ -435,6 +430,7 @@ final class MomentService {
 
     /// Determine if current time is within the 5-minute on-time window from windowStart.
     /// windowStart is an ISO8601 TIMESTAMPTZ string from the active daily_moments row.
+    /// Guards against negative elapsed (pre-window posts) by requiring 0..<300.
     static func computeIsOnTime(windowStart: String?) -> Bool {
         guard let windowStart = windowStart else { return false }
         let formatter = ISO8601DateFormatter()
@@ -442,9 +438,9 @@ final class MomentService {
         guard let startDate = formatter.date(from: windowStart) else {
             formatter.formatOptions = [.withInternetDateTime]
             guard let startDate = formatter.date(from: windowStart) else { return false }
-            return Date().timeIntervalSince(startDate) < 300
+            return (0..<300).contains(Date().timeIntervalSince(startDate))
         }
-        return Date().timeIntervalSince(startDate) < 300
+        return (0..<300).contains(Date().timeIntervalSince(startDate))
     }
 }
 
