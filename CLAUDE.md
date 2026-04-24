@@ -6,6 +6,25 @@ A native Swift/SwiftUI iOS app — a private Islamic accountability tool ("Islam
 
 See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built, **open issues**, and what's next. **Switching agents:** read `.planning/HANDOFF.md` first.
 
+## How to Think About This Project
+
+Four principles guide all implementation work:
+
+### 1. Think Before Coding
+State assumptions explicitly. If uncertain, ask rather than guess. Present multiple interpretations when ambiguity exists. Surface tradeoffs. Push back if a simpler approach is available. Stop when confused and name what's unclear.
+
+### 2. Simplicity First
+Minimum code that solves the problem — nothing speculative. No features beyond what was asked, no abstractions for single-use code, no error handling for impossible scenarios. If it could be 50 lines instead of 200, rewrite it. The test: Would a senior engineer say this is overcomplicated?
+
+### 3. Surgical Changes
+Touch only what you must. Don't improve adjacent code, refactor things that aren't broken, or match pre-existing dead code — mention it instead. Every changed line should trace directly to the user's request. Remove imports/variables/functions that YOUR changes made unused; don't remove pre-existing dead code.
+
+### 4. Goal-Driven Execution
+Define success criteria upfront. Loop until verified. State a brief plan with checkpoints. Write tests first when debugging or validating. Build must succeed; feature must be demonstrable in Simulator. Strong verification criteria let work proceed independently.
+
+### 5. Feynman Summary
+For non-trivial responses, explain plainly — if you can't explain it simply in plain English, reanalyze until you can. This applies to all communication back to the user.
+
 ## Tech Stack
 
 - **Language**: Swift 6
@@ -77,45 +96,27 @@ RLS: `auth_user_circle_ids()` SECURITY DEFINER function prevents recursion in ci
 
 ## Product Rules
 
-**Moment mechanic = exact BeReal copy.** For any moment-related design question, default to "what does BeReal do." Prayer times stay out of the mechanic (they live in habits). Differentiation is context only — niyyah, private circles, no discovery — never the mechanic. Full details: memory `project_moment_mechanic.md`.
+Moment mechanic mirrors BeReal exactly. For design questions: default to BeReal's approach. Differentiation is context only (niyyah, circles, privacy), never the mechanic. See memory `project_moment_mechanic.md`.
 
 ## Working Rules
 
 ### 1. Phase Discipline
-- Build phases in order per ROADMAP.md
-- Early phases have `SPEC.md` / SQL under `.planning/phases/`; later phases may ship README + migration only
-- Update `STATE.md` after meaningful phase or QA changes
+Build phases in order per ROADMAP.md. Update STATE.md after meaningful changes.
 
-### 2. No Hacks
-- Root cause > patch. Senior Swift developer standards.
+### 2. Commits
+One commit per logical unit (fix, feature slice, refactor). Self-contained. Push to main at session end.
 
-### 3. Verification Before Done
-- Build must succeed (zero errors)
-- Feature demonstrable in Simulator before marking done
+### 3. SQL
+Run via Supabase Dashboard. Confirm destructive ops first. Schema cache: run `habit_plans_align_app.sql`.
 
-### 4. Commits
-- Commit at meaningful, self-contained checkpoints
-- Prefer one commit per bug fix, feature slice, or focused refactor
-- Do not batch unrelated changes into one commit
-- Push to `origin main` after stable checkpoints, or at minimum at the end of each work session
+### 4. Quick Troubleshooting
 
-### 5. SQL
-- Migrations run via Supabase Dashboard → SQL Editor
-- Always confirm with user before running destructive SQL
-- **`habit_plans` / schema cache:** run `.planning/phases/01-schema-foundations/habit_plans_align_app.sql` — it ends with `NOTIFY pgrst, 'reload schema'`. There is no “reload schema” control under Settings → API on hosted Supabase; changes usually apply within seconds.
-
-### 6. Troubleshooting (quick)
-
-| Symptom | Likely cause / next step |
-|--------|---------------------------|
-| **`NSURLErrorDomain -1011`** on Generate plan | Gemini returned **non-200**; check key, quota, model id. See `STATE.md` → Open issues A. |
-| PostgREST **milestones / schema cache** | Run `habit_plans_align_app.sql`; optional lone `NOTIFY pgrst, 'reload schema';` |
-| SF Symbol **name as text** on habit detail | `HabitDetailView` uses `Text(habit.icon)` — should match `Image(systemName:)` pattern (see `STATE.md` C). |
+| Issue | Fix |
+|-------|-----|
+| `NSURLErrorDomain -1011` on Generate plan | Gemini non-200 — check key, quota, model |
+| PostgREST schema cache | Run `habit_plans_align_app.sql` |
+| SF Symbol name as text | Use `Image(systemName:)` pattern |
 
 ## Skills in Use
 
-- **Axiom** — iOS/Swift domain patterns (auto-invoked during implementation)
-- **SuperDesign** — visual design drafts before SwiftUI implementation
-
----
-*Last updated: 2026-04-02 — v2.4, Phase 11.2 closed; Phase 11.3 queued next. Open QA and deferred checks live in `STATE.md`, handoff in `HANDOFF.md`.*
+Axiom (iOS/Swift) and SuperDesign (visual design) — auto-invoked during implementation.
