@@ -171,8 +171,11 @@ struct FeedView: View {
                 }
 
                 if filteredItems.isEmpty && !viewModel.isLoadingInitial {
-                    emptyState(message: "No moments yet.", subMessage: "Be the first to post today.")
-                        .padding(.horizontal, 16)
+                    emptyState(
+                        message: "Your circle is quiet.",
+                        subMessage: "Moments from your circle will appear here."
+                    )
+                    .padding(.horizontal, 16)
                 }
             }
         }

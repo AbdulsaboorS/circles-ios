@@ -56,7 +56,9 @@ final class MomentService {
         )
     }
 
-    /// Fetch unresolved moment rows for a user in a UTC date range.
+    /// Fetch unresolved moment rows for a user in a `moment_date` range.
+    /// Filters on the stamped `moment_date` column (not `posted_at`) so moments
+    /// posted after UTC midnight land on their window's calendar day.
     /// The stored `photo_url` remains a storage path until a detail view needs signing.
     func fetchMoments(
         userId: UUID,
@@ -67,9 +69,9 @@ final class MomentService {
             .from("circle_moments")
             .select()
             .eq("user_id", value: userId.uuidString)
-            .gte("posted_at", value: "\(startDate)T00:00:00Z")
-            .lt("posted_at", value: "\(endDate)T00:00:00Z")
-            .order("posted_at", ascending: false)
+            .gte("moment_date", value: startDate)
+            .lt("moment_date", value: endDate)
+            .order("moment_date", ascending: false)
             .execute()
             .value
     }
@@ -381,19 +383,20 @@ final class MomentService {
         return storedValue
     }
 
-    /// Update caption on all of today's moment rows for a user.
+    /// Update caption on the user's moment rows for the active window date.
+    /// Filters by `moment_date` (not `posted_at`) so edits land on the intended
+    /// moment even when posting crossed UTC midnight.
     /// Uses [String: AnyJSON] so nil caption sends explicit JSON null (Swift Codable omits nil keys).
     func updateCaption(_ caption: String?, userId: UUID) async throws {
-        let activeRange = await DailyMomentService.shared.fetchActiveMomentRange()
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? Self.todayDateString()
         let captionValue: AnyJSON = caption.map { .string($0) } ?? .null
-        print("[MomentService] updateCaption userId=\(userId) caption=\(caption ?? "nil")")
+        print("[MomentService] updateCaption userId=\(userId) momentDate=\(momentDate) caption=\(caption ?? "nil")")
         do {
             try await client
                 .from("circle_moments")
                 .update(["caption": captionValue])
                 .eq("user_id", value: userId.uuidString)
-                .gte("posted_at", value: activeRange.startISO8601)
-                .lt("posted_at", value: activeRange.endExclusiveISO8601)
+                .eq("moment_date", value: momentDate)
                 .execute()
             print("[MomentService] updateCaption succeeded")
         } catch {

@@ -7,33 +7,23 @@ Circles is a native iOS app — an Islamic social accountability tool for Muslim
 - **Platform**: iOS 17+ native SwiftUI app
 - **SuperDesign Output**: HTML/CSS mockups (translated to SwiftUI after approval)
 - **No Tailwind / No React** — translate design tokens to inline CSS equivalents
+- **Theme**: Always Dark (Premium Islamic Aesthetic)
 
 ---
 
 ## Color Tokens
 
-### Light Mode (PRIMARY — use this by default)
+### Deep Green & Luminous Gold (Always Dark)
 ```css
---bg:           #F5F0E8;  /* warm cream background */
---blob:         #EDE0C8;  /* warm beige blob shapes */
---card:         #FFFFFF;  /* white card surface */
---card-shadow:  rgba(0,0,0,0.06);
---text-primary: #1A1209;  /* near-black warm */
---text-secondary: #6B5B45; /* warm brown-grey */
---accent:       #E8834B;  /* amber — same in both modes */
---accent-light: rgba(232,131,75,0.12); /* amber tint for backgrounds */
---accent-light2: rgba(232,131,75,0.20);
---border:       rgba(232,131,75,0.15);
-```
-
-### Dark Mode (secondary)
-```css
---bg:           #0E0B08;  /* warm near-black */
---blob:         #1A3A2A;  /* forest green blob */
---card:         rgba(255,255,255,0.08); /* ultra-thin material glass */
---text-primary: #FFFFFF;
---text-secondary: rgba(255,255,255,0.6);
---accent:       #E8834B;
+--bg-deep:        #0A120D;  /* Deep forest green / near black */
+--bg-spotlight:   #122217;  /* Lighter forest green for radial gradients */
+--card-glass:     rgba(255, 255, 255, 0.05); /* Ultra-thin material base */
+--text-primary:   #FFFFFF;  /* Pure white */
+--text-secondary: rgba(255, 255, 255, 0.6); /* Muted white/gray */
+--text-gold-muted: rgba(212, 175, 55, 0.6); /* Muted gold for inactive/secondary elements */
+--accent-gold:    #D4AF37;  /* Luminous Gold */
+--accent-glow:    rgba(212, 175, 55, 0.3); /* Gold glow for shadows */
+--border-highlight: rgba(212, 175, 55, 0.2); /* Edge highlight for glass cards */
 ```
 
 ---
@@ -63,8 +53,9 @@ Circles is a native iOS app — an Islamic social accountability tool for Muslim
 --radius-button: 14px
 --radius-chip:   999px  /* full pill */
 --radius-bubble: 50%    /* full circle */
---shadow-card:   0 2px 8px rgba(0,0,0,0.06)
---shadow-bubble: 0 6px 16px rgba(232,131,75,0.12)
+--glow-subtle:   0 0 8px rgba(212, 175, 55, 0.15)
+--glow-strong:   0 0 16px rgba(212, 175, 55, 0.3)
+--border-glass:  0.5px solid rgba(212, 175, 55, 0.2)
 ```
 
 ---
@@ -73,24 +64,25 @@ Circles is a native iOS app — an Islamic social accountability tool for Muslim
 
 ### AppBackground
 - Full-screen background
-- Light: `#F5F0E8` base + two `#EDE0C8` ellipse blobs (gaussian blur 60-80px, opacity 0.4-0.6)
-- Primary blob: top-left, 75% width, slowly breathing animation
-- Secondary blob: bottom-right, 55% width, offset timing
-- Blobs are subtle — they should NOT overpower content
+- Base: `#0A120D` (Deep Forest Green)
+- Lighting: Subtle radial gradients using `#122217` (Lighter Forest) to create a "spotlight" effect behind key content areas, replacing flat background colors.
+- Animation: Subtle breathing animations on the radial gradients.
 
 ### AppCard
 - `border-radius: 16px`
-- Light: `background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.06)`
-- Dark: `backdrop-filter: blur(20px); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1)`
+- Material: `.ultraThinMaterial` equivalent (`background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px)`)
+- Border: `0.5px solid rgba(212, 175, 55, 0.2)` (Edge Highlight)
+- Shadow: Subtle gold glow instead of black drop shadow.
 
 ### PrimaryButton
 - Full width, `height: 52px`, `border-radius: 14px`
-- `background: #E8834B`, `color: white`, `font: 17px/600`
+- `background: #D4AF37`, `color: #0A120D` (Dark text on gold for contrast), `font: 17px/600`
+- Glow: `box-shadow: 0 0 16px rgba(212, 175, 55, 0.3)`
 
 ### ChipButton
 - Pill shape, `padding: 8px 14px`
-- Selected: `background: #E8834B`, white text
-- Default: `background: rgba(232,131,75,0.15)`, amber text
+- Selected: `background: #D4AF37`, dark text, with gold glow.
+- Default: `background: rgba(212, 175, 55, 0.1)`, `color: #D4AF37`, thin gold border.
 
 ---
 
@@ -103,11 +95,11 @@ Circles is a native iOS app — an Islamic social accountability tool for Muslim
 ---
 
 ## Islamic Design Language
-- Warm, spiritual, calm — NOT sterile tech
-- Amber/gold accent connotes warmth and Islamic art
-- Serif fonts for headers connote depth and tradition
-- Organic blob shapes = organic/natural feel
-- SF Symbols used: `moon.stars.fill`, `book.fill`, `hands.sparkles.fill`, `heart.fill`, `star.fill`, `person.2.fill`, `sparkles`
+- Premium, spiritual, nighttime aesthetic — reminiscent of Ramadan nights and Taraweeh.
+- Deep forest greens and luminous gold accents connote warmth, luxury, and Islamic art.
+- Serif fonts for headers connote depth and tradition.
+- Lighting: "Inner light" glowing effects rather than flat shadows.
+- SF Symbols used: `moon.stars.fill`, `book.fill`, `hands.sparkles.fill`, `heart.fill`, `star.fill`, `person.2.fill`, `sparkles`. Rendered hierarchically or with palettes for a two-tone gold look.
 
 ---
 

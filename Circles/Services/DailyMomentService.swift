@@ -65,6 +65,18 @@ final class DailyMomentService {
 
     var prayerDisplayName: String { todayPrayerName.capitalized }
 
+    /// BeReal-Memories feed anchor. Yesterday's UTC date while today's window
+    /// hasn't opened yet; otherwise today. Feed queries filter moments by this
+    /// date so users continue seeing yesterday's posts until today's window pops.
+    var activeFeedDate: String {
+        switch gateMode {
+        case .preWindow:
+            return Self.utcDateString(from: Date().addingTimeInterval(-24 * 60 * 60))
+        case .windowOpen, .missedWindow, .posted:
+            return Self.utcDateString(from: Date())
+        }
+    }
+
     // MARK: - Load
 
     func load(userId: UUID) async {

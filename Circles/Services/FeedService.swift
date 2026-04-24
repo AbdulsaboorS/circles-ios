@@ -89,17 +89,19 @@ final class FeedService {
         guard !circleIds.isEmpty else { return [] }
         let idStrings = circleIds.map { $0.uuidString }
 
-        let momentRange = await DailyMomentService.shared.fetchActiveMomentRange()
-        let todayStart = Self.todayUTCStart()
-        let todayEnd   = Self.todayUTCEnd()
+        // Feed anchors on the active feed date (BeReal Memories: yesterday while
+        // today's window hasn't opened yet; today otherwise).
+        let feedDate = await DailyMomentService.shared.activeFeedDate
+        let dayStart = "\(feedDate)T00:00:00Z"
+        let dayEnd   = "\(feedDate)T23:59:59Z"
 
         // 1+2. Fetch activity_feed and circle_moments concurrently
         async let activityFetch: [ActivityFeedRow] = client
             .from("activity_feed")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("created_at", value: todayStart)
-            .lt("created_at", value: todayEnd)
+            .gte("created_at", value: dayStart)
+            .lt("created_at", value: dayEnd)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -108,8 +110,7 @@ final class FeedService {
             .from("circle_moments")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("posted_at", value: momentRange.startISO8601)
-            .lt("posted_at", value: momentRange.endExclusiveISO8601)
+            .eq("moment_date", value: feedDate)
             .order("posted_at", ascending: false)
             .execute()
             .value
@@ -253,18 +254,18 @@ final class FeedService {
         return result
     }
 
-    /// Returns the most recent Moment per circle for today.
+    /// Returns the most recent Moment per circle for the active feed date
+    /// (yesterday while today's window hasn't opened yet; today otherwise).
     func fetchLatestMomentPerCircle(circleIds: [UUID]) async throws -> [UUID: LatestMomentInfo] {
         guard !circleIds.isEmpty else { return [:] }
         let idStrings = circleIds.map { $0.uuidString }
-        let momentRange = await DailyMomentService.shared.fetchActiveMomentRange()
+        let feedDate = await DailyMomentService.shared.activeFeedDate
 
         let rows: [CircleMomentRow] = try await client
             .from("circle_moments")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("posted_at", value: momentRange.startISO8601)
-            .lt("posted_at", value: momentRange.endExclusiveISO8601)
+            .eq("moment_date", value: feedDate)
             .order("posted_at", ascending: false)
             .execute()
             .value
