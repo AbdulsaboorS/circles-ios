@@ -14,6 +14,7 @@ struct MomentFeedItem: Identifiable, Sendable {
     let secondaryPhotoUrl: String?
     let caption: String?
     let postedAt: String  // ISO8601 string, per project date-as-string convention
+    let momentDate: String  // "YYYY-MM-DD" — DB-stamped window calendar day (UTC)
     let isOnTime: Bool
     let hasNiyyah: Bool
 }

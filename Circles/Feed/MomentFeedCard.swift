@@ -186,6 +186,7 @@ struct MomentFeedCard: View {
         secondaryPhotoUrl: "https://picsum.photos/seed/secondary/400/533",
         caption: "Alhamdulillah, fajr done ✓",
         postedAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-720)),
+        momentDate: "2026-04-24",
         isOnTime: true,
         hasNiyyah: true
     )

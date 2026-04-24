@@ -32,6 +32,7 @@ private struct CircleMomentRow: Decodable {
     let secondaryPhotoUrl: String?
     let caption: String?
     let postedAt: String
+    let momentDate: String
     let isOnTime: Bool
     let hasNiyyah: Bool
 
@@ -39,7 +40,8 @@ private struct CircleMomentRow: Decodable {
         case id; case circleId = "circle_id"; case userId = "user_id"
         case photoUrl = "photo_url"; case secondaryPhotoUrl = "secondary_photo_url"
         case caption
-        case postedAt = "posted_at"; case isOnTime = "is_on_time"
+        case postedAt = "posted_at"; case momentDate = "moment_date"
+        case isOnTime = "is_on_time"
         case hasNiyyah = "has_niyyah"
     }
 
@@ -52,6 +54,9 @@ private struct CircleMomentRow: Decodable {
         secondaryPhotoUrl = try c.decodeIfPresent(String.self, forKey: .secondaryPhotoUrl)
         caption = try c.decodeIfPresent(String.self, forKey: .caption)
         postedAt = try c.decode(String.self, forKey: .postedAt)
+        // Fallback to postedAt prefix covers any legacy row where moment_date wasn't backfilled.
+        momentDate = try c.decodeIfPresent(String.self, forKey: .momentDate)
+            ?? String(postedAt.prefix(10))
         isOnTime = try c.decode(Bool.self, forKey: .isOnTime)
         hasNiyyah = try c.decodeIfPresent(Bool.self, forKey: .hasNiyyah) ?? false
     }
@@ -162,14 +167,13 @@ final class FeedService {
             }
         }
 
-        // 6. Deduplicate CircleMomentRows by (userId, date) → one card per photo
-        //    Group rows that share the same user and calendar day (prefix 10 of ISO8601 = YYYY-MM-DD).
-        typealias DedupeKey = String  // "\(userId)|\(YYYY-MM-DD)"
+        // 6. Deduplicate CircleMomentRows by (userId, momentDate) → one card per photo.
+        //    Keys on the DB-stamped moment_date so cross-UTC-midnight posts group correctly.
+        typealias DedupeKey = String  // "\(userId)|\(moment_date)"
         var groupOrder: [DedupeKey] = []
         var groups: [DedupeKey: [CircleMomentRow]] = [:]
         for row in momentRows {
-            let datePrefix = String(row.postedAt.prefix(10))
-            let key = "\(row.userId.uuidString)|\(datePrefix)"
+            let key = "\(row.userId.uuidString)|\(row.momentDate)"
             if groups[key] == nil { groupOrder.append(key) }
             groups[key, default: []].append(row)
         }
@@ -192,6 +196,7 @@ final class FeedService {
                 secondaryPhotoUrl: resolved?.secondary,
                 caption: first.caption,
                 postedAt: first.postedAt,
+                momentDate: first.momentDate,
                 isOnTime: first.isOnTime,
                 hasNiyyah: first.hasNiyyah
             ))
@@ -295,12 +300,13 @@ final class FeedService {
     }
 
     /// Count active users today per circle across both Moments and activity_feed.
+    /// Moments filtered by `moment_date` (= activeFeedDate, BeReal Memories pattern).
     func fetchActiveUserIdsToday(circleIds: [UUID]) async throws -> [UUID: Set<UUID>] {
         guard !circleIds.isEmpty else { return [:] }
         let idStrings = circleIds.map { $0.uuidString }
         let todayStart = Self.todayUTCStart()
         let todayEnd = Self.todayUTCEnd()
-        let momentRange = await DailyMomentService.shared.fetchActiveMomentRange()
+        let feedDate = await DailyMomentService.shared.activeFeedDate
 
         async let activityRowsTask: [ActivityFeedRow] = client
             .from("activity_feed")
@@ -313,10 +319,9 @@ final class FeedService {
 
         async let momentRowsTask: [CircleMomentRow] = client
             .from("circle_moments")
-            .select("id, circle_id, user_id, photo_url, secondary_photo_url, caption, posted_at, is_on_time, has_niyyah")
+            .select("id, circle_id, user_id, photo_url, secondary_photo_url, caption, posted_at, moment_date, is_on_time, has_niyyah")
             .in("circle_id", values: idStrings)
-            .gte("posted_at", value: momentRange.startISO8601)
-            .lt("posted_at", value: momentRange.endExclusiveISO8601)
+            .eq("moment_date", value: feedDate)
             .execute()
             .value
 

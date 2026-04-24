@@ -100,10 +100,9 @@ final class FeedViewModel {
     }
 
     func insertOptimisticMoment(_ item: MomentFeedItem) {
-        let dayKey = String(item.postedAt.prefix(10))
         items.removeAll { existing in
             guard case .moment(let moment) = existing else { return false }
-            return moment.userId == item.userId && String(moment.postedAt.prefix(10)) == dayKey
+            return moment.userId == item.userId && moment.momentDate == item.momentDate
         }
         items.insert(.moment(item), at: 0)
         hasPostedToday = true
@@ -127,7 +126,8 @@ final class FeedViewModel {
                 circleIds: m.circleIds, circleNames: m.circleNames,
                 photoUrl: m.photoUrl, secondaryPhotoUrl: m.secondaryPhotoUrl,
                 caption: caption,
-                postedAt: m.postedAt, isOnTime: m.isOnTime,
+                postedAt: m.postedAt, momentDate: m.momentDate,
+                isOnTime: m.isOnTime,
                 hasNiyyah: m.hasNiyyah
             ))
         }

@@ -493,6 +493,7 @@ struct CommunityView: View {
 
         let postedAt = ISO8601DateFormatter().string(from: Date())
         let displayName = currentUserDisplayName(for: userId)
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? MomentService.todayDateString()
         return MomentFeedItem(
             id: optimisticID,
             circleId: circles.first?.id ?? UUID(),
@@ -505,6 +506,7 @@ struct CommunityView: View {
             secondaryPhotoUrl: secondaryKey,
             caption: caption,
             postedAt: postedAt,
+            momentDate: momentDate,
             isOnTime: true,
             hasNiyyah: !(niyyahText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         )

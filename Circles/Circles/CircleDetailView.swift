@@ -549,6 +549,7 @@ struct CircleDetailView: View {
         }
 
         let postedAt = ISO8601DateFormatter().string(from: Date())
+        let momentDate = DailyMomentService.shared.currentWindowDate ?? MomentService.todayDateString()
         return MomentFeedItem(
             id: optimisticID,
             circleId: circle.id,
@@ -561,6 +562,7 @@ struct CircleDetailView: View {
             secondaryPhotoUrl: secondaryKey,
             caption: caption,
             postedAt: postedAt,
+            momentDate: momentDate,
             isOnTime: true,
             hasNiyyah: !(niyyahText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         )
