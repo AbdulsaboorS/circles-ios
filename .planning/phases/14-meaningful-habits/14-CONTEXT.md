@@ -150,7 +150,6 @@ Five features in scope:
 ### Planning Context
 - `.planning/ROADMAP.md` — Phase 14 scope definition
 - `.planning/STATE.md` — current build state
-- `.planning/notes/main.md` — scope lock decisions from 2026-04-20 session
 - `~/.claude/projects/-Users-abdulsaboorshaikh-Desktop-Circles/memory/onboarding_quiz_state.md` — confirmed quiz screen content (A + B locked)
 
 ### External Skill
