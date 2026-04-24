@@ -143,6 +143,7 @@ struct HomeView: View {
     @Environment(\.accessibilityReduceMotion)         private var reduceMotion
 
     @State private var viewModel          = HomeViewModel()
+    @State private var notificationService = NotificationService.shared
     @State private var preferredName      = "Friend"
     @State private var showAddIntention   = false
     @State private var navigationPath     = NavigationPath()
@@ -303,6 +304,7 @@ struct HomeView: View {
                 await loadPreferredName(userId: uid)
                 updateOrderedHabits(from: viewModel.habits)
                 showRoadmapBanner = HabitPlanService.isRoadmapGenerating(userId: uid)
+                applyPendingNotificationRouteIfNeeded()
             }
             .task {
                 guard let uid = auth.session?.user.id else { return }
@@ -311,9 +313,14 @@ struct HomeView: View {
                 await loadNudgeState(userId: uid)
                 updateOrderedHabits(from: viewModel.habits)
                 showRoadmapBanner = HabitPlanService.isRoadmapGenerating(userId: uid)
+                applyPendingNotificationRouteIfNeeded()
             }
             .onChange(of: viewModel.habits) { _, newHabits in
                 updateOrderedHabits(from: newHabits)
+                applyPendingNotificationRouteIfNeeded()
+            }
+            .onChange(of: notificationService.pendingRoute) { _, _ in
+                applyPendingNotificationRouteIfNeeded()
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") { viewModel.errorMessage = nil }
@@ -705,6 +712,23 @@ struct HomeView: View {
             } catch {
                 viewModel.errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    private func applyPendingNotificationRouteIfNeeded() {
+        guard let route = notificationService.pendingRoute, route.tab == .home else { return }
+
+        switch route.homeDestination {
+        case .root:
+            notificationService.updateCurrentRoute(.home)
+            notificationService.consumePendingRoute()
+        case .habitDetail:
+            guard let habitId = route.habitId,
+                  let habit = viewModel.habits.first(where: { $0.id == habitId }) else { return }
+
+            navigationPath.append(habit)
+            notificationService.updateCurrentRoute(route)
+            notificationService.consumePendingRoute()
         }
     }
 

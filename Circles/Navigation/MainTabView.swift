@@ -34,15 +34,35 @@ struct MainTabView: View {
         .toolbarBackground(Color.msBackgroundDeep, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarColorScheme(.dark, for: .tabBar)
+        .onAppear {
+            if let tab = AppTabRoute(tabIndex: selectedTab) {
+                let route = AppNotificationRoute(tab: tab)
+                notifService.updateCurrentRoute(route)
+            }
+            applyPendingRouteIfNeeded()
+        }
         .onChange(of: pendingInviteCode) { _, code in
             if code != nil {
                 selectedTab = 1
             }
         }
         .onChange(of: selectedTab) { _, newTab in
-            if newTab == 1 {
-                NotificationService.shared.clearUnread()
+            if let tab = AppTabRoute(tabIndex: newTab) {
+                let route = AppNotificationRoute(tab: tab)
+                notifService.updateCurrentRoute(route)
             }
+        }
+        .onChange(of: notifService.pendingRoute) { _, _ in
+            applyPendingRouteIfNeeded()
+        }
+    }
+
+    private func applyPendingRouteIfNeeded() {
+        guard let route = notifService.pendingRoute else { return }
+        selectedTab = route.tabIndex
+        if !route.requiresInTabFollowThrough {
+            notifService.updateCurrentRoute(route)
+            notifService.consumePendingRoute()
         }
     }
 }

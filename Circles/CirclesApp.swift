@@ -50,12 +50,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let type = userInfo["type"] as? String, type == "moment_window" {
-            Task { @MainActor in
-                guard let userId = AuthManager.sharedForAPNs?.session?.user.id else { return }
-                // Refresh gate — DailyMomentService is @Observable so all views update
-                await DailyMomentService.shared.load(userId: userId)
-            }
+        Task { @MainActor in
+            await NotificationService.shared.handleNotification(userInfo: userInfo, wasTapped: true)
         }
         completionHandler()
     }
@@ -67,16 +63,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         let userInfo = notification.request.content.userInfo
-        if let type = userInfo["type"] as? String, type == "moment_window" {
-            // Refresh gate silently when we receive a moment_window push in foreground
-            Task { @MainActor in
-                guard let userId = AuthManager.sharedForAPNs?.session?.user.id else { return }
-                await DailyMomentService.shared.load(userId: userId)
-            }
-            completionHandler([.banner, .sound])
-        } else {
-            completionHandler([.banner, .sound])
+        Task { @MainActor in
+            await NotificationService.shared.handleNotification(userInfo: userInfo, wasTapped: false)
         }
+        completionHandler([.banner, .sound])
     }
 }
 

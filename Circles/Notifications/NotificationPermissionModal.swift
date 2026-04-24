@@ -3,6 +3,7 @@ import SwiftUI
 struct NotificationPermissionModal: View {
     @Binding var isPresented: Bool
     var prayerTimeName: String = "prayer time"
+    var onPermissionResolved: ((Bool) -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -32,7 +33,8 @@ struct NotificationPermissionModal: View {
                     Button {
                         isPresented = false
                         Task {
-                            await NotificationService.shared.requestPermission()
+                            let granted = await NotificationService.shared.requestPermission()
+                            onPermissionResolved?(granted)
                         }
                     } label: {
                         Text("Enable Notifications")
@@ -47,6 +49,7 @@ struct NotificationPermissionModal: View {
 
                     Button("Not now") {
                         isPresented = false
+                        onPermissionResolved?(false)
                     }
                     .foregroundStyle(.white.opacity(0.5))
                     .font(.subheadline)

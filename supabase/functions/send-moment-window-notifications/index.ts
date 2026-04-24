@@ -62,11 +62,30 @@ Deno.serve(async (_req) => {
     });
   }
 
+  const userIds = [...new Set(tokens.map(({ user_id }) => user_id))];
+  const { data: preferences } = await supabase
+    .from("notification_preferences")
+    .select("user_id, notifications_enabled, moment_window_enabled")
+    .in("user_id", userIds);
+
+  const preferenceMap = new Map(
+    (preferences ?? []).map((row: {
+      user_id: string;
+      notifications_enabled: boolean;
+      moment_window_enabled: boolean;
+    }) => [row.user_id, row])
+  );
+
   // Step 4: Send APNs push to every device
   const prayerName = dailyMoment.prayer_name ?? "asr";
   const sent: string[] = [];
 
   for (const { device_token, user_id } of tokens) {
+    const prefs = preferenceMap.get(user_id);
+    if (prefs && (!prefs.notifications_enabled || !prefs.moment_window_enabled)) {
+      continue;
+    }
+
     try {
       await sendAPNs(
         device_token,

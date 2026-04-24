@@ -4,7 +4,9 @@
 
 A native Swift/SwiftUI iOS app — a private Islamic accountability tool ("Islamic BeReal"). Circle Moment (BeReal-style daily check-in anchored to prayer times) + habit tracking + small private circles.
 
-See `.planning/PROJECT.md` for full product vision (v2.3 PRD). See `.planning/ROADMAP.md` for phase breakdown. See `.planning/STATE.md` for what's built, **open issues**, and what's next. **Switching agents:** read `.planning/HANDOFF.md` first.
+**Switching agents:** read `.planning/HANDOFF.md` first, then `.planning/STATE.md`.
+
+Open `.planning/ROADMAP.md` only if sequencing matters. Open `.planning/PROJECT.md` only if product vision or product rules matter.
 
 ## How to Think About This Project
 
@@ -101,10 +103,10 @@ Moment mechanic mirrors BeReal exactly. For design questions: default to BeReal'
 ## Working Rules
 
 ### 1. Phase Discipline
-Build phases in order per ROADMAP.md. Update STATE.md after meaningful changes.
+Follow roadmap ordering unless the user explicitly reprioritizes. Update shared planning docs only when current repo state materially changes.
 
 ### 2. Commits
-One commit per logical unit (fix, feature slice, refactor). Self-contained. Push to main at session end.
+One commit per logical unit (fix, feature slice, refactor). Keep commits self-contained. Commit to git when a logical unit is complete.
 
 ### 3. SQL
 Run via Supabase Dashboard. Confirm destructive ops first. Schema cache: run `habit_plans_align_app.sql`.

@@ -50,6 +50,7 @@ struct HabitDetailView: View {
     // Celebration (moved from HomeView)
     @State private var showAlhamdulillah: Bool = false
     @State private var alhamdulillahTask: Task<Void, Never>?
+    @State private var isTogglingToday = false
 
     // MARK: - Computed helpers
 
@@ -243,6 +244,7 @@ struct HabitDetailView: View {
         ScrollView {
             VStack(spacing: 24) {
                 completedHeader
+                todayActionCard
                 todaysFocusCard
                 HabitMonthCalendar(
                     displayedMonth: $displayedMonth,
@@ -309,6 +311,54 @@ struct HabitDetailView: View {
             buildPlanCTA
                 .padding(.horizontal, 16)
         }
+    }
+
+    private var todayActionCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Today")
+                .font(.appCaptionMedium)
+                .foregroundStyle(Color.msGold.opacity(0.9))
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isCompletedToday ? "Completed for today" : "Still waiting for today's check-in")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.msTextPrimary)
+
+                    Text(isCompletedToday ? "You can undo if this needs to be corrected." : "Reminder taps land here so you can check in without hunting through Home.")
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted)
+                }
+
+                Spacer(minLength: 12)
+
+                Button {
+                    Task { await toggleTodayCompletion() }
+                } label: {
+                    Group {
+                        if isTogglingToday {
+                            ProgressView()
+                                .tint(Color.msBackground)
+                                .frame(width: 124, height: 44)
+                        } else {
+                            Text(isCompletedToday ? "Undo" : "Check In")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.msBackground)
+                                .frame(width: 124, height: 44)
+                        }
+                    }
+                    .background(Color.msGold, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isTogglingToday)
+            }
+        }
+        .padding(18)
+        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 22))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(Color.msBorder, lineWidth: 1)
+        )
     }
 
     private func todaysFocusCardLabel(plan: HabitPlan) -> some View {
@@ -412,11 +462,12 @@ struct HabitDetailView: View {
     // MARK: - Orb completion
 
     private func handleOrbComplete() {
-        guard let userId = auth.session?.user.id else { return }
+        guard let userId = auth.session?.user.id, !isTogglingToday else { return }
 
         // Optimistic local log so isCompletedToday flips immediately and the
         // view animates into State 2 behind the Alhamdulillah beat.
         let todayStr = todayDateString
+        isTogglingToday = true
         if let idx = logs.firstIndex(where: { $0.date == todayStr }) {
             logs[idx].completed = true
         } else {
@@ -442,17 +493,12 @@ struct HabitDetailView: View {
         // Fire-and-forget persistence + cross-circle side effects.
         Task {
             do {
-                try await HabitService.shared.toggleHabitLog(
-                    habitId: habit.id, userId: userId, date: todayStr, completed: true
+                _ = try await HabitToggleService.shared.toggleToday(
+                    habit: habit,
+                    userId: userId,
+                    date: todayStr,
+                    alreadyCompleted: false
                 )
-                if habit.isAccountable, let circleId = habit.circleId {
-                    try? await HabitService.shared.broadcastHabitCompletion(
-                        habitId: habit.id, habitName: habit.name,
-                        circleId: circleId, userId: userId
-                    )
-                    _ = try? await CircleService.shared.checkAndUpdateGroupStreak(circleId: circleId)
-                }
-                _ = try? await HabitService.shared.fetchStreak(userId: userId)
             } catch {
                 errorMessage = error.localizedDescription
                 // Roll back optimistic log so the view reverts to State 1.
@@ -460,6 +506,7 @@ struct HabitDetailView: View {
                     logs[idx].completed = false
                 }
             }
+            isTogglingToday = false
         }
     }
 
@@ -489,7 +536,6 @@ struct HabitDetailView: View {
         }
         .transition(.opacity)
     }
-
     // MARK: - Data actions
 
     private func loadPlan() async {
@@ -540,6 +586,45 @@ struct HabitDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func toggleTodayCompletion() async {
+        guard let userId = auth.session?.user.id, !isTogglingToday else { return }
+
+        let wasCompleted = isCompletedToday
+        isTogglingToday = true
+
+        if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
+            logs[existingIndex].completed.toggle()
+        } else {
+            logs.append(
+                HabitLog(
+                    id: UUID(),
+                    habitId: habit.id,
+                    userId: userId,
+                    date: todayDateString,
+                    completed: true,
+                    notes: nil,
+                    createdAt: Date()
+                )
+            )
+        }
+
+        do {
+            _ = try await HabitToggleService.shared.toggleToday(
+                habit: habit,
+                userId: userId,
+                date: todayDateString,
+                alreadyCompleted: wasCompleted
+            )
+        } catch {
+            if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
+                logs[existingIndex].completed = wasCompleted
+            }
+            errorMessage = error.localizedDescription
+        }
+
+        isTogglingToday = false
     }
 }
 

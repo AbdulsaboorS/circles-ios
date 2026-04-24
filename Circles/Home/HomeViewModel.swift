@@ -62,61 +62,11 @@ final class HomeViewModel {
             habits    = try await habitsFetch
             todayLogs = try await logsFetch
             streak    = try await streakFetch
-            computedStreak = await computeAccountableStreak(userId: userId, habits: habits)
+            computedStreak = await HabitToggleService.shared.computeAccountableStreak(userId: userId, habits: habits)
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
-    }
-
-    // MARK: - Client-side streak computation
-
-    /// Walks backwards up to 30 days from today.
-    /// A day counts if every is_accountable habit has a completed log.
-    /// Falls back to any habit if none are accountable.
-    private func computeAccountableStreak(userId: UUID, habits: [Habit]) async -> Int {
-        let accountable = habits.filter(\.isAccountable)
-        let target = accountable.isEmpty ? habits : accountable
-        guard !target.isEmpty else { return 0 }
-        let targetIds = Set(target.map(\.id))
-
-        let cal = Calendar.current
-        let now = Date()
-        guard
-            let thirtyDaysAgo = cal.date(byAdding: .day, value: -30, to: now)
-        else { return 0 }
-
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-        let fromStr = fmt.string(from: thirtyDaysAgo)
-        let toStr   = fmt.string(from: now)
-
-        guard let logs = try? await HabitService.shared.fetchLogsInRange(
-            userId: userId, from: fromStr, to: toStr
-        ) else { return 0 }
-
-        // Build a set of (habitId, date) pairs that are completed
-        let completedSet = Set(logs.compactMap { log -> String? in
-            guard log.completed, targetIds.contains(log.habitId) else { return nil }
-            return "\(log.habitId.uuidString)|\(log.date)"
-        })
-
-        var streak = 0
-        for dayOffset in 0...30 {
-            guard let day = cal.date(byAdding: .day, value: -dayOffset, to: now) else { break }
-            let dateStr = fmt.string(from: day)
-            let allDone = targetIds.allSatisfy { id in
-                completedSet.contains("\(id.uuidString)|\(dateStr)")
-            }
-            if allDone {
-                streak += 1
-            } else if dayOffset == 0 {
-                continue   // today not done yet — skip, don't break
-            } else {
-                break
-            }
-        }
-        return streak
     }
 
     // MARK: - Circle Presence
@@ -224,14 +174,14 @@ final class HomeViewModel {
             }
 
             do {
-                try await HabitService.shared.toggleHabitLog(
-                    habitId: habit.id, userId: userId, date: todayString, completed: false
+                let result = try await HabitToggleService.shared.toggleToday(
+                    habit: habit,
+                    userId: userId,
+                    date: todayString,
+                    alreadyCompleted: true
                 )
-                if habit.isAccountable, let circleId = habit.circleId {
-                    try? await HabitService.shared.removeHabitCompletion(
-                        habitName: habit.name, circleId: circleId, userId: userId
-                    )
-                }
+                streak = result.streak
+                computedStreak = result.computedStreak
             } catch {
                 if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
                     todayLogs[idx].completed = true
@@ -265,30 +215,15 @@ final class HomeViewModel {
                 toastMessage = "Locked in. No more undos — we trust you this time. 🤝"
             }
 
-            let previousStreak = computedStreak
             do {
-                try await HabitService.shared.toggleHabitLog(
-                    habitId: habit.id, userId: userId, date: todayString, completed: true
+                let result = try await HabitToggleService.shared.toggleToday(
+                    habit: habit,
+                    userId: userId,
+                    date: todayString,
+                    alreadyCompleted: false
                 )
-                streak = try await HabitService.shared.fetchStreak(userId: userId)
-                computedStreak = await computeAccountableStreak(userId: userId, habits: habits)
-                if habit.isAccountable, let circleId = habit.circleId {
-                    try? await HabitService.shared.broadcastHabitCompletion(
-                        habitId: habit.id, habitName: habit.name,
-                        circleId: circleId, userId: userId
-                    )
-                    // Streak milestone — fire when crossing 7, 14, 30, or 100 days
-                    let milestones = [7, 14, 30, 100]
-                    if let milestone = milestones.first(where: { previousStreak < $0 && computedStreak >= $0 }) {
-                        try? await HabitService.shared.broadcastStreakMilestone(
-                            habitId: habit.id, habitName: habit.name,
-                            circleId: circleId, userId: userId, streakDays: milestone
-                        )
-                    }
-                    // Group streak — check if all members are now done (non-fatal)
-                    try? await CircleService.shared.checkAndUpdateGroupStreak(circleId: circleId)
-                    NotificationCenter.default.post(name: .groupStreakUpdated, object: circleId)
-                }
+                streak = result.streak
+                computedStreak = result.computedStreak
             } catch {
                 if let idx = todayLogs.firstIndex(where: { $0.habitId == habit.id }) {
                     todayLogs[idx].completed = false

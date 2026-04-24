@@ -7,10 +7,10 @@ struct MyCirclesView: View {
     let cardDataMap: [UUID: CircleCardData]
     let pinnedCircleIDs: Set<UUID>
     let sendingNudgeCircleIDs: Set<UUID>
+    @Binding var selectedCircle: Circle?
     let onNudge: (UUID) -> Void
 
     @State private var centeredId: UUID?
-    @State private var selectedCircle: Circle?
 
     private var activeGradientColors: [Color] {
         if let id = centeredId,
@@ -70,9 +70,6 @@ struct MyCirclesView: View {
             if centeredId == nil || !ids.contains(centeredId ?? UUID()) {
                 centeredId = ids.first
             }
-        }
-        .navigationDestination(item: $selectedCircle) { circle in
-            CircleDetailView(circle: circle)
         }
     }
 }
