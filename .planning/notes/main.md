@@ -1,85 +1,103 @@
-# main — Session Note (2026-04-24, Session 12 handoff)
+# main — Session Note (2026-04-24, Session 13 handoff)
 
 ## Goal
 
-Continue hardening the **Moment Mechanic Redesign** (BeReal parity). Session 12 landed the feed-day fallback + two moment_date correctness fixes. Session 13 should clean up the remaining `posted_at`-filter bugs documented in the audit below, then close Phase 14 QA.
+Close Phase 14 QA. Session 13 landed the final 5 `posted_at` → `moment_date` fixes on top of session 12's 2. All 10 audit items from the original migration are now closed in code. Session 14 is **QA only** — no more audit work needed in MomentService / FeedService for this mechanic.
 
-## Scope
+## Scope (Session 14)
 
-- Own: `Circles/Moment/`, `Circles/Feed/`, `Circles/Services/DailyMomentService.swift`, `Circles/Services/MomentService.swift`, `Circles/Services/FeedService.swift`, `Circles/Journey/*` moment-read paths.
-- Do not change: Niyyah write schema, `circle_moments` table schema, pg_cron seed logic.
+- Own: simulator QA pass on the Moment mechanic (all 4 gate states, cross-UTC-midnight rollover, Spiritual Ledger lookup, DEBUG force-delete, niyyah date alignment, on-time pill).
+- Also: Joiner onboarding re-test (carry-over from Phase 14.1 Task 6 — still blocks Phase 14 sign-off).
+- Do not change: MomentService / FeedService / DailyMomentService / FeedView / FeedItem / FeedViewModel / niyyah code — all read paths are settled.
+- Out of scope: minor items #9/#10 (MomentFeedItem dedupe key) — harmless today thanks to DB unique index `circle_moments_one_per_day`. Only revisit if drift shows up.
 
-## Touched Files (Session 12)
+## Touched Files (Session 13)
 
-- `Circles/Services/DailyMomentService.swift` — added `activeFeedDate` computed var (yesterday when `preWindow`, else today).
-- `Circles/Services/FeedService.swift` — `fetchFeedPage` + `fetchLatestMomentPerCircle` anchor on `activeFeedDate`; moments filtered by `.eq("moment_date", feedDate)`; activity_feed scoped to same UTC day.
-- `Circles/Feed/FeedView.swift` — empty-state copy: "Your circle is quiet. / Moments from your circle will appear here." (old copy was "No moments yet. Be the first to post today." which contradicted BeReal Memories behavior).
-- `Circles/Services/MomentService.swift` — fix #1: `fetchMoments(userId, from, toExclusive)` now filters by `moment_date` range (was `posted_at`). Fix #2: `updateCaption` now filters by `.eq("moment_date", currentWindowDate)` (was `posted_at` today range).
+- `Circles/Services/MomentService.swift` — single pass, 5 fixes:
+  - **#3** `deleteMyTodayMoments` (DEBUG) — `.eq("moment_date", currentWindowDate ?? todayUTC)`
+  - **#4** `fetchMomentForDate` — dropped `T00:00:00Z`/`T23:59:59Z` ISO construction; `.eq("moment_date", date)`
+  - **#5** `postMomentToAllCircles` niyyah save — passes local `momentDate` const (not `Self.todayDateString()`)
+  - **#6** `fetchTodayMoments` — removed local-TZ `Calendar(.gregorian).startOfDay` fallback and 25h `posted_at` range; `.eq("moment_date", currentWindowDate ?? todayUTC)`
+  - **#7** `computeIsOnTime` — both branches now `(0..<300).contains(elapsed)` (guards negative elapsed for pre-window posts)
 
 ## Decisions
 
-- **BeReal Memories pattern** confirmed by user: yesterday's posts remain visible until today's window pops. `activeFeedDate` flips the moment `gateMode` leaves `.preWindow`. No fallback when today has zero non-own moments (e.g. posted + silent circle) — empty state is acceptable there.
-- All moment reads keyed on `moment_date` (DB stamp), not `posted_at`. `posted_at` is insert clock; `moment_date` is the window's UTC calendar day. These diverge whenever a user posts across UTC midnight.
-- `currentWindowDate` from `DailyMomentService` is the single source of truth for the "which day am I posting/editing" question.
+- `moment_date` is now the only date predicate for all moment reads/writes that key on "the window's calendar day." `posted_at` remains for ordering (`.order("posted_at")`) — the insert clock is still the right thing to sort by.
+- Fallback when `currentWindowDate == nil` is `Self.todayDateString()` (UTC) — never local TZ. This matches Session 12's rule and the DB's UTC-based unique index.
+- Kept the deliberate scope cut: audit items **#8–#10** not shipped this session. #8 is minor (`FeedService.fetchActiveUserIdsToday`); #9/#10 require a `MomentFeedItem` schema change (add `momentDate` field) + dedupe key swap in `FeedService` + `FeedViewModel` + `CircleMomentRow` decoder. The DB unique index makes real duplicate rows impossible, so the dedupe key drift is latent, not active.
 
 ## Verified
 
 - Build green on iPhone 17 Pro simulator (Debug).
-- 4-state gate matrix walked through:
-  - `preWindow` → yesterday's feed, no gate ✓
-  - `windowOpen` → today's feed, gate CTA "Share your Moment" ✓
-  - `missedWindow` → today's feed, gate CTA "Post a late Moment" ✓
-  - `posted` → today's feed + pinned own card, no gate ✓
-- No simulator QA run this session — shipped unverified. Session 13 must do a live pass.
+- Diff surface: 1 file, +11 / −15 lines. No API-surface changes (all method signatures unchanged).
+- **No simulator QA run this session.** Session 14 must do the live pass described in Next.
 
-## Next
+## Next (Session 14 — QA only)
 
-1. Verify Session 12 changes in simulator (tests 2–6 from prior QA list, specifically #6 cross-TZ and next-day rollover). Use `forceOpenWindow` DEBUG button or SQL `UPDATE daily_moments SET moment_time=...`.
-2. **Fix remaining moment_date bugs from audit (priority order):**
-   - **#3 `deleteMyTodayMoments`** (`MomentService.swift:407-416`) — change `.gte/.lt posted_at` → `.eq("moment_date", currentWindowDate)`. DEBUG path only, but inconsistent with #2.
-   - **#4 `fetchMomentForDate`** (`MomentService.swift:38-57`) — Spiritual Ledger lookup. Swap `posted_at` range for `.eq("moment_date", date)`. Drop the T00:00:00Z / T23:59:59Z ISO string construction.
-   - **#5 Niyyah date mismatch** (`MomentService.swift:229-238`, inside `postMomentToAllCircles`) — pass `momentDate` (the local const already computed at line 180), not `Self.todayDateString()`. Misaligns Journey when user posts near UTC midnight.
-   - **#6 `fetchTodayMoments` local-calendar fallback** (`MomentService.swift:20-35`) — when `windowStart == nil`, replace `Calendar(identifier: .gregorian).startOfDay(for:)` with UTC startOfDay. Better: rewrite to `.eq("moment_date", currentWindowDate ?? todayUTC)`.
-   - **#7 `computeIsOnTime`** (`MomentService.swift:435-445`) — tighten `< 300` to `(0..<300).contains(elapsed)` so pre-window posts don't falsely qualify.
-3. **Minor cleanup (optional):**
-   - **#8 `FeedService.fetchActiveUserIdsToday`** (`FeedService.swift:297-332`) — still uses `posted_at` range. Migrate to `.eq("moment_date", activeFeedDate)`.
-   - **#9 + #10** — add `momentDate` to `MomentFeedItem` (`Models/FeedItem.swift:5-19`); update `FeedService.swift:164-174` + `FeedViewModel.swift:102-110` dedupe keys to use it instead of `postedAt.prefix(10)`. Also add `moment_date` to private `CircleMomentRow` decoder in `FeedService.swift:27-58`. Harmless today thanks to DB unique index, but drift-prone.
-4. **Once all audit items closed** → run full Session 11 QA list (9 moment tests + 3 onboarding carry-overs) → close Phase 14 QA in `STATE.md` → merge `phase-15-social-pulse` worktree.
+### A. Moment-mechanic simulator QA (9 tests)
+
+Use DEBUG `forceOpenWindow` button (or SQL `UPDATE daily_moments SET moment_time=...`) to drive each state. Seed / clear rows via the DEBUG delete button.
+
+1. `.preWindow` — feed shows **yesterday's** moments (BeReal Memories), no gate.
+2. `.windowOpen` — feed switches to today; gate CTA "Share your Moment".
+3. Post in window → card pinned, gate dismissed, on-time pill visible (< 5 min elapsed).
+4. `.missedWindow` — gate CTA "Post a late Moment", feed still today.
+5. Post after 5 min → `is_on_time = false` (no pill). Also verify: pre-window post (if reachable via SQL) is now correctly **false** (audit #7).
+6. **Cross-UTC-midnight test (audit #1–#6 regression):** Advance sim time so window opens at 23:50 UTC and post at 00:10 UTC. Verify:
+   - Moment card appears in today's feed (moment_date = yesterday's UTC day).
+   - Journey month view places the moment on yesterday's date (not today's).
+   - Caption edit on that moment saves (no silent no-op).
+   - Spiritual Ledger tap on yesterday's date shows that photo (fetchMomentForDate).
+   - Niyyah, if entered, is stamped on yesterday's date — same as the moment.
+7. DEBUG "delete today's moments" button wipes the just-posted moment (even when posted cross-midnight).
+8. Caption edit persists across app relaunch.
+9. Multi-circle post: photo appears in every circle feed, gate dismisses in all.
+
+### B. Joiner onboarding re-test (Phase 14.1 Task 6)
+
+Covered in `.planning/HANDOFF.md`. Verify:
+- Fresh Amir onboarding pass (catalog ranking)
+- Member onboarding re-test
+- Joiner flow end-to-end
+- Bug fixes as needed
+
+### C. Sign-off
+
+When A + B pass:
+- Update `.planning/STATE.md`: mark Phase 14 & 14.1 complete.
+- Merge `phase-15-social-pulse` worktree → main.
 
 ## Blockers
 
-- None. All fixes are local to `MomentService` / `FeedService` / one model.
-- Pre-existing open issues (Gemini -1011, habit check-in dedup) unchanged.
+- None. All code fixes for the moment mechanic are landed.
+- Pre-existing open issues (Gemini -1011, habit check-in dedup) unchanged — not on Phase 14's critical path.
 
-## Notes For Re-entry
+## On-main state after S13
 
-### Audit Summary — Moment Mechanic `posted_at` → `moment_date` migration
+- `160e938 fix(moment): migrate remaining posted_at filters to moment_date` ← session 13
+- `3089aaa wip: session end — context limit` ← session 12 (feed-day fallback + 2 fixes)
+- `4513a3d docs(claude.md): integrate Karpathy principles, consolidate working rules`
+- `8e0fb71 docs: session 10 handoff — moment redesign shipped, QA pending`
 
-Session 10 stamped `moment_date` on new rows and swapped a few callers, but several read/write paths still key on `posted_at` ranges. The column mismatch is silently broken whenever a user posts across UTC midnight (window opens 23:50 UTC, user posts 00:05 UTC next day).
+Working tree clean. 3 commits ahead of origin/main (push at session end).
 
-| # | Severity | Location | Symptom |
-|---|----------|----------|---------|
-| 1 | Blocker | `MomentService.fetchMoments` | ✅ **Fixed S12** — Journey month misplacing cross-midnight posts |
-| 2 | Blocker | `MomentService.updateCaption` | ✅ **Fixed S12** — caption edits silently no-op'd |
-| 3 | Blocker | `MomentService.deleteMyTodayMoments` | DEBUG force button can miss just-posted moment |
-| 4 | Blocker | `MomentService.fetchMomentForDate` | Spiritual Ledger lookup misses cross-midnight posts |
-| 5 | Major | `MomentService.postMomentToAllCircles` niyyah save | Niyyah stamped on wrong day vs moment |
-| 6 | Major | `MomentService.fetchTodayMoments` | Local-calendar fallback when `windowStart` nil |
-| 7 | Major | `MomentService.computeIsOnTime` | Returns true for negative elapsed (pre-window) |
-| 8 | Minor | `FeedService.fetchActiveUserIdsToday` | Still uses `posted_at` — undercounts |
-| 9 | Minor | `FeedViewModel.insertOptimisticMoment` | Dedupes on `postedAt.prefix(10)`, not `momentDate` |
-| 10 | Minor | `FeedService` dedupe key + `CircleMomentRow` decoder | Same as #9; `CircleMomentRow` also doesn't decode `moment_date` |
+## Audit Closure Table
 
-### Where to start
+| # | Severity | Location | Status |
+|---|----------|----------|--------|
+| 1 | Blocker | `MomentService.fetchMoments` | ✅ S12 |
+| 2 | Blocker | `MomentService.updateCaption` | ✅ S12 |
+| 3 | Blocker | `MomentService.deleteMyTodayMoments` | ✅ S13 |
+| 4 | Blocker | `MomentService.fetchMomentForDate` | ✅ S13 |
+| 5 | Major | `MomentService.postMomentToAllCircles` niyyah save | ✅ S13 |
+| 6 | Major | `MomentService.fetchTodayMoments` | ✅ S13 |
+| 7 | Major | `MomentService.computeIsOnTime` | ✅ S13 |
+| 8 | Minor | `FeedService.fetchActiveUserIdsToday` | ⏸ deferred (not blocking) |
+| 9 | Minor | `FeedViewModel.insertOptimisticMoment` dedupe | ⏸ deferred (DB index masks) |
+| 10 | Minor | `FeedService` dedupe key + `CircleMomentRow` decoder | ⏸ deferred (DB index masks) |
 
-Open `Circles/Services/MomentService.swift` and do #3 → #4 → #5 → #6 → #7 in one pass (all in the same file). Each is 3–8 lines. Build, then simulator QA.
+## Reference
 
-### On-main state after S12
-
-Session 12 ended mid-commit due to context limit — changes staged via `wip:` commit for session 13 to inspect/amend/split. Commit preceding that: `5777c7a docs: session 10 handoff — moment redesign shipped, QA pending`.
-
-### Reference
-
-- Plan `~/.claude/plans/last-session-this-was-magical-stroustrup.md` — original D1–D5 decisions for Phase A–D of Moment Redesign.
-- Migration file: `supabase/migrations/20260423_moment_mechanic_redesign.sql` (already run on Supabase).
-- DB unique index `circle_moments_one_per_day (user_id, moment_date)` — prevents actual duplicate rows, masking several of the minor bugs above.
+- Plan `~/.claude/plans/last-session-this-was-magical-stroustrup.md` — original D1–D5 decisions.
+- Migration `supabase/migrations/20260423_moment_mechanic_redesign.sql` — already on Supabase.
+- DB unique index `circle_moments_one_per_day (user_id, moment_date)`.
