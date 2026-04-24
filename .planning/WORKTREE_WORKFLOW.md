@@ -1,46 +1,21 @@
 # Worktree Workflow
-
-This document defines how parallel agent work should be run in this repo without colliding in Git.
+> On-demand only. Do not read this at session start unless the user is actively using parallel worktrees.
 
 ## Goal
+Run parallel workstreams without colliding in Git.
 
-Allow multiple active workstreams at the same time while keeping:
-- uncommitted changes isolated
-- branch history clean
-- merge conflicts predictable
-- session handoffs simple
-
-## Core Rule
-
-One active workstream = one branch + one worktree + one branch note.
-
-Do not have multiple agents working in the same checkout.
-
----
+Core rule:
+- one active workstream = one branch + one worktree + one branch note
+- never have multiple agents working in the same checkout
 
 ## Standard Layout
-
-Example:
-
 - main checkout: `/Users/abdulsaboorshaikh/Desktop/Circles`
-- notifications checkout: `/Users/abdulsaboorshaikh/Desktop/Circles-notifications`
-- testing checkout: `/Users/abdulsaboorshaikh/Desktop/Circles-testing`
+- extra worktrees live beside it or under `.claude/worktrees/`
+- each worktree uses its own branch
+- each active worktree may keep a branch note under `.planning/notes/`
 
-Example branches:
-
-- `phase-13-followup-testing`
-- `phase-15-social-pulse`
-
-Branch notes:
-
-- `.planning/notes/phase-13-followup-testing.md`
-- `.planning/notes/phase-15-social-pulse.md`
-
----
-
-## Creating A New Worktree
-
-From the main repo checkout:
+## Create A Worktree
+From the main checkout:
 
 ```bash
 cd /Users/abdulsaboorshaikh/Desktop/Circles
@@ -57,180 +32,85 @@ git worktree add ../Circles-notifications phase-15-social-pulse
 After creation:
 
 ```bash
-cd /Users/abdulsaboorshaikh/Desktop/Circles-notifications
-git branch --show-current
-git status
-```
-
----
-
-## Session Start Checklist
-
-At the start of each session in a worktree:
-
-1. Confirm the directory
-2. Confirm the active branch
-3. Run `git status`
-4. Read the branch note in `.planning/notes/`
-5. Continue only that workstream
-
-Recommended commands:
-
-```bash
+cd ../Circles-notifications
 pwd
 git branch --show-current
 git status
 ```
 
----
+## Session Start
+1. Confirm the directory
+2. Confirm the active branch
+3. Run `git status`
+4. Read the branch note if one exists
+5. Continue only that workstream
 
-## Session End Checklist
-
-Before ending a session:
-
+## Session End
 1. Commit stable changes or leave a very clear partial state
-2. Update the branch note
-3. If the work creates repo-wide implications, update `.planning/HANDOFF.md`
+2. Update the branch note if one is being used
+3. Update `.planning/HANDOFF.md` only if repo-wide coordination changed
 4. Record what still needs verification
 
-Do not leave ambiguous uncommitted changes without updating the branch note.
+Do not leave ambiguous uncommitted changes behind.
 
----
+## Branch Notes
+Branch notes are optional but useful when a worktree will be resumed later.
 
-## Branch Note Rules
+If you use one, keep it short and focused on:
+- goal
+- scope
+- touched files
+- decisions
+- verified state
+- next step
+- blockers
 
-Every active workstream should maintain a branch-specific note file.
+Use `.planning/HANDOFF.md` for repo-wide coordination, not branch notes.
 
-Required sections:
-- Goal
-- Scope
-- Touched Files
-- Decisions
-- Verified
-- Next
-- Blockers
-
-Use `.planning/notes/_TEMPLATE.md`.
-
-Branch notes are for session continuity within one stream.
-
-`.planning/HANDOFF.md` is for repo-wide coordination across streams.
-
----
-
-## Conflict Avoidance Rules
-
-- Never have two agents work in the same directory
-- Never commit directly to `main`
-- Keep ownership explicit by phase or subsystem
-- Minimize overlap in shared files
-- If overlap is unavoidable, keep commits small and frequent
-- Record shared-file edits in the branch note
+## Conflict Avoidance
+- never have two agents work in the same directory
+- never commit directly to `main` from parallel work unless explicitly intended
+- keep ownership explicit by phase or subsystem
+- minimize overlap in shared startup, routing, service, and model files
+- if overlap is unavoidable, keep commits small and document it
 
 Higher-risk shared files:
 - `Circles/CirclesApp.swift`
 - `Circles/ContentView.swift`
-- central services
-- shared models
-- auth/session bootstrap code
-
----
+- `Circles/Services/`
+- `Circles/Home/`
+- `Circles/Profile/`
+- shared models and routing code
 
 ## Integration Workflow
-
-When one branch is ready:
-
-1. Build and test that branch in its own worktree
+1. Build and verify the branch in its own worktree
 2. Merge it into `main`
-3. Move to the remaining branch
-4. Update that branch from `main`
-5. Resolve conflicts there
-6. Rebuild and retest
-7. Merge the updated branch
+3. Update the remaining branch from `main`
+4. Resolve conflicts there
+5. Rebuild and reverify
+6. Merge the updated branch
 
-Use either:
+Use either `git rebase main` or `git merge main`, but stay consistent within a workstream.
 
-```bash
-git rebase main
-```
-
-or:
-
-```bash
-git merge main
-```
-
-Prefer one strategy consistently within a workstream.
-
----
-
-## Ownership Model
-
-Parallel work is safer if each workstream owns a clear surface area.
-
-Example:
-- testing branch owns QA fixes, regressions, runtime validation
-- notifications branch owns notification service, permission flow, APNs registration, settings UI related to notifications
-
-If a workstream must touch a shared integration point, document it immediately in:
-- the branch note
-- `.planning/HANDOFF.md` if it affects other streams
-
----
-
-## Recommended Branch Naming
-
-Use names that match a single active phase or concern:
-
-- `phase-13-followup-testing`
-- `phase-15-social-pulse`
-- `phase-15-social-pulse-settings`
-
-Avoid vague names like:
-- `fixes`
-- `new-work`
-- `abdul-branch`
-
----
-
-## Recovery Rules
-
+## Recovery
 If a worktree becomes stale:
-
-1. Check whether its branch has uncommitted changes
-2. Commit or stash only within that worktree if needed
+1. Check for uncommitted changes
+2. Commit or intentionally stash them in that worktree
 3. Update from `main`
-4. Resolve conflicts in that branch
+4. Resolve conflicts
 5. Rebuild before continuing
 
-Do not delete a worktree with uncommitted changes unless you have intentionally preserved the state elsewhere.
-
----
+Do not delete a worktree with uncommitted changes unless that state is intentionally preserved elsewhere.
 
 ## Quick Commands
 
-List worktrees:
-
 ```bash
 git worktree list
-```
-
-Remove a worktree after the branch is clean and no longer needed:
-
-```bash
 git worktree remove ../Circles-notifications
-```
-
-See current branch:
-
-```bash
 git branch --show-current
 ```
 
----
-
-## Decision Summary
-
+## Summary
 - `HANDOFF.md` = shared repo coordination
-- `.planning/notes/*.md` = per-workstream continuity
-- `WORKTREE_WORKFLOW.md` = permanent operating instructions
+- `.planning/notes/*.md` = optional per-worktree continuity
+- `WORKTREE_WORKFLOW.md` = on-demand operating instructions
