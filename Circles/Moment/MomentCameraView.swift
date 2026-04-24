@@ -78,36 +78,36 @@ struct MomentCameraView: View {
     }
 
     private var topControls: some View {
-        HStack(alignment: .center) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.black.opacity(0.22), in: SwiftUI.Circle())
-            }
-            .accessibilityLabel("Cancel camera")
-
-            Spacer()
-
+        ZStack {
             countdownPill
-            
-            Spacer()
-                .frame(width: 44)
+
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Color.black.opacity(0.22), in: SwiftUI.Circle())
+                }
+                .accessibilityLabel("Cancel camera")
+
+                Spacer()
+            }
         }
         .padding(.top, 42)
         .padding(.horizontal, 16)
     }
 
     private var bottomControls: some View {
-        HStack {
-            Spacer()
+        ZStack {
             shutterButton
-            Spacer().frame(width: 28)
-            flipCameraButton
-            Spacer()
+
+            HStack {
+                Spacer()
+                flipCameraButton
+            }
         }
         .padding(.horizontal, 48)
         .padding(.bottom, 48)
@@ -123,7 +123,7 @@ struct MomentCameraView: View {
                     .foregroundStyle(Color.msTextPrimary.opacity(0.75))
                 Text(String(format: "%02d:%02d", mins, secs))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(windowSecondsRemaining > 300 ? Color.msGold : Color.red.opacity(0.92))
+                    .foregroundStyle(windowSecondsRemaining > 60 ? Color.msGold : Color.red.opacity(0.92))
             }
             .multilineTextAlignment(.center)
             .padding(.horizontal, 14)
@@ -208,7 +208,10 @@ struct MomentCameraView: View {
         guard let start = DailyMomentService.shared.windowStart else {
             windowSecondsRemaining = 0; return
         }
-        let windowEnd = start.addingTimeInterval(30 * 60)
+        // 5-min on-time window — matches MomentService.computeIsOnTime (300s).
+        // The 30-min gate-copy cutoff is a separate concept (CTA wording) and
+        // shouldn't drive the camera countdown.
+        let windowEnd = start.addingTimeInterval(5 * 60)
         windowSecondsRemaining = max(0, Int(windowEnd.timeIntervalSince(Date())))
     }
 

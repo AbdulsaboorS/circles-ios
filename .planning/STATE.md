@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-24T00:00:00.000Z"
+last_updated: "2026-04-24T22:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -32,7 +32,7 @@ progress:
 
 - Phase 13 UI/UX pass: complete
 - Phase 13A Journey: shipped
-- Phase 14 Meaningful Habits: built, QA pending (matrix: `.planning/phases/14-meaningful-habits/QA.md`)
+- Phase 14 Meaningful Habits: built, QA in progress (matrix: `.planning/phases/14-meaningful-habits/QA.md`). Session 2026-04-24 fixed 4 moment-mechanic bugs found during QA: (1) per-circle unique index, (2) feed-vs-gate cold-start race, (3) camera countdown tracking wrong cutoff, (4) camera top/bottom control centering. Camera-side fixes pending in-sim visual verification by user.
 - Phase 15 Social Pulse: merged to `main`, QA deferred
 - Phase 16 Naming + Branding: planned
 - Phase 17 Animation Polish: planned

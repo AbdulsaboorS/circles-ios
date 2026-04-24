@@ -41,10 +41,11 @@ struct CommunityView: View {
             .task {
                 guard let userId = auth.session?.user.id else { return }
                 await viewModel.loadCircles(userId: userId)
-                // Feed and gate load are independent — run concurrently
-                async let feedLoad: Void = loadGlobalFeed()
-                async let gateLoad: Void = DailyMomentService.shared.load(userId: userId)
-                _ = await (feedLoad, gateLoad)
+                // Gate must load first — FeedService reads activeFeedDate to pick
+                // today vs yesterday. Parallel loads let the feed query with a stale
+                // .preWindow date and pin yesterday's own moment after gate flips.
+                await DailyMomentService.shared.load(userId: userId)
+                await loadGlobalFeed()
                 applyPendingNotificationRouteIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
