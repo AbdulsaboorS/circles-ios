@@ -1,11 +1,34 @@
 # Onboarding Polish — Re-entry
 
 ## Status
-All 5 onboarding-polish items (#1–#5) are code-complete and build-clean as of 2026-04-25. Awaiting hands-on QA.
+Onboarding-polish items #1–#5 + 2026-04-25 session work are code-complete, build-clean, and pushed to `origin/main` (commit `485c0c2`). Awaiting hands-on QA.
 
 The implementation history (which session shipped what, file:line receipts, decision rationale) lives in `git log` and the code itself. This file only carries what the next agent needs to **test** the work or **decide** what's deferred. For full design context, the Session 1 + Session 2 plans live at `~/.claude/plans/` (search for "anchor" and "newell").
 
-> **Note for next session:** user has a moment-mechanic bug to discuss before resuming onboarding QA. Wait for them to brief you.
+## 2026-04-25 session additions (push to QA matrix)
+
+- **Joiner flow reorder:** "Some growth is shared..." transition now fires BEFORE the quiz (after circle alignment), not after personal habits. Subtitle "Next, let's talk through a habit you can personally work on." matches amir.
+- **New joiner intro quote:** building hadith — *"A believer to another believer is like a building — each part supporting the other."* (replaces the "one body" hadith)
+- **Transition screen visuals (both flows):** pulsing moon icon (`.symbolEffect(.pulse, options: .repeating)`), breathing golden glow (3s ease-in-out repeatForever), staggered fade-in via `withAnimation` delays, drifting starfield via `TimelineView` + `Canvas` (14 stars).
+- **Progress bar:** `StepIndicator` rewritten — capsule dots → continuous gradient bar with spring fill animation. Numbering corrected: amir = 7 steps (Personalization, CoreHabits, Identity, Quiz, AIGen, Location, Activation), joiner = 5 steps (CircleAlignment, Quiz, AIGen, Identity, AuthGate). Quiz screens now have the bar via `safeAreaInset(.top)`.
+
+### QA additions for the matrix below
+- Joiner: tap "I'm In" on circle alignment → see new building-hadith transition (with subtitle) BEFORE quiz starts; quiz finish goes straight to AI gen, no second transition.
+- Both flows: transition screens animate in (icon → quote → subtitle → "tap" hint), starfield drifts in background, glow breathes.
+- Both flows: progress bar fills smoothly between steps; amir bar reaches 7/7 at activation, joiner reaches 5/5 at auth gate; quiz screens show 4/7 (amir) and 2/5 (joiner).
+
+## Next session — premium animation pass
+
+User wants to use the `axiom-swiftui-animation-ref` skill to upgrade the transition entry from plain fades to **KeyframeAnimator** with multi-track keyframes. Concrete plan when resuming:
+
+- Icon: scale settle 0.85 → 1.05 (overshoot) → 1.0 + opacity 0 → 1
+- Quote: slide-up 8pt + opacity (different timing curve from icon)
+- Subtitle: slide-up 4pt + opacity, slight lag
+- Glow: one-time entry pulse (1.0 → 1.3 → 1.0) before settling into the existing slow breathing loop
+
+Restraint is the rule — small offsets (≤8pt), generous durations (≥0.5s). Apply inside `OnboardingTransitionView` so both flows benefit from one change.
+
+> **Note for next session:** user will briefly QA today's changes first, then move to the keyframe upgrade.
 
 ---
 
