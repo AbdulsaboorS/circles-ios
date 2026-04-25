@@ -26,6 +26,9 @@ Do not use it for session history, long QA plans, or feature specs.
 ### Active Worktrees
 - none currently tracked as active in this handoff
 
+### Open Planning Thread
+- Onboarding gap audit complete (2026-04-25). See memory `onboarding_audit_2026-04-25.md` for the four gaps (A camera priming, B Moment demo, C mirror copy, D plan reveal). Next session: finalize plan, then build. Do not re-run app-onboarding-questionnaire skill.
+
 ### Product Priority Order
 1. Test onboarding bugs and fix them
 2. Do the full UI/UX pass
