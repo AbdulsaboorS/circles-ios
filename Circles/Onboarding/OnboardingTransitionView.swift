@@ -13,11 +13,8 @@ struct OnboardingTransitionView: View {
     var subtitle: String? = nil
     let onSkip: () -> Void
 
-    @State private var iconOpacity: Double = 0
-    @State private var quoteOpacity: Double = 0
-    @State private var subtitleOpacity: Double = 0
-    @State private var hintOpacity: Double = 0
-    @State private var glowScale: CGFloat = 1.0
+    @State private var entryTrigger: Bool = false
+    @State private var breathingScale: CGFloat = 1.0
     @State private var stars: [TransitionStar] = (0..<14).map { _ in TransitionStar.random() }
 
     var body: some View {
@@ -28,52 +25,90 @@ struct OnboardingTransitionView: View {
                 .ignoresSafeArea()
                 .opacity(0.55)
 
-            VStack(spacing: 20) {
-                ZStack {
-                    SwiftUI.Circle()
-                        .fill(Color.msGold.opacity(0.20))
-                        .frame(width: 140, height: 140)
-                        .blur(radius: 36)
-                        .scaleEffect(glowScale)
+            KeyframeAnimator(initialValue: EntryValues(), trigger: entryTrigger) { values in
+                VStack(spacing: 20) {
+                    ZStack {
+                        SwiftUI.Circle()
+                            .fill(Color.msGold.opacity(0.20))
+                            .frame(width: 140, height: 140)
+                            .blur(radius: 36)
+                            .scaleEffect(values.entryGlowScale * breathingScale)
 
-                    Image(systemName: "moon.stars.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(Color.msGold.opacity(0.75))
-                        .symbolEffect(.pulse, options: .repeating)
-                }
-                .opacity(iconOpacity)
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(Color.msGold.opacity(0.75))
+                            .symbolEffect(.pulse, options: .repeating)
+                            .scaleEffect(values.iconScale)
+                    }
+                    .opacity(values.iconOpacity)
 
-                Text(quote)
-                    .font(.system(size: 20, weight: .medium, design: .serif))
-                    .foregroundStyle(Color.msTextPrimary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(6)
-                    .padding(.horizontal, 36)
-                    .opacity(quoteOpacity)
-
-                if let attribution {
-                    Text(attribution)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.msTextMuted)
+                    Text(quote)
+                        .font(.system(size: 20, weight: .medium, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
-                        .opacity(quoteOpacity)
-                }
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color.msTextMuted)
-                        .multilineTextAlignment(.center)
+                        .lineSpacing(6)
                         .padding(.horizontal, 36)
-                        .padding(.top, 4)
-                        .opacity(subtitleOpacity)
-                }
+                        .offset(y: values.quoteY)
+                        .opacity(values.quoteOpacity)
 
-                Text("Tap to continue")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.msTextMuted.opacity(0.6))
-                    .padding(.top, 12)
-                    .opacity(hintOpacity)
+                    if let attribution {
+                        Text(attribution)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                            .offset(y: values.quoteY)
+                            .opacity(values.quoteOpacity)
+                    }
+
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 36)
+                            .padding(.top, 4)
+                            .offset(y: values.subtitleY)
+                            .opacity(values.subtitleOpacity)
+                    }
+
+                    Text("Tap to continue")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.msTextMuted.opacity(0.6))
+                        .padding(.top, 12)
+                        .opacity(values.hintOpacity)
+                }
+            } keyframes: { _ in
+                KeyframeTrack(\.iconScale) {
+                    SpringKeyframe(1.05, duration: 0.45, spring: Spring(duration: 0.45, bounce: 0.35))
+                    SpringKeyframe(1.0, duration: 0.3)
+                }
+                KeyframeTrack(\.iconOpacity) {
+                    CubicKeyframe(1.0, duration: 0.5)
+                }
+                KeyframeTrack(\.entryGlowScale) {
+                    CubicKeyframe(1.3, duration: 0.5)
+                    CubicKeyframe(1.0, duration: 0.5)
+                }
+                KeyframeTrack(\.quoteY) {
+                    LinearKeyframe(8, duration: 0.35)
+                    SpringKeyframe(0, duration: 0.55)
+                }
+                KeyframeTrack(\.quoteOpacity) {
+                    LinearKeyframe(0, duration: 0.35)
+                    CubicKeyframe(1, duration: 0.55)
+                }
+                KeyframeTrack(\.subtitleY) {
+                    LinearKeyframe(4, duration: 0.6)
+                    SpringKeyframe(0, duration: 0.5)
+                }
+                KeyframeTrack(\.subtitleOpacity) {
+                    LinearKeyframe(0, duration: 0.6)
+                    CubicKeyframe(1, duration: 0.5)
+                }
+                KeyframeTrack(\.hintOpacity) {
+                    LinearKeyframe(0, duration: 0.95)
+                    CubicKeyframe(1, duration: 0.4)
+                }
             }
         }
         .contentShape(Rectangle())
@@ -81,17 +116,26 @@ struct OnboardingTransitionView: View {
             onSkip()
         }
         .onAppear {
-            withAnimation(.easeIn(duration: 0.5)) { iconOpacity = 1 }
-            withAnimation(.easeIn(duration: 0.5).delay(0.3)) { quoteOpacity = 1 }
-            withAnimation(.easeIn(duration: 0.5).delay(0.6)) { subtitleOpacity = 1 }
-            withAnimation(.easeIn(duration: 0.5).delay(1.0)) { hintOpacity = 1 }
-
-            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
-                glowScale = 1.15
+            entryTrigger.toggle()
+            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true).delay(0.9)) {
+                breathingScale = 1.15
             }
         }
         .navigationBarBackButtonHidden()
     }
+}
+
+// MARK: - Entry choreography values
+
+private struct EntryValues {
+    var iconScale: CGFloat = 0.85
+    var iconOpacity: Double = 0
+    var entryGlowScale: CGFloat = 1.0
+    var quoteY: CGFloat = 8
+    var quoteOpacity: Double = 0
+    var subtitleY: CGFloat = 4
+    var subtitleOpacity: Double = 0
+    var hintOpacity: Double = 0
 }
 
 // MARK: - Starfield
