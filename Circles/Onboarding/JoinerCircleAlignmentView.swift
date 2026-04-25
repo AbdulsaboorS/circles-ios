@@ -133,10 +133,10 @@ struct JoinerCircleAlignmentView: View {
             }
 
             VStack(spacing: 16) {
-                StepIndicator(current: 1, total: 7)
+                StepIndicator(current: 1, total: 5)
 
                 Button {
-                    coordinator.proceedToOnboardingQuiz()
+                    coordinator.proceedToTransitionToAI()
                 } label: {
                     Text("I'm In")
                         .font(.system(size: 17, weight: .semibold))

@@ -21,7 +21,8 @@ struct AmiirOnboardingFlowView: View {
                         // "Some growth is private" — bridges identity to the private quiz
                         OnboardingTransitionView(
                             quote: OnboardingTransitionQuote.amirPrivateToAI,
-                            attribution: nil
+                            attribution: nil,
+                            subtitle: "Next, let's talk through a habit you can personally work on."
                         ) {
                             coordinator.proceedToOnboardingQuiz()
                         }
@@ -44,18 +45,37 @@ struct AmiirOnboardingFlowView: View {
 // MARK: - Step Indicator
 
 struct StepIndicator: View {
-    let current: Int  // 0-indexed
+    let current: Int  // 1-indexed; current step the user is on (1...total)
     let total: Int
 
+    private var progress: CGFloat {
+        guard total > 0 else { return 0 }
+        return min(1, max(0, CGFloat(current) / CGFloat(total)))
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<total, id: \.self) { index in
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(index == current ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.25))
-                    .frame(width: index == current ? 20 : 7, height: 7)
-                    .animation(.easeInOut(duration: 0.25), value: current)
+                    .fill(Color.msGold.opacity(0.15))
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.msGold.opacity(0.85), Color.msGold],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(0, geo.size.width * progress))
+                    .animation(.spring(duration: 0.55, bounce: 0.18), value: progress)
             }
         }
+        .frame(height: 3)
+        .padding(.horizontal, 24)
         .padding(.vertical, 8)
+        .accessibilityElement()
+        .accessibilityLabel("Step \(current) of \(total)")
+        .accessibilityValue("\(Int(progress * 100)) percent")
     }
 }

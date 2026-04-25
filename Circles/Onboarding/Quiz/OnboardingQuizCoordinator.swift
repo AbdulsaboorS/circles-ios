@@ -27,6 +27,11 @@ final class OnboardingQuizCoordinator {
     var selectedIslamic: Set<IslamicStruggle> = []
     var selectedLife: Set<LifeStruggle> = []
 
+    /// Single free-text struggle entries — escape hatch when the enum doesn't fit.
+    /// Persisted as `custom:<text>` slug alongside enum rawValues so re-entry can split them back.
+    var customIslamic: String = ""
+    var customLife: String = ""
+
     /// Populated by `loadSuggestions()` from Gemini, or `HabitSuggestion.fallbackSuggestions`
     /// when Gemini is unreachable / malformed.
     var suggestions: [HabitSuggestion] = []
@@ -50,11 +55,23 @@ final class OnboardingQuizCoordinator {
 
     // MARK: - Derived
 
-    var canAdvanceFromIslamic: Bool { !selectedIslamic.isEmpty }
-    var canAdvanceFromLife: Bool    { !selectedLife.isEmpty }
+    var canAdvanceFromIslamic: Bool {
+        !selectedIslamic.isEmpty || !customIslamic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    var canAdvanceFromLife: Bool {
+        !selectedLife.isEmpty || !customLife.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
-    var islamicSlugs: [String] { selectedIslamic.map(\.rawValue).sorted() }
-    var lifeSlugs: [String]    { selectedLife.map(\.rawValue).sorted() }
+    var islamicSlugs: [String] {
+        let enums = selectedIslamic.map(\.rawValue)
+        let custom = customIslamic.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (custom.isEmpty ? enums : enums + ["custom:\(custom)"]).sorted()
+    }
+    var lifeSlugs: [String] {
+        let enums = selectedLife.map(\.rawValue)
+        let custom = customLife.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (custom.isEmpty ? enums : enums + ["custom:\(custom)"]).sorted()
+    }
 
     // MARK: - Advances
 
@@ -74,9 +91,9 @@ final class OnboardingQuizCoordinator {
         await loadSuggestions()
     }
 
-    /// Populates `suggestions` from Gemini, falling back to a static list if the
-    /// call throws. Enforces a 1.6 s minimum so the processing screen completes
-    /// at least one full pulse cycle before transitioning.
+    /// Populates `suggestions` from Gemini, racing the call against a hard
+    /// timeout so users never wait more than a few seconds on the processing
+    /// screen. Enforces a 1.2 s minimum so the pulse cycle completes one beat.
     func loadSuggestions() async {
         isLoadingSuggestions = true
         let start = Date()
@@ -84,17 +101,35 @@ final class OnboardingQuizCoordinator {
             isLoadingSuggestions = false
             step = .habitSelection
         }
-        do {
-            let live = try await GeminiService.shared.generateHabitSuggestions(
-                islamicStruggles: islamicSlugs,
-                lifeStruggles: lifeSlugs
-            )
-            suggestions = live
-        } catch {
-            suggestions = HabitSuggestion.fallbackSuggestions
+
+        let islamic = islamicSlugs
+        let life    = lifeSlugs
+
+        let raced: [HabitSuggestion]? = await withTaskGroup(of: [HabitSuggestion]?.self) { group in
+            group.addTask {
+                do {
+                    return try await GeminiService.shared.generateHabitSuggestions(
+                        islamicStruggles: islamic,
+                        lifeStruggles: life
+                    )
+                } catch {
+                    return nil
+                }
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(3.0))
+                return nil // timeout sentinel
+            }
+
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
         }
+
+        suggestions = raced ?? HabitSuggestion.fallbackSuggestions
+
         let elapsed = Date().timeIntervalSince(start)
-        let minSeconds: TimeInterval = 1.6
+        let minSeconds: TimeInterval = 1.2
         if elapsed < minSeconds {
             try? await Task.sleep(for: .seconds(minSeconds - elapsed))
         }
@@ -114,9 +149,28 @@ final class OnboardingQuizCoordinator {
     /// button into processing + habit selection, using the user's previously-saved
     /// struggle slugs. Does not re-persist (caller already has them on file).
     func startFromExistingStruggles(islamicSlugs: [String], lifeSlugs: [String]) async {
-        selectedIslamic = Set(islamicSlugs.compactMap(IslamicStruggle.init(rawValue:)))
-        selectedLife    = Set(lifeSlugs.compactMap(LifeStruggle.init(rawValue:)))
+        let (islamicEnumSlugs, islamicCustom) = Self.splitCustom(islamicSlugs)
+        let (lifeEnumSlugs, lifeCustom)       = Self.splitCustom(lifeSlugs)
+        selectedIslamic = Set(islamicEnumSlugs.compactMap(IslamicStruggle.init(rawValue:)))
+        selectedLife    = Set(lifeEnumSlugs.compactMap(LifeStruggle.init(rawValue:)))
+        customIslamic   = islamicCustom ?? ""
+        customLife      = lifeCustom ?? ""
         step = .processing
         await loadSuggestions()
+    }
+
+    /// Splits persisted slugs into (enum slugs, first custom string).
+    /// Custom slugs are prefixed `custom:` — see `islamicSlugs` / `lifeSlugs`.
+    private static func splitCustom(_ slugs: [String]) -> (enums: [String], custom: String?) {
+        var enums: [String] = []
+        var custom: String? = nil
+        for slug in slugs {
+            if slug.hasPrefix("custom:") {
+                if custom == nil { custom = String(slug.dropFirst("custom:".count)) }
+            } else {
+                enums.append(slug)
+            }
+        }
+        return (enums, custom)
     }
 }

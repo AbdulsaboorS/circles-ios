@@ -253,9 +253,11 @@ struct CommunityView: View {
                     ScrollView {
                         if let userId = auth.session?.user.id {
                             VStack(spacing: 0) {
-                                // Pinned own-moment card (shown only if user posted today)
-                                if momentService.hasPostedToday,
-                                   let moment = ownMomentItem(for: userId) {
+                                // Pinned own-moment card. Gated on "own moment exists in the
+                                // active feed window" — not `hasPostedToday` — so BeReal-Memories
+                                // pre-window state still pins yesterday's post (FeedView excludes
+                                // own moments from the scroll, so without this they'd vanish).
+                                if let moment = ownMomentItem(for: userId) {
                                     ownMomentStrip(moment)
                                         .id(momentStripId)
                                         .frame(maxWidth: .infinity)

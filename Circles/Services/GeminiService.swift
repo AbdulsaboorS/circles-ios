@@ -205,8 +205,12 @@ final class GeminiService {
         islamicStruggles: [String],
         lifeStruggles: [String]
     ) async throws -> [HabitSuggestion] {
-        let islamicList = islamicStruggles.map { "- \($0.replacingOccurrences(of: "_", with: " "))" }.joined(separator: "\n")
-        let lifeList    = lifeStruggles.map    { "- \($0.replacingOccurrences(of: "_", with: " "))" }.joined(separator: "\n")
+        let formatSlug: (String) -> String = { slug in
+            let stripped = slug.hasPrefix("custom:") ? String(slug.dropFirst("custom:".count)) : slug
+            return "- \(stripped.replacingOccurrences(of: "_", with: " "))"
+        }
+        let islamicList = islamicStruggles.map(formatSlug).joined(separator: "\n")
+        let lifeList    = lifeStruggles.map(formatSlug).joined(separator: "\n")
 
         let prompt = """
         You are a knowledgeable, gentle Islamic habits coach. Suggest a small number of

@@ -132,7 +132,7 @@ struct JoinerIdentityView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
 
-                StepIndicator(current: 5, total: 7)
+                StepIndicator(current: 4, total: 5)
                     .padding(.bottom, 16)
             }
         }

@@ -49,6 +49,7 @@ struct AmiirStep2HabitsView: View {
                 let sa = habitScore(a.element), sb = habitScore(b.element)
                 return sa != sb ? sa > sb : a.offset < b.offset
             }
+            .prefix(3)
             .map(\.element)
     }
 
@@ -66,12 +67,12 @@ struct AmiirStep2HabitsView: View {
                                 .font(.system(size: 48))
                                 .foregroundStyle(Color.msGold)
 
-                            Text("The Core Mission")
+                            Text("Your circle's habits")
                                 .font(.appTitle)
                                 .foregroundStyle(Color.msTextPrimary)
                                 .multilineTextAlignment(.center)
 
-                            Text("Choose up to 3 habits your circle will commit to together.")
+                            Text("Recommended for your circle. Pick the ones that fit.")
                                 .font(.appSubheadline)
                                 .foregroundStyle(Color.msTextMuted)
                                 .multilineTextAlignment(.center)

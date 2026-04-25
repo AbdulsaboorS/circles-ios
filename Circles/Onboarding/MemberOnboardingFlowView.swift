@@ -31,9 +31,10 @@ struct MemberOnboardingFlowView: View {
                     case .transitionToAI:
                         OnboardingTransitionView(
                             quote: OnboardingTransitionQuote.amirPrivateToAI,
-                            attribution: nil
+                            attribution: nil,
+                            subtitle: "Next, let's talk through a habit you can personally work on."
                         ) {
-                            coordinator.proceedToAIGeneration()
+                            coordinator.proceedToOnboardingQuiz()
                         }
 
                     case .aiGeneration:

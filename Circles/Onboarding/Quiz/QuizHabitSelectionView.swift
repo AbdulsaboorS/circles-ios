@@ -42,7 +42,7 @@ struct QuizHabitSelectionView: View {
     }
 
     private var headerSubtitle: String {
-        coordinator.allowsMultiSelect ? "Pick as many as feel right." : "Pick the one that feels most alive."
+        coordinator.allowsMultiSelect ? "Pick up to \(Self.multiSelectCap)." : "Pick the one that feels most alive."
     }
 
     var body: some View {
@@ -71,15 +71,19 @@ struct QuizHabitSelectionView: View {
                     VStack(spacing: 10) {
                         ForEach(coordinator.suggestions) { suggestion in
                             let isSelected = !showCustomField && selectedIds.contains(suggestion.id)
+                            let atCap = coordinator.allowsMultiSelect
+                                && !isSelected
+                                && selectedIds.count >= Self.multiSelectCap
                             SuggestionRow(
                                 suggestion: suggestion,
                                 isSelected: isSelected
                             ) {
                                 handleTap(suggestion: suggestion)
                             }
+                            .opacity(atCap ? 0.4 : 1.0)
                         }
 
-                        CustomRow(isSelected: showCustomField) {
+                        QuizCustomRow(isSelected: showCustomField) {
                             showCustomField = true
                             selectedIds.removeAll()
                         }
@@ -113,13 +117,15 @@ struct QuizHabitSelectionView: View {
         if coordinator.allowsMultiSelect {
             if selectedIds.contains(suggestion.id) {
                 selectedIds.remove(suggestion.id)
-            } else {
+            } else if selectedIds.count < Self.multiSelectCap {
                 selectedIds.insert(suggestion.id)
             }
         } else {
             selectedIds = [suggestion.id]
         }
     }
+
+    private static let multiSelectCap = 2
 
     private func handleContinue() {
         if showCustomField {
@@ -205,39 +211,3 @@ private struct SuggestionRow: View {
     }
 }
 
-private struct CustomRow: View {
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(isSelected ? Color.msGold : Color.clear)
-                    .frame(width: 3)
-                    .clipShape(RoundedRectangle(cornerRadius: 1.5))
-
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(isSelected ? Color.msBackground : Color.msGold)
-
-                Text("Something else…")
-                    .font(.system(size: 15, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? Color.msBackground : Color.msTextPrimary)
-
-                Spacer()
-            }
-            .padding(.vertical, 14)
-            .padding(.trailing, 18)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(isSelected ? Color.msGold : Color.msCardShared)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isSelected ? Color.clear : Color.msBorder, lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}

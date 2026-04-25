@@ -9,6 +9,10 @@ struct AmiirQuizStepView: View {
 
     var body: some View {
         OnboardingQuizFlowView(coordinator: quiz)
+            .safeAreaInset(edge: .top) {
+                StepIndicator(current: 4, total: 7)
+                    .background(Color.msBackground)
+            }
             .navigationBarBackButtonHidden()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -23,6 +27,7 @@ struct AmiirQuizStepView: View {
             .onAppear {
                 quiz.selectedIslamic = Set(coordinator.strugglesIslamic.compactMap(IslamicStruggle.init))
                 quiz.selectedLife    = Set(coordinator.strugglesLife.compactMap(LifeStruggle.init))
+                quiz.allowsMultiSelect = true
 
                 quiz.onPersistStruggles = { [weak coordinator] islamic, life in
                     coordinator?.strugglesIslamic = islamic
@@ -37,6 +42,17 @@ struct AmiirQuizStepView: View {
                        !picked.isEmpty,
                        !coordinator.selectedPersonalHabits.contains(picked) {
                         coordinator.selectedPersonalHabits.insert(picked, at: 0)
+                    }
+                    coordinator.proceedToAIGeneration()
+                }
+
+                quiz.onFinishMany = { [weak coordinator] suggestions, _ in
+                    guard let coordinator else { return }
+                    coordinator.quizSelectedHabitName = suggestions.first?.name
+                    for s in suggestions {
+                        guard !s.name.isEmpty,
+                              !coordinator.selectedPersonalHabits.contains(s.name) else { continue }
+                        coordinator.selectedPersonalHabits.append(s.name)
                     }
                     coordinator.proceedToAIGeneration()
                 }

@@ -4,6 +4,9 @@ import SwiftUI
 struct QuizLifeStrugglesView: View {
     @Bindable var coordinator: OnboardingQuizCoordinator
 
+    @State private var showCustomField: Bool = false
+    @State private var customText: String = ""
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -36,6 +39,24 @@ struct QuizLifeStrugglesView: View {
                                 toggle(option)
                             }
                         }
+
+                        QuizCustomRow(isSelected: showCustomField) {
+                            showCustomField = true
+                        }
+
+                        if showCustomField {
+                            TextField("e.g. Money stress, school pressure…", text: $customText)
+                                .foregroundStyle(Color.msTextPrimary)
+                                .padding(14)
+                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.msGold.opacity(0.4), lineWidth: 1))
+                                .tint(Color.msGold)
+                                .padding(.top, 2)
+                                .onChange(of: customText) { _, newValue in
+                                    coordinator.customLife = newValue
+                                }
+                        }
                     }
                     .padding(.horizontal, 20)
 
@@ -47,6 +68,10 @@ struct QuizLifeStrugglesView: View {
                 Task { await coordinator.advanceToProcessing() }
             }
             .padding(20)
+        }
+        .onAppear {
+            customText = coordinator.customLife
+            if !customText.isEmpty { showCustomField = true }
         }
     }
 
