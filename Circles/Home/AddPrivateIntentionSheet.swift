@@ -1,11 +1,16 @@
 import SwiftUI
 import Supabase
 
-// MARK: - Sheet coordinator
+enum AddPrivateIntentionDestination: Equatable {
+    case home
+    case detail
+}
 
-/// Captures a single habit's user input while we're queuing up multiple habits
-/// from the multi-select intercept path. One spec per habit, then `createAndGenerateAll`
-/// creates + roadmaps each in sequence.
+private enum AddIntentionMode {
+    case quickAdd
+    case guided
+}
+
 private struct PendingHabitSpec {
     let name: String
     let icon: String
@@ -16,54 +21,83 @@ private struct PendingHabitSpec {
 @Observable
 @MainActor
 private final class AddIntentionCoordinator {
+    enum Step {
+        case entryChoice
+        case resolvingGuidance
+        case quizDelta
+        case quizIntercept
+        case pickHabit
+        case niyyah
+        case familiarity
+        case generating
+    }
 
-    enum Step { case quizDelta, quizIntercept, pickHabit, niyyah, familiarity, generating }
+    var step: Step = .entryChoice
+    var mode: AddIntentionMode = .quickAdd
 
-    var step: Step = .pickHabit
-
-    /// True while we're checking whether the user has completed the Phase 14 quiz.
-    /// Keeps us from flashing `pickHabit` before the gate decision is made.
-    var isResolvingGate: Bool = true
-
-    // Step 1
     var selectedName: String = ""
     var selectedIcon: String = "leaf.fill"
     var customName: String = ""
     var showCustomField = false
 
-    // Step 1.5 — niyyah (optional; blank means "skip")
     var niyyah: String = ""
-
-    // Step 2
-    var familiarity: String = ""     // "Just starting" | "Some experience" | "Very familiar"
+    var familiarity: String = ""
     static let familiarityOptions = ["Just starting", "Some experience", "Very familiar"]
 
-    // Step 3 / result
     var createdHabit: Habit?
     var createdHabits: [Habit] = []
     var isGenerating = false
+    var isSavingQuickAdd = false
     var planDone = false
     var errorMessage: String?
     var generatingProgressText: String = ""
 
-    // Multi-create queue (Bug 1 — multi-select intercept path)
     var pendingQueue: [HabitSuggestion] = []
     var pendingIndex: Int = 0
     var collectedSpecs: [PendingHabitSpec] = []
+
+    var savedStrugglesIslamic: [String] = []
+    var savedStrugglesLife: [String] = []
 
     var multiProgressLabel: String? {
         guard pendingQueue.count > 1 else { return nil }
         return "Habit \(pendingIndex + 1) of \(pendingQueue.count)"
     }
 
-    // Saved struggles (Bug 2 — quiz delta re-entry)
-    var savedStrugglesIslamic: [String] = []
-    var savedStrugglesLife: [String] = []
+    func startQuickAdd() {
+        mode = .quickAdd
+        resetHabitInputs()
+        step = .pickHabit
+    }
+
+    func startGuided() {
+        mode = .guided
+        resetHabitInputs()
+        step = .resolvingGuidance
+    }
 
     func selectCurated(name: String, icon: String) {
         selectedName = name
         selectedIcon = icon
         showCustomField = false
+    }
+
+    func resetHabitInputs() {
+        selectedName = ""
+        selectedIcon = "leaf.fill"
+        customName = ""
+        showCustomField = false
+        niyyah = ""
+        familiarity = ""
+        pendingQueue = []
+        pendingIndex = 0
+        collectedSpecs = []
+        createdHabit = nil
+        createdHabits = []
+        isGenerating = false
+        isSavingQuickAdd = false
+        planDone = false
+        generatingProgressText = ""
     }
 
     func resolvedName() -> String {
@@ -76,18 +110,38 @@ private final class AddIntentionCoordinator {
     }
 
     func canProceedFromPick() -> Bool {
-        let name = resolvedName()
-        return !name.isEmpty
+        !resolvedName().isEmpty
     }
 
     var trimmedNiyyah: String? {
-        let t = niyyah.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.isEmpty ? nil : t
+        let trimmed = niyyah.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    func createQuickHabit(userId: UUID) async -> Habit? {
+        let name = resolvedName()
+        guard !name.isEmpty else { return nil }
+
+        isSavingQuickAdd = true
+        errorMessage = nil
+        defer { isSavingQuickAdd = false }
+
+        do {
+            let habit = try await HabitService.shared.createPrivateHabit(
+                userId: userId,
+                name: name,
+                icon: resolvedIcon()
+            )
+            createdHabit = habit
+            createdHabits = [habit]
+            return habit
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
     }
 
     func createAndGenerate(userId: UUID) async {
-        let name = resolvedName()
-        let icon = resolvedIcon()
         let niyyahValue = trimmedNiyyah
         isGenerating = true
         planDone = false
@@ -95,21 +149,19 @@ private final class AddIntentionCoordinator {
         do {
             let habit = try await HabitService.shared.createPrivateHabit(
                 userId: userId,
-                name: name,
-                icon: icon,
+                name: resolvedName(),
+                icon: resolvedIcon(),
                 familiarity: familiarity,
                 niyyah: niyyahValue
             )
             createdHabit = habit
 
-            // Fold niyyah into plan_notes just for the prompt so Gemini's roadmap tone
-            // reflects the user's intention. We don't persist the combined string.
             let promptNotes: String? = {
                 switch (habit.planNotes, niyyahValue) {
-                case let (notes?, niy?): return "\(notes)\nNiyyah: \(niy)"
-                case let (notes?, nil):  return notes
-                case let (nil, niy?):    return "Niyyah: \(niy)"
-                case (nil, nil):         return nil
+                case let (notes?, niyyah?): return "\(notes)\nNiyyah: \(niyyah)"
+                case let (notes?, nil): return notes
+                case let (nil, niyyah?): return "Niyyah: \(niyyah)"
+                case (nil, nil): return nil
                 }
             }()
 
@@ -119,7 +171,9 @@ private final class AddIntentionCoordinator {
                 userRefinementRequest: nil
             )
             _ = try await HabitPlanService.shared.upsertInitialPlan(
-                habitId: habit.id, userId: userId, milestones: milestones
+                habitId: habit.id,
+                userId: userId,
+                milestones: milestones
             )
             planDone = true
         } catch {
@@ -128,20 +182,20 @@ private final class AddIntentionCoordinator {
         isGenerating = false
     }
 
-    /// Creates + generates roadmaps for every habit in `collectedSpecs` sequentially.
-    /// Continues on partial failure so one bad roadmap doesn't block the rest.
     func createAndGenerateAll(userId: UUID) async {
         let specs = collectedSpecs
         guard !specs.isEmpty else {
             await createAndGenerate(userId: userId)
             return
         }
+
         isGenerating = true
         planDone = false
         errorMessage = nil
         var created: [Habit] = []
-        for (i, spec) in specs.enumerated() {
-            generatingProgressText = "Building roadmaps… (\(i + 1)/\(specs.count))"
+
+        for (index, spec) in specs.enumerated() {
+            generatingProgressText = "Building roadmaps… (\(index + 1)/\(specs.count))"
             do {
                 let habit = try await HabitService.shared.createPrivateHabit(
                     userId: userId,
@@ -151,26 +205,31 @@ private final class AddIntentionCoordinator {
                     niyyah: spec.niyyah
                 )
                 created.append(habit)
+
                 let promptNotes: String? = {
                     switch (habit.planNotes, spec.niyyah) {
-                    case let (notes?, niy?): return "\(notes)\nNiyyah: \(niy)"
-                    case let (notes?, nil):  return notes
-                    case let (nil, niy?):    return "Niyyah: \(niy)"
-                    case (nil, nil):         return nil
+                    case let (notes?, niyyah?): return "\(notes)\nNiyyah: \(niyyah)"
+                    case let (notes?, nil): return notes
+                    case let (nil, niyyah?): return "Niyyah: \(niyyah)"
+                    case (nil, nil): return nil
                     }
                 }()
+
                 let milestones = try await GeminiService.shared.generate28DayRoadmap(
                     habitName: habit.name,
                     planNotes: promptNotes,
                     userRefinementRequest: nil
                 )
                 _ = try await HabitPlanService.shared.upsertInitialPlan(
-                    habitId: habit.id, userId: userId, milestones: milestones
+                    habitId: habit.id,
+                    userId: userId,
+                    milestones: milestones
                 )
             } catch {
-                // Continue queue on partial failure.
+                continue
             }
         }
+
         createdHabits = created
         createdHabit = created.first
         planDone = !created.isEmpty
@@ -178,13 +237,11 @@ private final class AddIntentionCoordinator {
     }
 }
 
-// MARK: - Public sheet
-
 struct AddPrivateIntentionSheet: View {
     @Environment(AuthManager.self) private var auth
     @Environment(\.dismiss) private var dismiss
 
-    var onCreated: (Habit) -> Void   // called when user taps "Open" or after plan finishes
+    var onCreated: (Habit, AddPrivateIntentionDestination) -> Void
 
     @State private var coord = AddIntentionCoordinator()
     @State private var quizCoordinator = OnboardingQuizCoordinator()
@@ -208,44 +265,125 @@ struct AddPrivateIntentionSheet: View {
             } message: {
                 Text(coord.errorMessage ?? "")
             }
-            .task { await resolveQuizGate() }
         }
         .presentationDetents([.large])
     }
 
     @ViewBuilder
     private var content: some View {
-        if coord.isResolvingGate {
-            gateResolvingStep
-        } else {
-            switch coord.step {
-            case .quizDelta:     quizDeltaStep
-            case .quizIntercept: quizInterceptStep
-            case .pickHabit:     pickHabitStep
-            case .niyyah:        niyyahStep
-            case .familiarity:   familiarityStep
-            case .generating:    generatingStep
+        switch coord.step {
+        case .entryChoice:
+            entryChoiceStep
+        case .resolvingGuidance:
+            guidanceResolvingStep
+        case .quizDelta:
+            quizDeltaStep
+        case .quizIntercept:
+            OnboardingQuizFlowView(coordinator: quizCoordinator)
+        case .pickHabit:
+            pickHabitStep
+        case .niyyah:
+            niyyahStep
+        case .familiarity:
+            familiarityStep
+        case .generating:
+            generatingStep
+        }
+    }
+
+    private var entryChoiceStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 24) {
+                    Spacer(minLength: 28)
+
+                    VStack(spacing: 10) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(Color.msGold)
+                        Text("Add Personal Intention")
+                            .font(.appTitle)
+                            .foregroundStyle(Color.msTextPrimary)
+                        Text("Choose the fast path if you already know the habit, or let Circles help you decide.")
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 24)
+
+                    VStack(spacing: 14) {
+                        entryChoiceCard(
+                            title: "Quick Add Habit",
+                            subtitle: "Create a personal habit right away. You can build a roadmap later from the habit detail screen.",
+                            icon: "bolt.fill",
+                            action: { coord.startQuickAdd() }
+                        )
+
+                        entryChoiceCard(
+                            title: "Help Me Choose",
+                            subtitle: "Use the guided flow to narrow down your intention and generate a 28-day roadmap.",
+                            icon: "sparkles",
+                            action: { Task { await beginGuidedFlow() } }
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                }
             }
         }
     }
 
-    private var gateResolvingStep: some View {
+    private func entryChoiceCard(title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(Color.msGold.opacity(0.12))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.msGold)
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title)
+                        .font(.system(size: 18, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.msTextPrimary)
+                    Text(subtitle)
+                        .font(.appCaption)
+                        .foregroundStyle(Color.msTextMuted)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.msGold.opacity(0.8))
+            }
+            .padding(18)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color.msCardShared)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.msGold.opacity(0.22), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var guidanceResolvingStep: some View {
         VStack(spacing: 14) {
             Spacer()
             ProgressView().tint(Color.msGold).scaleEffect(1.2)
+            Text("Loading your previous guidance…")
+                .font(.appCaption)
+                .foregroundStyle(Color.msTextMuted)
             Spacer()
         }
     }
 
-    private var quizInterceptStep: some View {
-        OnboardingQuizFlowView(coordinator: quizCoordinator)
-    }
-
-    // MARK: Quiz delta (re-entry)
-
-    /// Shown for returning users who already have struggles saved. Gives them a
-    /// "Same" button (skip A+B, jump to processing+selection) or "Changed"
-    /// (run the full quiz again, overwriting struggles).
     private var quizDeltaStep: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -256,10 +394,10 @@ struct AddPrivateIntentionSheet: View {
                         Image(systemName: "person.fill.questionmark")
                             .font(.system(size: 40))
                             .foregroundStyle(Color.msGold)
-                        Text("Still the same?")
-                            .font(.system(size: 28, weight: .regular, design: .serif))
+                        Text("Use your previous guidance?")
+                            .font(.appTitle)
                             .foregroundStyle(Color.msTextPrimary)
-                        Text("Here's what you shared last time.")
+                        Text("Here’s what you told us last time. Reuse it to get suggestions faster, or update it first.")
                             .font(.appSubheadline)
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
@@ -268,8 +406,8 @@ struct AddPrivateIntentionSheet: View {
 
                     let chipLabels = savedStruggleLabels()
                     if !chipLabels.isEmpty {
-                        let cols = [GridItem(.adaptive(minimum: 100, maximum: 220))]
-                        LazyVGrid(columns: cols, alignment: .leading, spacing: 8) {
+                        let columns = [GridItem(.adaptive(minimum: 100, maximum: 220))]
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
                             ForEach(chipLabels, id: \.self) { label in
                                 Text(label)
                                     .font(.system(size: 13, weight: .medium))
@@ -301,7 +439,7 @@ struct AddPrivateIntentionSheet: View {
                         )
                     }
                 } label: {
-                    Text("Same — show me habits")
+                    Text("Use previous guidance")
                         .font(.appSubheadline.weight(.semibold))
                         .foregroundStyle(Color.msBackground)
                         .frame(maxWidth: .infinity)
@@ -313,13 +451,11 @@ struct AddPrivateIntentionSheet: View {
 
                 Button {
                     guard let userId = auth.session?.user.id else { return }
-                    // Full quiz from Screen A. Fresh coordinator so stale
-                    // state can't leak from a previous visit.
                     quizCoordinator = OnboardingQuizCoordinator()
                     configureInterceptQuiz(userId: userId)
                     coord.step = .quizIntercept
                 } label: {
-                    Text("Things have changed")
+                    Text("Update guidance")
                         .font(.appSubheadline.weight(.medium))
                         .foregroundStyle(Color.msGold)
                         .frame(maxWidth: .infinity)
@@ -337,31 +473,25 @@ struct AddPrivateIntentionSheet: View {
 
     private func savedStruggleLabels() -> [String] {
         let islamic = coord.savedStrugglesIslamic.compactMap { IslamicStruggle(rawValue: $0)?.label }
-        let life    = coord.savedStrugglesLife.compactMap   { LifeStruggle(rawValue: $0)?.label }
+        let life = coord.savedStrugglesLife.compactMap { LifeStruggle(rawValue: $0)?.label }
         return islamic + life
     }
 
-    // MARK: Quiz gate
-
-    /// First-time users (no saved struggles) go straight into the intercept quiz.
-    /// Returning users see a "delta" screen with their previous answers so they
-    /// can confirm "Same" (skip A+B, go to processing+selection) or "Changed"
-    /// (rerun the full quiz, overwriting struggles on finish).
-    private func resolveQuizGate() async {
-        guard let userId = auth.session?.user.id else {
-            coord.isResolvingGate = false
-            return
-        }
+    private func beginGuidedFlow() async {
+        guard let userId = auth.session?.user.id else { return }
+        quizCoordinator = OnboardingQuizCoordinator()
+        coord.startGuided()
+        coord.savedStrugglesIslamic = []
+        coord.savedStrugglesLife = []
         let (islamic, life) = await loadSavedStruggles(userId: userId)
         if islamic.isEmpty && life.isEmpty {
             configureInterceptQuiz(userId: userId)
             coord.step = .quizIntercept
         } else {
             coord.savedStrugglesIslamic = islamic
-            coord.savedStrugglesLife    = life
+            coord.savedStrugglesLife = life
             coord.step = .quizDelta
         }
-        coord.isResolvingGate = false
     }
 
     private func loadSavedStruggles(userId: UUID) async -> ([String], [String]) {
@@ -390,9 +520,9 @@ struct AddPrivateIntentionSheet: View {
                 coord.showCustomField = true
                 coord.customName = picked
                 coord.selectedName = ""
-                coord.step = .niyyah      // name already chosen — skip pickHabit
+                coord.step = .niyyah
             } else {
-                coord.step = .pickHabit   // defensive fallback
+                coord.step = .pickHabit
             }
         }
         quizCoordinator.onFinishMany = { suggestions, _ in
@@ -400,16 +530,16 @@ struct AddPrivateIntentionSheet: View {
         }
     }
 
-    /// Seeds the per-habit niyyah/familiarity queue after the user multi-selects on Screen D.
-    /// First suggestion pre-populates the coord; subsequent ones swap in on each Continue.
     private func beginPerHabitQueue(suggestions: [HabitSuggestion]) {
         guard !suggestions.isEmpty else {
             coord.step = .pickHabit
             return
         }
+
         coord.pendingQueue = suggestions
         coord.pendingIndex = 0
         coord.collectedSpecs = []
+
         let first = suggestions[0]
         coord.selectedName = first.name
         coord.showCustomField = false
@@ -422,8 +552,9 @@ struct AddPrivateIntentionSheet: View {
     private func saveStrugglesToProfile(userId: UUID, islamic: [String], life: [String]) async {
         let updates: [String: AnyJSON] = [
             "struggles_islamic": .array(islamic.map { .string($0) }),
-            "struggles_life":    .array(life.map    { .string($0) })
+            "struggles_life": .array(life.map { .string($0) })
         ]
+
         do {
             try await SupabaseService.shared.client
                 .from("profiles")
@@ -436,8 +567,6 @@ struct AddPrivateIntentionSheet: View {
         }
     }
 
-    // MARK: Step 1 — pick habit
-
     private var pickHabitStep: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -445,19 +574,21 @@ struct AddPrivateIntentionSheet: View {
                     Spacer(minLength: 20)
 
                     VStack(spacing: 10) {
-                        Image(systemName: "lock.fill")
+                        Image(systemName: coord.mode == .quickAdd ? "bolt.fill" : "lock.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(Color.msGold)
-                        Text("Private Intention")
+                        Text(coord.mode == .quickAdd ? "Quick Add Personal Habit" : "Choose a Personal Intention")
                             .font(.appTitle)
                             .foregroundStyle(Color.msTextPrimary)
-                        Text("Just between you and Allah.")
+                        Text(coord.mode == .quickAdd
+                             ? "Add it now and decide later if you want a guided roadmap."
+                             : "Pick the habit you want to work on, then we’ll help you shape it.")
                             .font(.appSubheadline)
                             .foregroundStyle(Color.msTextMuted)
+                            .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 24)
 
-                    // Curated grid
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         ForEach(AmiirOnboardingCoordinator.curatedHabits, id: \.name) { habit in
                             let isSelected = !coord.showCustomField && coord.selectedName == habit.name
@@ -469,7 +600,6 @@ struct AddPrivateIntentionSheet: View {
                             .buttonStyle(.plain)
                         }
 
-                        // Custom tile
                         let customSelected = coord.showCustomField
                         Button {
                             coord.showCustomField = true
@@ -485,13 +615,15 @@ struct AddPrivateIntentionSheet: View {
                     }
                     .padding(.horizontal, 20)
 
-                    // Custom text field (shown when custom tile selected)
                     if coord.showCustomField {
                         TextField("e.g. Morning walk, Journaling…", text: $coord.customName)
                             .foregroundStyle(Color.msTextPrimary)
                             .padding(14)
                             .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
+                            )
                             .tint(Color.msGold)
                             .padding(.horizontal, 20)
                     }
@@ -500,14 +632,26 @@ struct AddPrivateIntentionSheet: View {
                 }
             }
 
-            continueButton(enabled: coord.canProceedFromPick()) {
-                coord.step = .niyyah
+            continueButton(
+                title: coord.mode == .quickAdd ? "Add Habit" : "Continue",
+                enabled: coord.canProceedFromPick(),
+                isLoading: coord.isSavingQuickAdd
+            ) {
+                if coord.mode == .quickAdd {
+                    guard let userId = auth.session?.user.id else { return }
+                    Task {
+                        if let habit = await coord.createQuickHabit(userId: userId) {
+                            onCreated(habit, .home)
+                            dismiss()
+                        }
+                    }
+                } else {
+                    coord.step = .niyyah
+                }
             }
             .padding(20)
         }
     }
-
-    // MARK: Step 1.5 — niyyah
 
     private var niyyahStep: some View {
         VStack(spacing: 0) {
@@ -529,31 +673,31 @@ struct AddPrivateIntentionSheet: View {
                         Text(coord.resolvedName())
                             .font(.appTitle)
                             .foregroundStyle(Color.msTextPrimary)
-                        Text("What's your niyyah for this?")
+                        Text("What’s your niyyah for this?")
                             .font(.appSubheadline)
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
-                        Text("A single line between you and Allah. Skip if you're not ready.")
+                        Text("A single line between you and Allah. Skip if you’re not ready.")
                             .font(.appCaption)
                             .foregroundStyle(Color.msTextMuted.opacity(0.75))
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 24)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextField("e.g. To draw closer to Allah through patience",
-                                  text: $coord.niyyah,
-                                  axis: .vertical)
-                            .lineLimit(3...5)
-                            .foregroundStyle(Color.msTextPrimary)
-                            .padding(14)
-                            .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
-                            )
-                            .tint(Color.msGold)
-                    }
+                    TextField(
+                        "e.g. To draw closer to Allah through patience",
+                        text: $coord.niyyah,
+                        axis: .vertical
+                    )
+                    .lineLimit(3...5)
+                    .foregroundStyle(Color.msTextPrimary)
+                    .padding(14)
+                    .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.msGold.opacity(0.4), lineWidth: 1)
+                    )
+                    .tint(Color.msGold)
                     .padding(.horizontal, 20)
 
                     Spacer(minLength: 24)
@@ -561,7 +705,7 @@ struct AddPrivateIntentionSheet: View {
             }
 
             VStack(spacing: 10) {
-                continueButton(enabled: true) {
+                continueButton(title: "Continue", enabled: true) {
                     coord.step = .familiarity
                 }
 
@@ -578,8 +722,6 @@ struct AddPrivateIntentionSheet: View {
             .padding(20)
         }
     }
-
-    // MARK: Step 2 — familiarity
 
     private var familiarityStep: some View {
         VStack(spacing: 0) {
@@ -638,15 +780,18 @@ struct AddPrivateIntentionSheet: View {
                 }
             }
 
-            continueButton(enabled: !coord.familiarity.isEmpty) {
+            continueButton(title: "Build Roadmap", enabled: !coord.familiarity.isEmpty) {
                 guard let userId = auth.session?.user.id else { return }
                 if !coord.pendingQueue.isEmpty {
-                    coord.collectedSpecs.append(PendingHabitSpec(
-                        name: coord.resolvedName(),
-                        icon: coord.resolvedIcon(),
-                        niyyah: coord.trimmedNiyyah,
-                        familiarity: coord.familiarity
-                    ))
+                    coord.collectedSpecs.append(
+                        PendingHabitSpec(
+                            name: coord.resolvedName(),
+                            icon: coord.resolvedIcon(),
+                            niyyah: coord.trimmedNiyyah,
+                            familiarity: coord.familiarity
+                        )
+                    )
+
                     let nextIndex = coord.pendingIndex + 1
                     if nextIndex < coord.pendingQueue.count {
                         let next = coord.pendingQueue[nextIndex]
@@ -670,8 +815,6 @@ struct AddPrivateIntentionSheet: View {
         }
     }
 
-    // MARK: Step 3 — generating / done
-
     private var generatingStep: some View {
         VStack(spacing: 32) {
             Spacer()
@@ -685,11 +828,13 @@ struct AddPrivateIntentionSheet: View {
                     ProgressView()
                         .tint(Color.msGold)
                         .scaleEffect(1.4)
-                    Text(coord.pendingQueue.count > 1 && !coord.generatingProgressText.isEmpty
-                         ? coord.generatingProgressText
-                         : "Building your 28-day roadmap…")
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color.msTextPrimary)
+                    Text(
+                        coord.pendingQueue.count > 1 && !coord.generatingProgressText.isEmpty
+                        ? coord.generatingProgressText
+                        : "Building your 28-day roadmap…"
+                    )
+                    .font(.appSubheadline)
+                    .foregroundStyle(Color.msTextPrimary)
                     Text("This usually takes 10–20 seconds.")
                         .font(.appCaption)
                         .foregroundStyle(Color.msTextMuted)
@@ -703,17 +848,16 @@ struct AddPrivateIntentionSheet: View {
                     Text(count > 1 ? "Your \(count) roadmaps are ready!" : "Your roadmap is ready!")
                         .font(.appTitle)
                         .foregroundStyle(Color.msTextPrimary)
-                    Text("Tap below to start your journey.")
+                    Text("Tap below to keep going.")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
                 }
             } else {
-                // Plan failed but habit was created
                 VStack(spacing: 10) {
                     Text("Intention created!")
                         .font(.appTitle)
                         .foregroundStyle(Color.msTextPrimary)
-                    Text("The AI plan didn't generate — you can try from the habit card later.")
+                    Text("The AI plan didn’t generate. You can try again from the habit detail screen later.")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
@@ -725,14 +869,12 @@ struct AddPrivateIntentionSheet: View {
 
             VStack(spacing: 12) {
                 if let habit = coord.createdHabit {
-                    let count = coord.createdHabits.count
                     Button {
-                        onCreated(habit)
+                        let destination: AddPrivateIntentionDestination = coord.createdHabits.count > 1 ? .home : .detail
+                        onCreated(habit, destination)
                         dismiss()
                     } label: {
-                        Text(coord.planDone
-                             ? (count > 1 ? "Open Home" : "Open Roadmap")
-                             : (count > 1 ? "Open Home" : "Open Habit"))
+                        Text(coord.createdHabits.count > 1 ? "Open Home" : "Open Habit")
                             .font(.appSubheadline.weight(.semibold))
                             .foregroundStyle(Color.msBackground)
                             .frame(maxWidth: .infinity)
@@ -746,7 +888,7 @@ struct AddPrivateIntentionSheet: View {
 
                 if coord.isGenerating, let habit = coord.createdHabit {
                     Button {
-                        onCreated(habit)
+                        onCreated(habit, .home)
                         dismiss()
                     } label: {
                         Text("Come back later")
@@ -761,24 +903,32 @@ struct AddPrivateIntentionSheet: View {
         }
     }
 
-    // MARK: Shared CTA button
-
-    private func continueButton(enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func continueButton(
+        title: String,
+        enabled: Bool,
+        isLoading: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
-            Text("Continue")
-                .font(.appSubheadline.weight(.semibold))
-                .foregroundStyle(Color.msBackground)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(enabled ? Color.msGold : Color.msGold.opacity(0.4))
-                .clipShape(Capsule())
+            ZStack {
+                if isLoading {
+                    ProgressView()
+                        .tint(Color.msBackground)
+                } else {
+                    Text(title)
+                        .font(.appSubheadline.weight(.semibold))
+                        .foregroundStyle(Color.msBackground)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(enabled ? Color.msGold : Color.msGold.opacity(0.4))
+            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
-        .disabled(!enabled)
+        .disabled(!enabled || isLoading)
     }
 }
-
-// MARK: - Habit pick tile (reusable in this file)
 
 private struct HabitPickTile: View {
     let name: String
@@ -789,38 +939,36 @@ private struct HabitPickTile: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
+                .foregroundStyle(isSelected ? Color.msBackground : Color.msGold)
             Text(name)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "F0EAD6"))
+                .foregroundStyle(isSelected ? Color.msBackground : Color.msTextPrimary)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(isSelected ? Color(hex: "D4A240") : Color(hex: "243828"))
+                .fill(isSelected ? Color.msGold : Color.msCardShared)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(isSelected ? Color.clear : Color(hex: "D4A240").opacity(0.2), lineWidth: 1)
+                        .stroke(isSelected ? Color.clear : Color.msGold.opacity(0.2), lineWidth: 1)
                 )
         )
     }
 }
 
-// MARK: - Icon helper (matches HomeView helper)
-
 private func habitSymbol(for name: String) -> String {
-    let n = name.lowercased()
-    if n.contains("quran") || n.contains("qur")                             { return "book.fill" }
-    if n.contains("salah") || n.contains("salat") || n.contains("prayer")  { return "building.columns.fill" }
-    if n.contains("dhikr") || n.contains("zikr")                           { return "circle.grid.3x3.fill" }
-    if n.contains("fast") || n.contains("sawm")                            { return "moon.stars.fill" }
-    if n.contains("sadaqah") || n.contains("charity")                      { return "hands.sparkles.fill" }
-    if n.contains("tahajjud") || n.contains("night")                       { return "moon.fill" }
-    if n.contains("walk") || n.contains("exercise") || n.contains("gym")   { return "figure.walk" }
-    if n.contains("journal") || n.contains("write") || n.contains("diary") { return "note.text" }
-    if n.contains("sleep") || n.contains("rest")                           { return "bed.double.fill" }
-    if n.contains("water") || n.contains("drink")                          { return "drop.fill" }
+    let normalized = name.lowercased()
+    if normalized.contains("quran") || normalized.contains("qur") { return "book.fill" }
+    if normalized.contains("salah") || normalized.contains("salat") || normalized.contains("prayer") { return "building.columns.fill" }
+    if normalized.contains("dhikr") || normalized.contains("zikr") { return "circle.grid.3x3.fill" }
+    if normalized.contains("fast") || normalized.contains("sawm") { return "moon.stars.fill" }
+    if normalized.contains("sadaqah") || normalized.contains("charity") { return "hands.sparkles.fill" }
+    if normalized.contains("tahajjud") || normalized.contains("night") { return "moon.fill" }
+    if normalized.contains("walk") || normalized.contains("exercise") || normalized.contains("gym") { return "figure.walk" }
+    if normalized.contains("journal") || normalized.contains("write") || normalized.contains("diary") { return "note.text" }
+    if normalized.contains("sleep") || normalized.contains("rest") { return "bed.double.fill" }
+    if normalized.contains("water") || normalized.contains("drink") { return "drop.fill" }
     return "leaf.fill"
 }

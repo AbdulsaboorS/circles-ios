@@ -91,9 +91,11 @@ final class OnboardingQuizCoordinator {
         await loadSuggestions()
     }
 
-    /// Populates `suggestions` from Gemini, racing the call against a hard
-    /// timeout so users never wait more than a few seconds on the processing
-    /// screen. Enforces a 1.2 s minimum so the pulse cycle completes one beat.
+    /// Populates `suggestions` from Gemini, racing the call against a bounded
+    /// timeout so the UI does not hang indefinitely. The previous 3 s cap was
+    /// too aggressive and routinely forced the static fallback list even when
+    /// Gemini was healthy, so we give the model a more realistic response window.
+    /// Enforces a 1.2 s minimum so the pulse cycle completes one beat.
     func loadSuggestions() async {
         isLoadingSuggestions = true
         let start = Date()
@@ -117,7 +119,7 @@ final class OnboardingQuizCoordinator {
                 }
             }
             group.addTask {
-                try? await Task.sleep(for: .seconds(3.0))
+                try? await Task.sleep(for: .seconds(8.0))
                 return nil // timeout sentinel
             }
 

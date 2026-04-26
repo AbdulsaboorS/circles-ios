@@ -1,8 +1,6 @@
 import SwiftUI
 import Supabase
 
-// MARK: - Enums
-
 private enum PlanLoadingMode {
     case generating
     case refining
@@ -17,23 +15,11 @@ private enum PlanLoadingMode {
     }
 }
 
-// MARK: - HabitDetailView
-//
-// Two-state layout (post-redesign):
-//  - State 1 — pre-check-in: hold-to-confirm orb + contextual text.
-//  - State 2 — post-check-in: monthly calendar heatmap, today's focus card
-//    (pushes `FullRoadmapView`), and stats row.
-//
-// Toggle happens here (the card taps on Home now navigate straight to this
-// screen instead of toggling inline). Ownership of the Alhamdulillah beat
-// moved here too — Home no longer mounts the overlay.
-
 struct HabitDetailView: View {
     let habit: Habit
 
     @Environment(AuthManager.self) private var auth
 
-    // Logs + plan
     @State private var logs: [HabitLog] = []
     @State private var plan: HabitPlan?
     @State private var isLoading = true
@@ -43,21 +29,15 @@ struct HabitDetailView: View {
     @State private var planLoadingTitle = ""
     @State private var planLoadingSubtitle = ""
     @State private var planLoadingMode: PlanLoadingMode = .generating
-
-    // Calendar paging
     @State private var displayedMonth: Date = Date()
-
-    // Celebration (moved from HomeView)
-    @State private var showAlhamdulillah: Bool = false
+    @State private var showAlhamdulillah = false
     @State private var alhamdulillahTask: Task<Void, Never>?
     @State private var isTogglingToday = false
 
-    // MARK: - Computed helpers
-
     private static let ymdFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
     }()
 
     private var todayDateString: String { Self.ymdFormatter.string(from: Date()) }
@@ -68,75 +48,67 @@ struct HabitDetailView: View {
 
     private var isCompletedToday: Bool { isCompleted(dateString: todayDateString) }
 
-    private var totalCompletions: Int { logs.filter(\.completed).count }
-
-    /// Current streak counting backwards from today. Skips today when today
-    /// isn't done yet so an in-progress streak isn't zeroed mid-day.
     private var habitStreak: Int {
         let completed = Set(logs.filter(\.completed).map(\.date))
         let calendar = Calendar.current
         var count = 0
         var cursor = Date()
-        // If today isn't done, start from yesterday.
+
         if !completed.contains(Self.ymdFormatter.string(from: cursor)) {
             guard let yesterday = calendar.date(byAdding: .day, value: -1, to: cursor) else { return 0 }
             cursor = yesterday
         }
+
         while completed.contains(Self.ymdFormatter.string(from: cursor)) {
             count += 1
-            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = prev
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
         }
+
         return count
     }
 
-    /// Longest run of consecutive completed days anywhere in `logs`.
     private var longestStreak: Int {
         let completedDates: [Date] = logs
             .filter(\.completed)
             .compactMap { Self.ymdFormatter.date(from: $0.date) }
             .sorted()
         guard !completedDates.isEmpty else { return 0 }
+
         let calendar = Calendar.current
         var longest = 1
         var current = 1
-        for i in 1..<completedDates.count {
-            let prev = completedDates[i - 1]
-            let this = completedDates[i]
-            if let gap = calendar.dateComponents([.day], from: prev, to: this).day, gap == 1 {
+
+        for index in 1..<completedDates.count {
+            let previous = completedDates[index - 1]
+            let next = completedDates[index]
+            if let gap = calendar.dateComponents([.day], from: previous, to: next).day, gap == 1 {
                 current += 1
                 longest = max(longest, current)
             } else {
                 current = 1
             }
         }
+
         return longest
     }
 
-    /// Completion rate within `displayedMonth`. Past months divide by total
-    /// days in the month; the current month divides by days up to today.
     private var completionRate: Double {
         let calendar = Calendar.current
         guard let interval = calendar.dateInterval(of: .month, for: displayedMonth),
               let totalDays = calendar.dateComponents([.day], from: interval.start, to: interval.end).day
         else { return 0 }
+
         let today = Date()
         let isCurrentMonth = calendar.isDate(displayedMonth, equalTo: today, toGranularity: .month)
-        let denominator: Int = {
-            if isCurrentMonth {
-                return calendar.component(.day, from: today)
-            } else if interval.end <= today {
-                return totalDays
-            } else {
-                // Future month — shouldn't be reachable via UI but cap safely.
-                return totalDays
-            }
-        }()
+        let denominator = isCurrentMonth ? calendar.component(.day, from: today) : totalDays
         guard denominator > 0 else { return 0 }
+
         let completedInMonth = logs.filter { log in
-            guard log.completed, let d = Self.ymdFormatter.date(from: log.date) else { return false }
-            return calendar.isDate(d, equalTo: displayedMonth, toGranularity: .month)
+            guard log.completed, let date = Self.ymdFormatter.date(from: log.date) else { return false }
+            return calendar.isDate(date, equalTo: displayedMonth, toGranularity: .month)
         }.count
+
         return Double(completedInMonth) / Double(denominator)
     }
 
@@ -146,27 +118,41 @@ struct HabitDetailView: View {
     }
 
     private var contextualText: String {
-        if let m = todayMilestone, !m.description.isEmpty { return m.description }
         if let niyyah = habit.niyyah?.trimmingCharacters(in: .whitespacesAndNewlines), !niyyah.isEmpty {
             return "“\(niyyah)”"
         }
         return "Make today count."
     }
 
-    // MARK: - Body
-
     var body: some View {
         ZStack {
             Color.msBackground.ignoresSafeArea()
 
-            Group {
-                if isCompletedToday {
-                    completedState
-                } else {
-                    preCheckInState
+            ScrollView {
+                VStack(spacing: 20) {
+                    detailHeader
+                    todaysFocusCard
+                    HabitMonthCalendar(
+                        displayedMonth: $displayedMonth,
+                        logs: logs,
+                        todayString: todayDateString
+                    )
+                    .padding(.horizontal, 16)
+
+                    statsRow
+                        .padding(.horizontal, 16)
+
+                    if isLoading && logs.isEmpty {
+                        ProgressView()
+                            .tint(Color.msGold)
+                            .padding(.top, 8)
+                    }
+
+                    Spacer(minLength: 8)
                 }
+                .padding(.top, 16)
+                .padding(.bottom, 40)
             }
-            .animation(.easeInOut(duration: 0.35), value: isCompletedToday)
 
             if showAlhamdulillah {
                 HamdulillahOverlay()
@@ -177,9 +163,28 @@ struct HabitDetailView: View {
                 planLoadingOverlay
             }
         }
-        .navigationTitle(isCompletedToday ? habit.name : "Today's Check-In")
+        .navigationTitle(habit.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            if !isCompletedToday {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await toggleTodayCompletion() }
+                    }
+                    label: {
+                        if isTogglingToday {
+                            ProgressView()
+                                .tint(Color.msGold)
+                        } else {
+                            Text("Check in")
+                                .foregroundStyle(Color.msGold)
+                        }
+                    }
+                    .disabled(isTogglingToday)
+                }
+            }
+        }
         .task {
             await fetchLogs()
             await loadPlan()
@@ -191,101 +196,32 @@ struct HabitDetailView: View {
         }
     }
 
-    // MARK: - State 1 — Pre-check-in
-
-    private var preCheckInState: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                Spacer(minLength: 24)
-
-                habitBadgePill
-
-                Text(habit.name)
-                    .font(.system(size: 32, weight: .regular, design: .serif))
-                    .foregroundStyle(Color.msTextPrimary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-
-                Text(contextualText)
-                    .font(.system(size: 15, weight: .regular, design: .serif).italic())
-                    .foregroundStyle(Color.msTextMuted)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 32)
-
-                CheckInOrb(onComplete: handleOrbComplete)
-                    .padding(.vertical, 24)
-
-                Spacer(minLength: 40)
-            }
-            .frame(maxWidth: .infinity)
-        }
-    }
-
-    private var habitBadgePill: some View {
-        HStack(spacing: 8) {
-            Image(systemName: habit.icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.msGold)
-            Text(habit.name)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.msTextPrimary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
-        .background(Color.msCardShared, in: Capsule())
-        .overlay(Capsule().stroke(Color.msGold.opacity(0.3), lineWidth: 1))
-    }
-
-    // MARK: - State 2 — Post-check-in
-
-    private var completedState: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                completedHeader
-                todayActionCard
-                todaysFocusCard
-                HabitMonthCalendar(
-                    displayedMonth: $displayedMonth,
-                    logs: logs,
-                    todayString: todayDateString
-                )
-                .padding(.horizontal, 16)
-                statsRow
-                    .padding(.horizontal, 16)
-                Spacer(minLength: 0)
-            }
-            .padding(.top, 16)
-            .padding(.bottom, 40)
-        }
-    }
-
-    private var completedHeader: some View {
+    private var detailHeader: some View {
         VStack(spacing: 12) {
-            Image(systemName: habit.icon)
-                .font(.system(size: 36))
-                .foregroundStyle(Color.msGold)
-                .shadow(color: Color.msGold.opacity(0.5), radius: 10)
+            ZStack {
+                SwiftUI.Circle()
+                    .fill(Color.msGold.opacity(0.10))
+                    .frame(width: 78, height: 78)
+
+                Image(systemName: habit.icon)
+                    .font(.system(size: 34))
+                    .foregroundStyle(Color.msGold)
+                    .shadow(color: Color.msGold.opacity(0.45), radius: 10)
+            }
 
             Text(habit.name)
-                .font(.system(size: 22, weight: .regular, design: .serif))
+                .font(.system(size: 26, weight: .regular, design: .serif))
                 .foregroundStyle(Color.msTextPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
 
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                Text("Completed today")
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .foregroundStyle(Color.msGold)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.msGold.opacity(0.12), in: Capsule())
-            .overlay(Capsule().stroke(Color.msGold.opacity(0.35), lineWidth: 1))
+            Text(contextualText)
+                .font(.system(size: 15, weight: .regular, design: .serif).italic())
+                .foregroundStyle(Color.msTextMuted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
+        .padding(.horizontal, 16)
     }
 
     @ViewBuilder
@@ -313,58 +249,10 @@ struct HabitDetailView: View {
         }
     }
 
-    private var todayActionCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Today")
-                .font(.appCaptionMedium)
-                .foregroundStyle(Color.msGold.opacity(0.9))
-
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(isCompletedToday ? "Completed for today" : "Still waiting for today's check-in")
-                        .font(.appSubheadline)
-                        .foregroundStyle(Color.msTextPrimary)
-
-                    Text(isCompletedToday ? "You can undo if this needs to be corrected." : "Reminder taps land here so you can check in without hunting through Home.")
-                        .font(.appCaption)
-                        .foregroundStyle(Color.msTextMuted)
-                }
-
-                Spacer(minLength: 12)
-
-                Button {
-                    Task { await toggleTodayCompletion() }
-                } label: {
-                    Group {
-                        if isTogglingToday {
-                            ProgressView()
-                                .tint(Color.msBackground)
-                                .frame(width: 124, height: 44)
-                        } else {
-                            Text(isCompletedToday ? "Undo" : "Check In")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Color.msBackground)
-                                .frame(width: 124, height: 44)
-                        }
-                    }
-                    .background(Color.msGold, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(isTogglingToday)
-            }
-        }
-        .padding(18)
-        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 22))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(Color.msBorder, lineWidth: 1)
-        )
-    }
-
     private func todaysFocusCardLabel(plan: HabitPlan) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Today's Focus")
+                Text("Today’s Focus")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color.msGold)
                     .textCase(.uppercase)
@@ -375,12 +263,12 @@ struct HabitDetailView: View {
                     .foregroundStyle(Color.msGold.opacity(0.7))
             }
 
-            if let m = todayMilestone {
-                Text(m.title)
+            if let milestone = todayMilestone {
+                Text(milestone.title)
                     .font(.system(size: 17, weight: .semibold, design: .serif))
                     .foregroundStyle(Color.msTextPrimary)
                     .multilineTextAlignment(.leading)
-                Text(m.description)
+                Text(milestone.description)
                     .font(.appSubheadline)
                     .foregroundStyle(Color.msTextMuted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -437,8 +325,6 @@ struct HabitDetailView: View {
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.msBorder, lineWidth: 1))
     }
 
-    // MARK: - Stats row
-
     private var statsRow: some View {
         HStack(spacing: 10) {
             StatPill(
@@ -459,29 +345,7 @@ struct HabitDetailView: View {
         }
     }
 
-    // MARK: - Orb completion
-
-    private func handleOrbComplete() {
-        guard let userId = auth.session?.user.id, !isTogglingToday else { return }
-
-        // Optimistic local log so isCompletedToday flips immediately and the
-        // view animates into State 2 behind the Alhamdulillah beat.
-        let todayStr = todayDateString
-        isTogglingToday = true
-        if let idx = logs.firstIndex(where: { $0.date == todayStr }) {
-            logs[idx].completed = true
-        } else {
-            logs.append(HabitLog(
-                id: UUID(),
-                habitId: habit.id,
-                userId: userId,
-                date: todayStr,
-                completed: true,
-                notes: nil,
-                createdAt: Date()
-            ))
-        }
-
+    private func playCompletionFeedback() {
         showAlhamdulillah = true
         alhamdulillahTask?.cancel()
         alhamdulillahTask = Task { @MainActor in
@@ -489,28 +353,7 @@ struct HabitDetailView: View {
             guard !Task.isCancelled else { return }
             showAlhamdulillah = false
         }
-
-        // Fire-and-forget persistence + cross-circle side effects.
-        Task {
-            do {
-                _ = try await HabitToggleService.shared.toggleToday(
-                    habit: habit,
-                    userId: userId,
-                    date: todayStr,
-                    alreadyCompleted: false
-                )
-            } catch {
-                errorMessage = error.localizedDescription
-                // Roll back optimistic log so the view reverts to State 1.
-                if let idx = logs.firstIndex(where: { $0.date == todayStr }) {
-                    logs[idx].completed = false
-                }
-            }
-            isTogglingToday = false
-        }
     }
-
-    // MARK: - Plan loading overlay
 
     private var planLoadingOverlay: some View {
         ZStack {
@@ -536,7 +379,6 @@ struct HabitDetailView: View {
         }
         .transition(.opacity)
     }
-    // MARK: - Data actions
 
     private func loadPlan() async {
         guard let userId = auth.session?.user.id else { return }
@@ -553,6 +395,7 @@ struct HabitDetailView: View {
         isGeneratingPlan = true
         errorMessage = nil
         defer { isGeneratingPlan = false }
+
         do {
             let milestones = try await GeminiService.shared.generate28DayRoadmap(
                 habitName: habit.name,
@@ -573,8 +416,6 @@ struct HabitDetailView: View {
         isLoading = true
         errorMessage = nil
         do {
-            // Pull the full log history — calendar needs months past the 28-day
-            // window, and longestStreak must see every completion.
             let fetched: [HabitLog] = try await SupabaseService.shared.client
                 .from("habit_logs")
                 .select()
@@ -610,6 +451,11 @@ struct HabitDetailView: View {
             )
         }
 
+        if !wasCompleted {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            playCompletionFeedback()
+        }
+
         do {
             _ = try await HabitToggleService.shared.toggleToday(
                 habit: habit,
@@ -621,14 +467,15 @@ struct HabitDetailView: View {
             if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
                 logs[existingIndex].completed = wasCompleted
             }
+            if !wasCompleted {
+                showAlhamdulillah = false
+            }
             errorMessage = error.localizedDescription
         }
 
         isTogglingToday = false
     }
 }
-
-// MARK: - Stat Pill (redesigned — title / value / subtitle stack)
 
 private struct StatPill: View {
     let title: String
@@ -656,8 +503,6 @@ private struct StatPill: View {
     }
 }
 
-// MARK: - Roadmap loading indicator (unchanged)
-
 private struct RoadmapLoadingIndicator: View {
     let mode: PlanLoadingMode
 
@@ -681,9 +526,7 @@ private struct RoadmapLoadingIndicator: View {
                     ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                         VStack(alignment: .leading, spacing: 6) {
                             Capsule()
-                                .fill(index == activeIndex
-                                      ? Color.msGold
-                                      : Color.msGold.opacity(index < activeIndex ? 0.45 : 0.18))
+                                .fill(index == activeIndex ? Color.msGold : Color.msGold.opacity(index < activeIndex ? 0.45 : 0.18))
                                 .frame(height: 6)
                             Text(step)
                                 .font(.system(size: 10, weight: index == activeIndex ? .semibold : .regular))

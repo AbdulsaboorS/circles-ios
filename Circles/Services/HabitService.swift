@@ -105,7 +105,7 @@ final class HabitService {
         userId: UUID,
         name: String,
         icon: String,
-        familiarity: String,
+        familiarity: String? = nil,
         niyyah: String? = nil
     ) async throws -> Habit {
         var row: [String: AnyJSON] = [
@@ -113,9 +113,11 @@ final class HabitService {
             "name": .string(name),
             "icon": .string(icon),
             "is_active": .bool(true),
-            "is_accountable": .bool(false),
-            "plan_notes": .string("Familiarity: \(familiarity)")
+            "is_accountable": .bool(false)
         ]
+        if let familiarity, !familiarity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            row["plan_notes"] = .string("Familiarity: \(familiarity)")
+        }
         if let niyyah, !niyyah.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             row["niyyah"] = .string(niyyah.trimmingCharacters(in: .whitespacesAndNewlines))
         }

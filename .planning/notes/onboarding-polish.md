@@ -7,6 +7,8 @@ The implementation history (which session shipped what, file:line receipts, deci
 
 ## 2026-04-25 session additions (push to QA matrix)
 
+- **Active shared Meaningful Habits bug:** guided habit suggestions in post-auth habit creation are still returning the same 5 fallback habits regardless of selected struggles after the dashboard/habit-detail pass QA. Treat onboarding as affected too because both flows use `OnboardingQuizCoordinator.loadSuggestions()` + `GeminiService.generateHabitSuggestions(...)`. Re-test both post-auth guided add and onboarding quiz after any fix here.
+
 - **Joiner flow reorder:** "Some growth is shared..." transition now fires BEFORE the quiz (after circle alignment), not after personal habits. Subtitle "Next, let's talk through a habit you can personally work on." matches amir.
 - **New joiner intro quote:** building hadith — *"A believer to another believer is like a building — each part supporting the other."* (replaces the "one body" hadith)
 - **Transition screen visuals (both flows):** pulsing moon icon (`.symbolEffect(.pulse, options: .repeating)`), breathing golden glow (3s ease-in-out repeatForever), staggered fade-in via `withAnimation` delays, drifting starfield via `TimelineView` + `Canvas` (14 stars).
