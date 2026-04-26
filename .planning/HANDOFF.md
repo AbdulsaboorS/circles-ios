@@ -27,7 +27,7 @@ Do not use it for session history, long QA plans, or feature specs.
 - none currently tracked as active in this handoff
 
 ### Open Planning Thread
-- Onboarding gap audit complete (2026-04-25). See memory `onboarding_audit_2026-04-25.md` for the four gaps (A camera priming, B Moment demo, C mirror copy, D plan reveal). Next session: finalize plan, then build. Do not re-run app-onboarding-questionnaire skill.
+- Onboarding gaps A (camera priming) + B (Moment demo) shipped 2026-04-25 session 2 — single shared `OnboardingMomentPrimerView` wired into Amir (5/8) and Joiner (3/6). Step indicators bumped to /8 and /6. **Awaiting cold-install QA** — full test matrix in `.planning/notes/onboarding-polish.md`. Gaps C (mirror copy) and D (Path 1 plan reveal) still deferred.
 
 ### Product Priority Order
 1. Test onboarding bugs and fix them

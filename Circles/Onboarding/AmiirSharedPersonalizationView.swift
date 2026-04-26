@@ -67,7 +67,7 @@ struct AmiirSharedPersonalizationView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 1, total: 7)
+                    StepIndicator(current: 1, total: 8)
 
                     Button {
                         coordinator.proceedToStruggle()

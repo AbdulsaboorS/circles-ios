@@ -10,7 +10,7 @@ struct JoinerQuizStepView: View {
     var body: some View {
         OnboardingQuizFlowView(coordinator: quiz)
             .safeAreaInset(edge: .top) {
-                StepIndicator(current: 2, total: 5)
+                StepIndicator(current: 2, total: 6)
                     .background(Color.msBackground)
             }
             .navigationBarBackButtonHidden()
@@ -42,7 +42,7 @@ struct JoinerQuizStepView: View {
                        !coordinator.selectedPersonalHabits.contains(picked) {
                         coordinator.selectedPersonalHabits.insert(picked, at: 0)
                     }
-                    coordinator.proceedToAIGeneration()
+                    coordinator.proceedToMomentPrimer()
                 }
             }
     }

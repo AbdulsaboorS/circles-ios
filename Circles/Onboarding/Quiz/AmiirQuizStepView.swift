@@ -10,7 +10,7 @@ struct AmiirQuizStepView: View {
     var body: some View {
         OnboardingQuizFlowView(coordinator: quiz)
             .safeAreaInset(edge: .top) {
-                StepIndicator(current: 4, total: 7)
+                StepIndicator(current: 4, total: 8)
                     .background(Color.msBackground)
             }
             .navigationBarBackButtonHidden()
@@ -43,7 +43,7 @@ struct AmiirQuizStepView: View {
                        !coordinator.selectedPersonalHabits.contains(picked) {
                         coordinator.selectedPersonalHabits.insert(picked, at: 0)
                     }
-                    coordinator.proceedToAIGeneration()
+                    coordinator.proceedToMomentPrimer()
                 }
 
                 quiz.onFinishMany = { [weak coordinator] suggestions, _ in
@@ -54,7 +54,7 @@ struct AmiirQuizStepView: View {
                               !coordinator.selectedPersonalHabits.contains(s.name) else { continue }
                         coordinator.selectedPersonalHabits.append(s.name)
                     }
-                    coordinator.proceedToAIGeneration()
+                    coordinator.proceedToMomentPrimer()
                 }
             }
     }

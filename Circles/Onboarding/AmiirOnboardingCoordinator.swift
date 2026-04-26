@@ -12,6 +12,7 @@ final class AmiirOnboardingCoordinator {
         case circleIdentity        // Step 3: Circle identity (name, gender)
         case transitionToAI        // "Some growth is private" gate
         case onboardingQuiz        // Phase 14: Meaningful-Habits quiz
+        case momentPrimer          // Moment-mechanic demo + camera priming
         case aiGeneration          // Step 4: AI generation
         case foundation            // Step 5: Location + push ask
         case activation            // Step 6: Auth gate
@@ -98,6 +99,10 @@ final class AmiirOnboardingCoordinator {
 
     func proceedToOnboardingQuiz() {
         navigationPath.append(.onboardingQuiz)
+    }
+
+    func proceedToMomentPrimer() {
+        navigationPath.append(.momentPrimer)
     }
 
     func proceedToAIGeneration() {

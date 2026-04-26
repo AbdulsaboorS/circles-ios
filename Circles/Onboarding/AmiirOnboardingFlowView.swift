@@ -28,6 +28,10 @@ struct AmiirOnboardingFlowView: View {
                         }
                     case .onboardingQuiz:
                         AmiirQuizStepView()
+                    case .momentPrimer:
+                        OnboardingMomentPrimerView(currentStep: 5, totalSteps: 8) {
+                            coordinator.proceedToAIGeneration()
+                        }
                     case .aiGeneration:
                         AmiirAIGenerationView {
                             coordinator.proceedToFoundation()

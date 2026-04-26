@@ -37,6 +37,11 @@ struct MemberOnboardingFlowView: View {
                             coordinator.proceedToOnboardingQuiz()
                         }
 
+                    case .momentPrimer:
+                        OnboardingMomentPrimerView(currentStep: 3, totalSteps: 6) {
+                            coordinator.proceedToAIGeneration()
+                        }
+
                     case .aiGeneration:
                         JoinerAIGenerationView {
                             coordinator.proceedToIdentity()

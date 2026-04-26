@@ -170,7 +170,7 @@ struct AmiirStep2HabitsView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 2, total: 7)
+                    StepIndicator(current: 2, total: 8)
 
                     Button {
                         coordinator.proceedToIdentity()

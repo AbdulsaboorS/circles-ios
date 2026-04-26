@@ -97,7 +97,7 @@ struct JoinerAuthGateView: View {
                 }
                 .padding(.horizontal, 24)
 
-                StepIndicator(current: 5, total: 5)
+                StepIndicator(current: 6, total: 6)
                     .padding(.top, 16)
                     .padding(.bottom, 40)
             }

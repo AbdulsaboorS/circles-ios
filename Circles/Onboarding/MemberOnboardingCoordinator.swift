@@ -12,6 +12,7 @@ final class MemberOnboardingCoordinator {
         case onboardingQuiz        // Phase 14: Meaningful-Habits quiz
         case personalHabits        // Step 3: Private habits, max 2
         case transitionToAI        // Islamic transition (after personal habits)
+        case momentPrimer          // Moment-mechanic demo + camera priming
         case aiGeneration          // Step 4: Background AI generation
         case identity              // Step 5: Location + push ask
         case authGate              // Step 6: Auth gate
@@ -92,6 +93,10 @@ final class MemberOnboardingCoordinator {
 
     func proceedToTransitionToAI() {
         navigationPath.append(.transitionToAI)
+    }
+
+    func proceedToMomentPrimer() {
+        navigationPath.append(.momentPrimer)
     }
 
     func proceedToAIGeneration() {

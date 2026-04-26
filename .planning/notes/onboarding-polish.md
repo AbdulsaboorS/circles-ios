@@ -19,23 +19,38 @@ The implementation history (which session shipped what, file:line receipts, deci
 - Both flows: transition screens animate in (icon → quote → subtitle → "tap" hint), starfield drifts in background, glow breathes.
 - Both flows: progress bar fills smoothly between steps; amir bar reaches 7/7 at activation, joiner reaches 5/5 at auth gate; quiz screens show 4/7 (amir) and 2/5 (joiner).
 
-## Next session — finish onboarding gaps A + B (paused at context limit 2026-04-25)
+## Onboarding gaps A + B — code-complete, pending QA (2026-04-25 session 2)
 
-**Approved plan:** `~/.claude/plans/i-pick-path-1-delegated-jellyfish.md` (read this first — has insertion points, screen design, exact step-indicator deltas, verification checklist).
+Path 1 locked in for Gap D (pre-auth synchronous plan generation). C and D still deferred. This session shipped A + B.
 
-**Path 1 locked in for Gap D** (pre-auth synchronous plan generation). C and D are deferred to a later session. This session only ships A + B.
+**Shipped:**
+- `Circles/Onboarding/OnboardingMomentPrimerView.swift` (new) — three cascading beats (clock.badge.fill / camera.rotate.fill / eye.slash.fill), keyframe entry mirroring `OnboardingTransitionView.swift:80-111`. Primary CTA "Allow Camera" → `CameraManager.requestVideoAccess()` → `onContinue()`. Secondary "Maybe later" → `onContinue()` directly.
+- Amir wiring — `case momentPrimer` + `proceedToMomentPrimer()` on coordinator; `AmiirQuizStepView`'s `onFinish`/`onFinishMany` route through primer; nav case in `AmiirOnboardingFlowView` at `5/8`.
+- Joiner wiring — `case momentPrimer` + `proceedToMomentPrimer()` on coordinator; `JoinerQuizStepView.onFinish` routes through primer; nav case in `MemberOnboardingFlowView` at `3/6`.
+- Step indicators bumped: amir shared 1/8, coreHabits 2/8, identity 3/8, quiz 4/8, primer 5/8, aiGen 6/8, foundation 7/8, activation 8/8. Joiner circleAlignment 1/6, quiz 2/6, primer 3/6, aiGen 4/6, identity 5/6, authGate 6/6.
 
-**Shipped this session:**
-- `CameraManager.swift` — added `static func requestVideoAccess() async -> Bool`. Onboarding-safe, only prompts when status is `.notDetermined`. Existing `checkPermission()` untouched.
+**Deviation from plan/notes worth recording:**
+The plan/notes both said to switch `JoinerPersonalHabitsView`'s Continue/Skip callbacks. In the actual current joiner flow (after the 2026-04-25 reorder), `personalHabits` is dead code — `proceedToPersonalHabits()` is never called and the quiz routes straight to AI gen via `JoinerQuizStepView.onFinish`. So I switched **that** edge instead. `JoinerPersonalHabitsView.swift:135` stale `current:3, total:7` was left as-is (still out of scope; the view itself is unreachable).
 
-**Remaining (do in this order):**
-1. **Create `Circles/Onboarding/OnboardingMomentPrimerView.swift`** — single shared view, three educational beats (clock.badge.fill / camera.rotate.fill / eye.slash.fill), cascading keyframe entry mirroring `OnboardingTransitionView.swift:80-111`. Init: `currentStep: Int, totalSteps: Int, onContinue: () -> Void`. Primary CTA "Allow Camera" calls `CameraManager.requestVideoAccess()` then `onContinue()` regardless of result. Secondary "Maybe later" calls `onContinue()` directly. Reuse `Color.msGold/.msBackground/.msTextPrimary/.msTextMuted` and `StepIndicator`.
-2. **Amir wiring** — add `case momentPrimer` to `AmiirOnboardingCoordinator.Step` (between `onboardingQuiz` and `aiGeneration`), add `proceedToMomentPrimer()`, switch `AmiirQuizStepView`'s exit callback to call it instead of `proceedToAIGeneration()`. Add the case to `AmiirOnboardingFlowView` nav switch with `currentStep: 5, totalSteps: 8`. Bump step indicators: shared 1/8, coreHabits 2/8, identity 3/8, quiz 4/8, aiGen 6/8, foundation 7/8, activation 8/8.
-3. **Joiner wiring** — add `case momentPrimer` to `MemberOnboardingCoordinator.Step` (between `personalHabits` and `aiGeneration`), add `proceedToMomentPrimer()`, switch `JoinerPersonalHabitsView`'s "Continue" + "Skip" callbacks (lines 138, 167) from `proceedToAIGeneration()` to it. Add nav case to `MemberOnboardingFlowView` with `currentStep: 3, totalSteps: 6`. Bump step indicators: circleAlignment 1/6, joinerQuiz 2/6, aiGen 4/6, identity 5/6, authGate 6/6.
-4. **Pre-existing JoinerPersonalHabitsView.swift:135 bug** — `StepIndicator(current: 3, total: 7)` is a stale leftover (joiner is /5 today, /6 after this work). NOT in scope but worth flagging if QA notices it.
-5. Build + walk verification checklist from the plan file.
+### QA matrix — primer-specific (run cold-installed)
 
-All file paths, line numbers, callback patterns, and the complete reuse list are in the plan file — no need to re-derive.
+**Amir**
+1. Walk to primer → step bar reads `5/8`.
+2. Three beats cascade in (icon → text, staggered ~0.35s).
+3. Tap **Allow Camera** → system dialog appears once → grant → advances to AI gen (`6/8`).
+4. Cold reinstall → primer → **Maybe later** → no system dialog → advances. Open Moment camera later → existing in-app cold prompt fires (fallback intact).
+5. Cold reinstall → primer → **Allow Camera** → **Don't Allow** → advances. Open Moment camera later → existing `permissionDeniedView` Settings deep link renders.
+6. Full walk: 1/8 → 2/8 → 3/8 → 4/8 → 5/8 → 6/8 → 7/8 → 8/8. No stale `/7`.
+
+**Joiner**
+7. Walk to primer (after quiz) → step bar reads `3/6`.
+8. Same three CTA paths (Allow→grant, Maybe later, Allow→deny).
+9. Full walk: 1/6 → 2/6 → 3/6 → 4/6 → 5/6 → 6/6.
+10. Building-hadith `transitionToCircle` still fires before circle alignment, untouched.
+
+**Cross-cut**
+11. Tap Allow Camera rapidly → button disables during `isRequesting`, no double-prompt.
+12. `axiom:console` during primer → no AVFoundation warnings.
 
 ---
 
