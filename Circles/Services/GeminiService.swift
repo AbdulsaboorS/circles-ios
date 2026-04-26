@@ -232,9 +232,14 @@ final class GeminiService {
         - Never recommend anything that contradicts Islamic teachings.
         """
 
+        // Cap output tokens so the model can't run long. ~50 tok/habit × 6 + envelope ≈ 320,
+        // 400 leaves headroom and meaningfully shortens p95 latency vs. uncapped generation.
         let body: [String: Any] = [
             "contents": [
                 ["parts": [["text": prompt]]]
+            ],
+            "generationConfig": [
+                "maxOutputTokens": 400
             ]
         ]
 

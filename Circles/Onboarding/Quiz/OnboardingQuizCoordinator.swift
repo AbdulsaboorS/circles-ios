@@ -37,6 +37,12 @@ final class OnboardingQuizCoordinator {
     var suggestions: [HabitSuggestion] = []
     var isLoadingSuggestions: Bool = false
 
+    /// Struggle-slug fingerprint of the last *successful* Gemini load. Used to short-circuit
+    /// `loadSuggestions()` when the user navigates back-then-forward without changing anything.
+    /// Only set on Gemini success — fallback results are not cached, so a transient network
+    /// blip never locks the user into the static list for the rest of the session.
+    private var cachedSuggestionsKey: String? = nil
+
     var errorMessage: String? = nil
     var allowsMultiSelect: Bool = false
 
@@ -92,9 +98,10 @@ final class OnboardingQuizCoordinator {
     }
 
     /// Populates `suggestions` from Gemini, racing the call against a bounded
-    /// timeout so the UI does not hang indefinitely. The previous 3 s cap was
-    /// too aggressive and routinely forced the static fallback list even when
-    /// Gemini was healthy, so we give the model a more realistic response window.
+    /// timeout so the UI does not hang indefinitely. Budget tuned over time:
+    /// 3 s was too aggressive (always fell back), 8 s lost to cold-network second
+    /// attempts. 15 s is the current ceiling — paired with a `maxOutputTokens`
+    /// cap on the Gemini request to bound generation time on the server side.
     /// Enforces a 1.2 s minimum so the pulse cycle completes one beat.
     func loadSuggestions() async {
         isLoadingSuggestions = true
@@ -106,20 +113,46 @@ final class OnboardingQuizCoordinator {
 
         let islamic = islamicSlugs
         let life    = lifeSlugs
+        let key     = Self.suggestionsKey(islamic: islamic, life: life)
+
+        // Cache hit: same struggle set as the last *successful* Gemini call, and we still hold
+        // those suggestions. Reuse them instead of re-hitting the API — keeps "back to verify
+        // → forward" stable and avoids re-running the 8 s race on a slow second connection.
+        if key == cachedSuggestionsKey, !suggestions.isEmpty {
+            print("[Gemini suggestions] cache hit — reusing \(suggestions.count) item(s)")
+            await Self.holdMinimumPulse(since: start)
+            return
+        }
 
         let raced: [HabitSuggestion]? = await withTaskGroup(of: [HabitSuggestion]?.self) { group in
             group.addTask {
+                let t0 = Date()
                 do {
-                    return try await GeminiService.shared.generateHabitSuggestions(
+                    let result = try await GeminiService.shared.generateHabitSuggestions(
                         islamicStruggles: islamic,
                         lifeStruggles: life
                     )
+                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                    print("[Gemini suggestions] ok — \(result.count) item(s) in \(ms)ms")
+                    return result
+                } catch is CancellationError {
+                    return nil
                 } catch {
+                    // URLSession surfaces task cancellation as NSURLErrorCancelled — suppress
+                    // so we don't mistake "sibling timeout won the race" for a real failure.
+                    if (error as NSError).code == NSURLErrorCancelled { return nil }
+                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                    print("[Gemini suggestions] error after \(ms)ms — \(error.localizedDescription)")
                     return nil
                 }
             }
             group.addTask {
-                try? await Task.sleep(for: .seconds(8.0))
+                // Sleep returns normally if uncancelled (= timeout actually fired).
+                // Sleep throws CancellationError if Gemini won — silent in that case.
+                do {
+                    try await Task.sleep(for: .seconds(15.0))
+                    print("[Gemini suggestions] race timeout fired (15s) — Gemini still in flight")
+                } catch {}
                 return nil // timeout sentinel
             }
 
@@ -128,8 +161,27 @@ final class OnboardingQuizCoordinator {
             return first
         }
 
-        suggestions = raced ?? HabitSuggestion.fallbackSuggestions
+        if let live = raced {
+            suggestions = live
+            cachedSuggestionsKey = key
+        } else {
+            print("[Gemini suggestions] using fallback (timeout or error — see prior log)")
+            suggestions = HabitSuggestion.fallbackSuggestions
+            // Intentionally do NOT update cachedSuggestionsKey — next re-entry should retry Gemini.
+        }
 
+        await Self.holdMinimumPulse(since: start)
+    }
+
+    /// Stable fingerprint of a struggle selection for cache lookup.
+    /// `islamicSlugs` / `lifeSlugs` are already sorted, so this is order-independent by construction.
+    private static func suggestionsKey(islamic: [String], life: [String]) -> String {
+        "\(islamic.joined(separator: "|"))::\(life.joined(separator: "|"))"
+    }
+
+    /// Ensures the processing-screen pulse completes at least one beat before we transition.
+    /// Pulled out so the cache-hit and live-fetch paths share the timing rule.
+    private static func holdMinimumPulse(since start: Date) async {
         let elapsed = Date().timeIntervalSince(start)
         let minSeconds: TimeInterval = 1.2
         if elapsed < minSeconds {

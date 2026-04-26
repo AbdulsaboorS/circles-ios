@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-26T22:00:00.000Z"
+last_updated: "2026-04-26T23:30:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -58,9 +58,9 @@ User-flagged 8 issues during end-to-end onboarding test. Fixes shipped to `main`
 - #6 `QuizProcessingView` copy: "Building your intentions…" → "Personalizing habits from your struggles…"
 
 Carry-forward (next session):
-- **#5 Back/forth onboarding nav smoke test.** State lives on coordinator and pops via `navigationPath.removeLast()`, so should work — needs hands-on verification across the primer/AI-gen/quiz boundaries.
-- **#7 Personal-intentions habits always show the same 5 (Gemini failing).** `OnboardingQuizCoordinator.loadSuggestions()` falls back to `HabitSuggestion.fallbackSuggestions` (the 5 hardcoded names) on any throw/8 s timeout. Suspect API key, `gemini-3-flash-preview` model id, quota, or parsing. Add logging in `GeminiService.swift:204` and reproduce in sim.
-- **#8 Shared-intentions habits — only 3, same 3, not personalized.** `AmiirStep2HabitsView.swift`: `.prefix(3)` caps the list, and `habitScore` is keyword scoring against the 3 shared-personalization questions only — quiz struggles unused, curated pool is 10 names. User decision pending: route through Gemini, or keep curated + rank smarter?
+- **#5 closed (2026-04-26 session 2).** Step-by-step back-nav confirmed sufficient for MVP. Full back-to-start deferred — kill+relaunch is a clean reset and avoids state-restoration cost.
+- **#7 partially shipped (2026-04-26 session 2).** Diagnostic logs surfaced root cause: 8 s race losing to cold-network second attempts (not a Gemini error). Shipped: (a) per-fingerprint cache so back-then-forward without changes reuses last successful result instead of re-firing the API, (b) Tier A reliability — timeout 8→15s + `maxOutputTokens: 400` cap on the Gemini request + elapsed-time logging on success/error/timeout. **Tier B (streaming via `streamGenerateContent`)** still open for next session, naturally bundled with #8 since both touch `GeminiService` + suggestions UI.
+- **#8 still open.** Decision aligned: keep curated pool of 10 fixed; expand visible tiles beyond `.prefix(3)`; wire Gemini for *rationales only* (Option B) so each tile has a personalized "why this fits" line matching the personal-intentions screen's pattern.
 
 ## Deferred QA / Rollout
 
