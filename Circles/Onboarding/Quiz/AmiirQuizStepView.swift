@@ -43,7 +43,7 @@ struct AmiirQuizStepView: View {
                        !coordinator.selectedPersonalHabits.contains(picked) {
                         coordinator.selectedPersonalHabits.insert(picked, at: 0)
                     }
-                    coordinator.proceedToMomentPrimer()
+                    coordinator.proceedToAIGeneration()
                 }
 
                 quiz.onFinishMany = { [weak coordinator] suggestions, _ in
@@ -54,7 +54,7 @@ struct AmiirQuizStepView: View {
                               !coordinator.selectedPersonalHabits.contains(s.name) else { continue }
                         coordinator.selectedPersonalHabits.append(s.name)
                     }
-                    coordinator.proceedToMomentPrimer()
+                    coordinator.proceedToAIGeneration()
                 }
             }
     }

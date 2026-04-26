@@ -27,7 +27,8 @@ Do not use it for session history, long QA plans, or feature specs.
 - none currently tracked as active in this handoff
 
 ### Open Planning Thread
-- Onboarding gaps A (camera priming) + B (Moment demo) shipped 2026-04-25 session 2 — single shared `OnboardingMomentPrimerView` wired into Amir (5/8) and Joiner (3/6). Step indicators bumped to /8 and /6. **Awaiting cold-install QA** — full test matrix in `.planning/notes/onboarding-polish.md`. Gaps C (mirror copy) and D (Path 1 plan reveal) still deferred.
+- **Onboarding Moment primer revamped 2026-04-26.** Primer position flipped: was `quiz → primer → AI gen`, now `quiz → AI gen → primer` so the "your Moment is the cue back to your habits" value prop lands after the plan reveal. Amir primer is now step 6/8, Joiner 4/6. AI-gen indicators shifted to Amir 5/8 and Joiner 3/6. `OnboardingMomentPrimerView` rebuilt: animated phone-frame demo at top (`MomentDemoView` — TimelineView 6s loop: viewfinder w/ countdown pill + dual capture + Maghrib gradient → flash → niyyah typewrites *"Reading Qur'an after Maghrib, for the creator."* → "Posted ✓" → fade) and reframed copy ("Once a day. One chance." / "Your daily cue back." / "Only your circle sees it."). Stale "near a prayer time" line scrubbed. Demo is SwiftUI-only MVP, designed as a single swappable component for a real recorded video before launch. **Awaiting hands-on QA next session.**
+- Earlier (2026-04-25 session 2) onboarding gaps A + B baseline still in place; gaps C (mirror copy) and D (Path 1 plan reveal) still deferred.
 
 ### Product Priority Order
 1. Test onboarding bugs and fix them

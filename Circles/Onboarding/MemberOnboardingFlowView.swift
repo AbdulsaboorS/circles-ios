@@ -38,13 +38,13 @@ struct MemberOnboardingFlowView: View {
                         }
 
                     case .momentPrimer:
-                        OnboardingMomentPrimerView(currentStep: 3, totalSteps: 6) {
-                            coordinator.proceedToAIGeneration()
+                        OnboardingMomentPrimerView(currentStep: 4, totalSteps: 6) {
+                            coordinator.proceedToIdentity()
                         }
 
                     case .aiGeneration:
                         JoinerAIGenerationView {
-                            coordinator.proceedToIdentity()
+                            coordinator.proceedToMomentPrimer()
                         }
 
                     case .identity:

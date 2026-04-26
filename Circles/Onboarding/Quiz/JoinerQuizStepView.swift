@@ -42,7 +42,7 @@ struct JoinerQuizStepView: View {
                        !coordinator.selectedPersonalHabits.contains(picked) {
                         coordinator.selectedPersonalHabits.insert(picked, at: 0)
                     }
-                    coordinator.proceedToMomentPrimer()
+                    coordinator.proceedToAIGeneration()
                 }
             }
     }
