@@ -19,18 +19,23 @@ The implementation history (which session shipped what, file:line receipts, deci
 - Both flows: transition screens animate in (icon → quote → subtitle → "tap" hint), starfield drifts in background, glow breathes.
 - Both flows: progress bar fills smoothly between steps; amir bar reaches 7/7 at activation, joiner reaches 5/5 at auth gate; quiz screens show 4/7 (amir) and 2/5 (joiner).
 
-## Next session — premium animation pass
+## Next session — finish onboarding gaps A + B (paused at context limit 2026-04-25)
 
-User wants to use the `axiom-swiftui-animation-ref` skill to upgrade the transition entry from plain fades to **KeyframeAnimator** with multi-track keyframes. Concrete plan when resuming:
+**Approved plan:** `~/.claude/plans/i-pick-path-1-delegated-jellyfish.md` (read this first — has insertion points, screen design, exact step-indicator deltas, verification checklist).
 
-- Icon: scale settle 0.85 → 1.05 (overshoot) → 1.0 + opacity 0 → 1
-- Quote: slide-up 8pt + opacity (different timing curve from icon)
-- Subtitle: slide-up 4pt + opacity, slight lag
-- Glow: one-time entry pulse (1.0 → 1.3 → 1.0) before settling into the existing slow breathing loop
+**Path 1 locked in for Gap D** (pre-auth synchronous plan generation). C and D are deferred to a later session. This session only ships A + B.
 
-Restraint is the rule — small offsets (≤8pt), generous durations (≥0.5s). Apply inside `OnboardingTransitionView` so both flows benefit from one change.
+**Shipped this session:**
+- `CameraManager.swift` — added `static func requestVideoAccess() async -> Bool`. Onboarding-safe, only prompts when status is `.notDetermined`. Existing `checkPermission()` untouched.
 
-> **Note for next session:** user will briefly QA today's changes first, then move to the keyframe upgrade.
+**Remaining (do in this order):**
+1. **Create `Circles/Onboarding/OnboardingMomentPrimerView.swift`** — single shared view, three educational beats (clock.badge.fill / camera.rotate.fill / eye.slash.fill), cascading keyframe entry mirroring `OnboardingTransitionView.swift:80-111`. Init: `currentStep: Int, totalSteps: Int, onContinue: () -> Void`. Primary CTA "Allow Camera" calls `CameraManager.requestVideoAccess()` then `onContinue()` regardless of result. Secondary "Maybe later" calls `onContinue()` directly. Reuse `Color.msGold/.msBackground/.msTextPrimary/.msTextMuted` and `StepIndicator`.
+2. **Amir wiring** — add `case momentPrimer` to `AmiirOnboardingCoordinator.Step` (between `onboardingQuiz` and `aiGeneration`), add `proceedToMomentPrimer()`, switch `AmiirQuizStepView`'s exit callback to call it instead of `proceedToAIGeneration()`. Add the case to `AmiirOnboardingFlowView` nav switch with `currentStep: 5, totalSteps: 8`. Bump step indicators: shared 1/8, coreHabits 2/8, identity 3/8, quiz 4/8, aiGen 6/8, foundation 7/8, activation 8/8.
+3. **Joiner wiring** — add `case momentPrimer` to `MemberOnboardingCoordinator.Step` (between `personalHabits` and `aiGeneration`), add `proceedToMomentPrimer()`, switch `JoinerPersonalHabitsView`'s "Continue" + "Skip" callbacks (lines 138, 167) from `proceedToAIGeneration()` to it. Add nav case to `MemberOnboardingFlowView` with `currentStep: 3, totalSteps: 6`. Bump step indicators: circleAlignment 1/6, joinerQuiz 2/6, aiGen 4/6, identity 5/6, authGate 6/6.
+4. **Pre-existing JoinerPersonalHabitsView.swift:135 bug** — `StepIndicator(current: 3, total: 7)` is a stale leftover (joiner is /5 today, /6 after this work). NOT in scope but worth flagging if QA notices it.
+5. Build + walk verification checklist from the plan file.
+
+All file paths, line numbers, callback patterns, and the complete reuse list are in the plan file — no need to re-derive.
 
 ---
 

@@ -84,6 +84,20 @@ final class CameraManager: NSObject {
         }
     }
 
+    /// Onboarding-safe camera prompt. Shows the system dialog only when status
+    /// is `.notDetermined`; once decided, returns the standing answer without
+    /// re-prompting. Safe to call before any session exists.
+    static func requestVideoAccess() async -> Bool {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            return true
+        case .notDetermined:
+            return await AVCaptureDevice.requestAccess(for: .video)
+        default:
+            return false
+        }
+    }
+
     // MARK: - Session Setup
 
     func setupSession() {
