@@ -7,6 +7,9 @@ struct AmiirAIGenerationView: View {
 
     @State private var hasStarted = false
     @State private var pulse = false
+    @State private var phase: Phase = .generating
+
+    private enum Phase { case generating, ready }
 
     var body: some View {
         ZStack {
@@ -24,27 +27,41 @@ struct AmiirAIGenerationView: View {
                             .opacity(pulse ? 0.95 : 0.55)
                             .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulse)
 
-                        ProgressView()
-                            .tint(Color.msGold)
-                            .scaleEffect(1.6)
+                        if phase == .generating {
+                            ProgressView()
+                                .tint(Color.msGold)
+                                .scaleEffect(1.6)
+                                .transition(.opacity)
 
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(Color.msGold.opacity(0.85))
-                            .offset(y: -34)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundStyle(Color.msGold.opacity(0.85))
+                                .offset(y: -34)
+                                .transition(.opacity)
+                        } else {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 56, weight: .regular))
+                                .foregroundStyle(Color.msGold)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                     }
 
                     VStack(spacing: 12) {
-                        Text("Generating your 28-day roadmaps\nbased on the Sunnah...")
+                        Text(phase == .generating
+                             ? "Generating your 28-day roadmaps\nbased on the Sunnah..."
+                             : "Your plan is ready.")
                             .font(.system(size: 21, weight: .medium, design: .serif))
                             .foregroundStyle(Color.msTextPrimary)
                             .multilineTextAlignment(.center)
 
-                        Text("You'll see them on your dashboard when ready.")
+                        Text(phase == .generating
+                             ? "You'll see them on your dashboard when ready."
+                             : "It'll be waiting for you on your dashboard.")
                             .font(.system(size: 14))
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
                     }
+                    .animation(.easeInOut(duration: 0.35), value: phase)
                 }
 
                 Spacer()
@@ -59,7 +76,12 @@ struct AmiirAIGenerationView: View {
             guard !hasStarted else { return }
             hasStarted = true
             Task { await coordinator.fireBackgroundPlans() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    phase = .ready
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
                 onComplete()
             }
         }

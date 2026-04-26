@@ -7,6 +7,9 @@ struct JoinerAIGenerationView: View {
 
     @State private var hasStarted = false
     @State private var pulse = false
+    @State private var phase: Phase = .generating
+
+    private enum Phase { case generating, ready }
 
     var body: some View {
         ZStack {
@@ -24,22 +27,35 @@ struct JoinerAIGenerationView: View {
                             .opacity(pulse ? 0.95 : 0.55)
                             .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulse)
 
-                        ProgressView()
-                            .tint(Color.msGold)
-                            .scaleEffect(1.6)
+                        if phase == .generating {
+                            ProgressView()
+                                .tint(Color.msGold)
+                                .scaleEffect(1.6)
+                                .transition(.opacity)
+                        } else {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 56, weight: .regular))
+                                .foregroundStyle(Color.msGold)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                     }
 
                     VStack(spacing: 10) {
-                        Text("Generating your 28-day roadmaps\nbased on the Sunnah...")
+                        Text(phase == .generating
+                             ? "Generating your 28-day roadmaps\nbased on the Sunnah..."
+                             : "Your plan is ready.")
                             .font(.system(size: 18, weight: .medium, design: .serif))
                             .foregroundStyle(Color.msTextPrimary)
                             .multilineTextAlignment(.center)
 
-                        Text("You'll see them on your dashboard when ready.")
+                        Text(phase == .generating
+                             ? "You'll see them on your dashboard when ready."
+                             : "It'll be waiting for you on your dashboard.")
                             .font(.system(size: 14))
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
                     }
+                    .animation(.easeInOut(duration: 0.35), value: phase)
                 }
 
                 Spacer()
@@ -58,7 +74,12 @@ struct JoinerAIGenerationView: View {
             }
             hasStarted = true
             Task { await coordinator.fireBackgroundPlans() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    phase = .ready
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
                 onComplete()
             }
         }

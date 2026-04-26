@@ -34,9 +34,10 @@ struct QuizProcessingView: View {
                 }
 
                 VStack(spacing: 10) {
-                    Text("Building your intentions…")
+                    Text("Personalizing habits from your struggles…")
                         .font(.system(size: 22, weight: .regular, design: .serif))
                         .foregroundStyle(Color.msTextPrimary)
+                        .multilineTextAlignment(.center)
 
                     Text("Just a moment.")
                         .font(.appCaption)

@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-24T22:00:00.000Z"
+last_updated: "2026-04-26T22:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -47,6 +47,20 @@ progress:
 - Phase 15.4 local habit reminders are code-complete and build-verified
 - `circle_check_in_notifications.sql` already ran successfully in Supabase
 - `send-circle-check-in` still needs deployment later
+
+## Onboarding QA — 2026-04-26
+
+User-flagged 8 issues during end-to-end onboarding test. Fixes shipped to `main`, build green on iPhone 17 Pro sim, awaiting hands-on QA:
+- #1 Prayer Sync screen reframed away from Moment-anchoring → "prayer times + Adhan notifications" (kept for TestFlight MVP).
+- #2 AI-gen → Moment primer transition softened: 2-phase reveal in `AmiirAIGenerationView` + `JoinerAIGenerationView` (~1.6 s spinner → checkmark.seal + "Your plan is ready. It'll be waiting on your dashboard." → primer).
+- #3 Daily Moment primer: "Your Daily Moment" capitalized, em dashes scrubbed from beats 1 + 2, **new beat 3** clarifying niyyah-vs-photo dichotomy (photo for circle, niyyah for the Creator). Beat 4 keyframes added.
+- #4 Prayer Sync double back button — `AmiirStep3LocationView` was missing `.navigationBarBackButtonHidden()`.
+- #6 `QuizProcessingView` copy: "Building your intentions…" → "Personalizing habits from your struggles…"
+
+Carry-forward (next session):
+- **#5 Back/forth onboarding nav smoke test.** State lives on coordinator and pops via `navigationPath.removeLast()`, so should work — needs hands-on verification across the primer/AI-gen/quiz boundaries.
+- **#7 Personal-intentions habits always show the same 5 (Gemini failing).** `OnboardingQuizCoordinator.loadSuggestions()` falls back to `HabitSuggestion.fallbackSuggestions` (the 5 hardcoded names) on any throw/8 s timeout. Suspect API key, `gemini-3-flash-preview` model id, quota, or parsing. Add logging in `GeminiService.swift:204` and reproduce in sim.
+- **#8 Shared-intentions habits — only 3, same 3, not personalized.** `AmiirStep2HabitsView.swift`: `.prefix(3)` caps the list, and `habitScore` is keyword scoring against the 3 shared-personalization questions only — quiz struggles unused, curated pool is 10 names. User decision pending: route through Gemini, or keep curated + rank smarter?
 
 ## Deferred QA / Rollout
 

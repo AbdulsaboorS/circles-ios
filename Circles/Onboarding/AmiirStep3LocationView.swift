@@ -34,7 +34,7 @@ struct AmiirStep3LocationView: View {
                         .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
 
-                    Text("Your location helps us anchor your Circle Moment to the right prayer.")
+                    Text("Your location lets us show accurate prayer times and send the Adhan when each prayer enters.")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
@@ -51,10 +51,10 @@ struct AmiirStep3LocationView: View {
                                 .font(.system(size: 18))
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Enable the Adhan for your circle")
+                                Text("Enable the Adhan")
                                     .font(.appCaptionMedium)
                                     .foregroundStyle(Color.msGold)
-                                Text("Get notified when your prayer window opens for Circle Moment.")
+                                Text("Get a gentle notification when each prayer enters.")
                                     .font(.appCaption)
                                     .foregroundStyle(Color.msTextMuted)
                             }
@@ -81,7 +81,7 @@ struct AmiirStep3LocationView: View {
                     .padding(.bottom, 8)
                 } else if pushDenied {
                     VStack(spacing: 6) {
-                        Text("Without the Adhan notification, your Circle Moment window won't alert you. Enable anytime in Settings.")
+                        Text("Without notifications, you won't hear the Adhan. You can enable it anytime in Settings.")
                             .font(.appCaption)
                             .foregroundStyle(Color.msTextMuted)
                             .multilineTextAlignment(.center)
@@ -155,6 +155,7 @@ struct AmiirStep3LocationView: View {
                     .padding(.bottom, 16)
             }
         }
+        .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
