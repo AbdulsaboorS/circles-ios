@@ -511,21 +511,23 @@ struct AddPrivateIntentionSheet: View {
 
     private func configureInterceptQuiz(userId: UUID) {
         quizCoordinator.allowsMultiSelect = true
+        quizCoordinator.selectionCap = HabitCatalog.personalCap
+        quizCoordinator.rankingSeed = userId.uuidString
         quizCoordinator.onPersistStruggles = { islamic, life in
             await saveStrugglesToProfile(userId: userId, islamic: islamic, life: life)
         }
-        quizCoordinator.onFinish = { suggestion, custom in
-            let picked = suggestion?.name ?? custom
-            if let picked, !picked.isEmpty {
-                coord.showCustomField = true
-                coord.customName = picked
-                coord.selectedName = ""
-                coord.step = .niyyah
-            } else {
+        quizCoordinator.onFinish = { habitName in
+            guard !habitName.isEmpty else {
                 coord.step = .pickHabit
+                return
             }
+            coord.showCustomField = true
+            coord.customName = habitName
+            coord.selectedName = ""
+            coord.step = .niyyah
         }
-        quizCoordinator.onFinishMany = { suggestions, _ in
+        quizCoordinator.onFinishMany = { habitNames in
+            let suggestions = habitNames.map { HabitSuggestion(name: $0, rationale: "") }
             beginPerHabitQueue(suggestions: suggestions)
         }
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Root view for the Amir onboarding flow.
-/// Manages the NavigationStack and routes all 7 steps + 2 transition screens.
+/// Manages the NavigationStack and routes the stepped onboarding sequence.
 struct AmiirOnboardingFlowView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
 
@@ -11,8 +11,12 @@ struct AmiirOnboardingFlowView: View {
             AmiirLandingSanctuaryView()
                 .navigationDestination(for: AmiirOnboardingCoordinator.Step.self) { step in
                     switch step {
-                    case .sharedPersonalization:
-                        AmiirSharedPersonalizationView()
+                    case .spiritualityLevel:
+                        AmiirSpiritualityStepView()
+                    case .timeCommitment:
+                        AmiirTimeCommitmentStepView()
+                    case .heartOfCircle:
+                        AmiirHeartOfCircleStepView()
                     case .coreHabits:
                         AmiirStep2HabitsView()
                     case .circleIdentity:
@@ -29,7 +33,7 @@ struct AmiirOnboardingFlowView: View {
                     case .onboardingQuiz:
                         AmiirQuizStepView()
                     case .momentPrimer:
-                        OnboardingMomentPrimerView(currentStep: 6, totalSteps: 8) {
+                        OnboardingMomentPrimerView(currentStep: 8, totalSteps: 10) {
                             coordinator.proceedToFoundation()
                         }
                     case .aiGeneration:

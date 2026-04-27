@@ -25,23 +25,42 @@ struct JoinerQuizStepView: View {
                 }
             }
             .onAppear {
-                quiz.selectedIslamic = Set(coordinator.strugglesIslamic.compactMap(IslamicStruggle.init))
-                quiz.selectedLife    = Set(coordinator.strugglesLife.compactMap(LifeStruggle.init))
+                let islamicEnums = coordinator.strugglesIslamic.filter { !$0.hasPrefix("custom:") }
+                let lifeEnums = coordinator.strugglesLife.filter { !$0.hasPrefix("custom:") }
+                quiz.selectedIslamic = Set(islamicEnums.compactMap(IslamicStruggle.init))
+                quiz.selectedLife    = Set(lifeEnums.compactMap(LifeStruggle.init))
+                quiz.customIslamic = coordinator.strugglesIslamic
+                    .first(where: { $0.hasPrefix("custom:") })
+                    .map { String($0.dropFirst("custom:".count)) } ?? ""
+                quiz.customLife = coordinator.strugglesLife
+                    .first(where: { $0.hasPrefix("custom:") })
+                    .map { String($0.dropFirst("custom:".count)) } ?? ""
+                quiz.allowsMultiSelect = true
+                quiz.selectionCap = HabitCatalog.personalCap
+                // Personal recs must not overlap the circle's shared habits (issue #3).
+                quiz.excludedHabitNames = Set(coordinator.circle?.coreHabitsSafe ?? [])
+                quiz.rankingSeed = [
+                    coordinator.inviteCodeInput,
+                    coordinator.preferredName
+                ].joined(separator: "::")
+                quiz.initialSelectedHabitNames = coordinator.selectedPersonalHabits
 
                 quiz.onPersistStruggles = { [weak coordinator] islamic, life in
                     coordinator?.strugglesIslamic = islamic
                     coordinator?.strugglesLife    = life
                 }
 
-                quiz.onFinish = { [weak coordinator] suggestion, custom in
+                quiz.onFinish = { [weak coordinator] habitName in
                     guard let coordinator else { return }
-                    let picked = suggestion?.name ?? custom
-                    coordinator.quizSelectedHabitName = picked
-                    if let picked,
-                       !picked.isEmpty,
-                       !coordinator.selectedPersonalHabits.contains(picked) {
-                        coordinator.selectedPersonalHabits.insert(picked, at: 0)
-                    }
+                    coordinator.quizSelectedHabitName = habitName
+                    coordinator.selectedPersonalHabits = [habitName]
+                    coordinator.proceedToAIGeneration()
+                }
+
+                quiz.onFinishMany = { [weak coordinator] habitNames in
+                    guard let coordinator else { return }
+                    coordinator.quizSelectedHabitName = habitNames.first
+                    coordinator.selectedPersonalHabits = Array(habitNames.prefix(HabitCatalog.personalCap))
                     coordinator.proceedToAIGeneration()
                 }
             }

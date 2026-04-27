@@ -3,21 +3,26 @@ import SwiftUI
 struct AmiirStep2HabitsView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
 
-    @State private var showCustomField = false
-    @State private var customInput = ""
+    /// Locally tracked custom habits (typed by the user). Held here rather than
+    /// the coordinator because customs are *added unselected* — the coordinator's
+    /// `selectedHabits` only contains habits the user has actively chosen. Seeded
+    /// on appear from any custom habits already in `selectedHabits` so back-nav
+    /// re-entry shows them.
+    @State private var addedCustoms: [String] = []
+    @State private var didSeed = false
 
-    private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private static let customIcon = "pencil"
 
-    private var rankedHabits: [(name: String, icon: String)] {
-        coordinator.rankedTopHabits()
+    private var recommendations: HabitCatalog.Recommendations {
+        coordinator.sharedHabitRecommendations()
     }
 
-    /// Renders Gemini's personalized rationale if available, else the baked-in default.
-    /// Default ensures tiles never appear empty even on cold start or Gemini timeout.
-    private func rationale(for habitName: String) -> String {
-        coordinator.habitRationales[habitName]
-            ?? AmiirOnboardingCoordinator.defaultRationales[habitName]
-            ?? ""
+    private var spiritualityLevel: CatalogSpirituality? {
+        CatalogSpirituality.fromAnswer(coordinator.spiritualityLevel)
+    }
+
+    private var catalogNames: Set<String> {
+        Set(HabitCatalog.all.map(\.name))
     }
 
     var body: some View {
@@ -26,7 +31,7 @@ struct AmiirStep2HabitsView: View {
 
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: 28) {
+                    VStack(spacing: 24) {
                         Spacer(minLength: 24)
 
                         VStack(spacing: 12) {
@@ -39,102 +44,30 @@ struct AmiirStep2HabitsView: View {
                                 .foregroundStyle(Color.msTextPrimary)
                                 .multilineTextAlignment(.center)
 
-                            Text("Recommended for your circle. Pick the ones that fit.")
+                            Text("Recommended for your circle. Pick up to \(HabitCatalog.sharedCap).")
                                 .font(.appSubheadline)
                                 .foregroundStyle(Color.msTextMuted)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.horizontal, 24)
 
-                        // Habit grid
-                        LazyVGrid(
-                            columns: [GridItem(.flexible()), GridItem(.flexible())],
-                            spacing: 12
-                        ) {
-                            ForEach(rankedHabits, id: \.name) { habit in
-                                let isSelected = coordinator.selectedHabits.contains(habit.name)
-                                let isDisabled = !isSelected && !coordinator.canSelectMoreHabits
+                        recommendationSection(
+                            title: "Shaped by your answers",
+                            habits: recommendations.top
+                        )
+                        .padding(.horizontal, 20)
 
-                                Button {
-                                    if isSelected {
-                                        coordinator.selectedHabits.remove(habit.name)
-                                    } else if coordinator.canSelectMoreHabits {
-                                        coordinator.selectedHabits.insert(habit.name)
-                                    }
-                                } label: {
-                                    HabitTile(
-                                        name: habit.name,
-                                        icon: habit.icon,
-                                        rationale: rationale(for: habit.name),
-                                        isSelected: isSelected,
-                                        isDisabled: isDisabled
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(isDisabled)
-                            }
+                        recommendationSection(
+                            title: "Good starters",
+                            habits: recommendations.starters
+                        )
+                        .padding(.horizontal, 20)
 
-                            // Custom habit tile
-                            let customIsSelected = showCustomField && !customTrimmed.isEmpty && coordinator.selectedHabits.contains(customTrimmed)
-                            let customDisabled = !customIsSelected && !coordinator.canSelectMoreHabits
-                            Button {
-                                showCustomField = true
-                            } label: {
-                                HabitTile(
-                                    name: showCustomField && !customTrimmed.isEmpty ? customTrimmed : "Custom",
-                                    icon: showCustomField && !customTrimmed.isEmpty
-                                        ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed)
-                                        : "plus.circle.fill",
-                                    rationale: "",
-                                    isSelected: customIsSelected,
-                                    isDisabled: customDisabled
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(customDisabled && !showCustomField)
-                        }
-                        .padding(.horizontal, 24)
+                        customSection
+                            .padding(.horizontal, 20)
 
-                        // Custom input field
-                        if showCustomField {
-                            VStack(alignment: .leading, spacing: 8) {
-                                TextField("e.g. Morning walk, Journaling…", text: $customInput)
-                                    .foregroundStyle(Color.msTextPrimary)
-                                    .padding(14)
-                                    .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
-                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.msGold.opacity(0.4), lineWidth: 1))
-                                    .tint(Color.msGold)
-                                    .onChange(of: customInput) { _, newVal in
-                                        // Remove old custom entry when user edits the name
-                                        let all = coordinator.selectedHabits
-                                        let curated = Set(AmiirOnboardingCoordinator.curatedHabits.map(\.name))
-                                        let previous = all.subtracting(curated)
-                                        for old in previous { coordinator.selectedHabits.remove(old) }
-                                    }
-
-                                if !customTrimmed.isEmpty && coordinator.canSelectMoreHabits || coordinator.selectedHabits.contains(customTrimmed) {
-                                    Button {
-                                        if coordinator.selectedHabits.contains(customTrimmed) {
-                                            coordinator.selectedHabits.remove(customTrimmed)
-                                        } else if coordinator.canSelectMoreHabits {
-                                            coordinator.selectedHabits.insert(customTrimmed)
-                                        }
-                                    } label: {
-                                        Text(coordinator.selectedHabits.contains(customTrimmed) ? "Remove" : "Add \"\(customTrimmed)\"")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(Color.msBackground)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 9)
-                                            .background(Color.msGold, in: Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                        }
-
-                        if coordinator.selectedHabits.count == 3 {
-                            Text("Maximum 3 habits selected.")
+                        if coordinator.selectedHabits.count == HabitCatalog.sharedCap {
+                            Text("Maximum \(HabitCatalog.sharedCap) habits selected.")
                                 .font(.appCaption)
                                 .foregroundStyle(Color.msGold)
                         }
@@ -144,7 +77,7 @@ struct AmiirStep2HabitsView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 2, total: 8)
+                    StepIndicator(current: 4, total: 10)
 
                     Button {
                         coordinator.proceedToIdentity()
@@ -165,9 +98,6 @@ struct AmiirStep2HabitsView: View {
                 .background(Color.msBackground)
             }
         }
-        .task {
-            await coordinator.loadHabitRationalesIfNeeded()
-        }
         .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -179,59 +109,119 @@ struct AmiirStep2HabitsView: View {
                 }
             }
         }
+        .onAppear { seedIfNeeded() }
     }
-}
 
-private struct HabitTile: View {
-    let name: String
-    let icon: String
-    let rationale: String
-    let isSelected: Bool
-    let isDisabled: Bool
+    // MARK: - Sections
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.12))
-                    .frame(width: 34, height: 34)
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .font(.appSubheadline)
-                    .foregroundStyle(isSelected ? Color(hex: "D4A240") : Color(hex: "F0EAD6"))
-                if !rationale.isEmpty {
-                    Text(rationale)
-                        .font(.system(size: 12, design: .serif).italic())
-                        .foregroundStyle(isSelected
-                                         ? Color(hex: "D4A240").opacity(0.85)
-                                         : Color(hex: "F0EAD6").opacity(0.6))
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder
+    private func recommendationSection(title: String, habits: [HabitEntry]) -> some View {
+        if !habits.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionHeader(title)
+
+                VStack(spacing: 10) {
+                    ForEach(habits) { habit in
+                        let isSelected = coordinator.selectedHabits.contains(habit.name)
+                        let isDisabled = !isSelected && !coordinator.canSelectMoreHabits
+
+                        OnboardingHabitRow(
+                            name: habit.name,
+                            icon: habit.icon,
+                            rationale: habit.rationale(for: spiritualityLevel),
+                            isSelected: isSelected,
+                            isDisabled: isDisabled,
+                            onTap: { toggleCatalog(habit) }
+                        )
+                    }
                 }
             }
-            Spacer(minLength: 0)
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color(hex: "D4A240"))
-                    .font(.system(size: 16))
-            }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(
-            isSelected
-                ? Color(hex: "D4A240").opacity(0.1)
-                : Color(hex: "243828"),
-            in: RoundedRectangle(cornerRadius: 14)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(isSelected ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.18), lineWidth: 1.5)
-        )
-        .opacity(isDisabled ? 0.45 : 1)
+    }
+
+    private var customSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !addedCustoms.isEmpty {
+                sectionHeader("Your additions")
+
+                VStack(spacing: 10) {
+                    ForEach(addedCustoms, id: \.self) { name in
+                        let isSelected = coordinator.selectedHabits.contains(name)
+                        let isDisabled = !isSelected && !coordinator.canSelectMoreHabits
+
+                        OnboardingHabitRow(
+                            name: name,
+                            icon: Self.customIcon,
+                            rationale: "",
+                            isSelected: isSelected,
+                            isDisabled: isDisabled,
+                            onTap: { toggleCustom(name) },
+                            onRemove: { removeCustom(name) }
+                        )
+                    }
+                }
+            }
+
+            OnboardingCustomHabitSlot(
+                canCommit: { canCommitCustom($0) },
+                onCommit: { addCustom($0) }
+            )
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.appCaption)
+            .textCase(.uppercase)
+            .tracking(0.6)
+            .foregroundStyle(Color.msTextMuted)
+            .padding(.horizontal, 4)
+    }
+
+    // MARK: - Actions
+
+    private func toggleCatalog(_ habit: HabitEntry) {
+        if coordinator.selectedHabits.contains(habit.name) {
+            coordinator.selectedHabits.remove(habit.name)
+        } else if coordinator.canSelectMoreHabits {
+            coordinator.selectedHabits.insert(habit.name)
+        }
+    }
+
+    private func toggleCustom(_ name: String) {
+        if coordinator.selectedHabits.contains(name) {
+            coordinator.selectedHabits.remove(name)
+        } else if coordinator.canSelectMoreHabits {
+            coordinator.selectedHabits.insert(name)
+        }
+    }
+
+    private func canCommitCustom(_ trimmed: String) -> Bool {
+        // Disallow duplicates against catalog names + already-added customs.
+        let lower = trimmed.lowercased()
+        if catalogNames.contains(where: { $0.lowercased() == lower }) { return false }
+        if addedCustoms.contains(where: { $0.lowercased() == lower }) { return false }
+        return true
+    }
+
+    private func addCustom(_ trimmed: String) {
+        addedCustoms.append(trimmed)
+        // Customs are added unselected — user must tap the row to select.
+    }
+
+    private func removeCustom(_ name: String) {
+        addedCustoms.removeAll { $0 == name }
+        coordinator.selectedHabits.remove(name)
+    }
+
+    private func seedIfNeeded() {
+        guard !didSeed else { return }
+        didSeed = true
+
+        let catalog = catalogNames
+        let existingCustoms = coordinator.selectedHabits
+            .filter { !catalog.contains($0) }
+            .sorted()
+        addedCustoms = existingCustoms
     }
 }

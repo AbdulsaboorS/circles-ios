@@ -129,7 +129,7 @@ struct AmiirActivationView: View {
                 }
                 .padding(.horizontal, 24)
 
-                StepIndicator(current: 8, total: 8)
+                StepIndicator(current: 10, total: 10)
                     .padding(.top, 16)
                     .padding(.bottom, 40)
             }

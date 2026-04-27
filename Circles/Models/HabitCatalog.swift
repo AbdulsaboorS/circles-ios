@@ -659,6 +659,10 @@ extension HabitCatalog {
         var heart: CatalogHeart?
         var islamicStruggles: Set<String>
         var lifeStruggles: Set<String>
+        /// Names already committed elsewhere in the flow. Filtered out before
+        /// scoring so the personal screen can't recommend a habit the user
+        /// already picked as a shared/circle habit.
+        var excludedNames: Set<String>
         /// Stable seed for the deterministic tiebreaker. Pass any per-user
         /// string (user id, device id) so two users with identical answers
         /// see slightly different orderings, but the same user always sees
@@ -671,6 +675,7 @@ extension HabitCatalog {
             heart: CatalogHeart? = nil,
             islamicStruggles: Set<String> = [],
             lifeStruggles: Set<String> = [],
+            excludedNames: Set<String> = [],
             seed: String = ""
         ) {
             self.spirituality = spirituality
@@ -678,6 +683,7 @@ extension HabitCatalog {
             self.heart = heart
             self.islamicStruggles = islamicStruggles
             self.lifeStruggles = lifeStruggles
+            self.excludedNames = excludedNames
             self.seed = seed
         }
     }
@@ -696,9 +702,14 @@ extension HabitCatalog {
     static func recommendations(for input: RankInput) -> Recommendations {
         // Filter: only entries tagged for the user's spirituality level.
         // If level is unknown, keep everything — the score still drives order.
+        let excluded = Set(input.excludedNames.map { $0.lowercased() })
         let pool: [HabitEntry] = {
-            guard let s = input.spirituality else { return all }
-            return all.filter { $0.spirituality.contains(s) }
+            let levelFiltered: [HabitEntry] = {
+                guard let s = input.spirituality else { return all }
+                return all.filter { $0.spirituality.contains(s) }
+            }()
+            guard !excluded.isEmpty else { return levelFiltered }
+            return levelFiltered.filter { !excluded.contains($0.name.lowercased()) }
         }()
 
         let tiebreakSeed = stableTiebreakSeed(input.seed)
@@ -709,7 +720,7 @@ extension HabitCatalog {
                 // Jitter is tiny and per-(seed, entry.id) only, so two users
                 // with identical scores see slightly different orderings,
                 // but the same user is stable across re-entries.
-                let jitter = Int(bitPattern: tiebreakSeed &+ UInt64(entry.id) &* 2654435761) & 0xFFFF
+                let jitter = Int(truncatingIfNeeded: tiebreakSeed &+ UInt64(entry.id) &* 2654435761) & 0xFFFF
                 return (entry, s, jitter)
             }
             .sorted { a, b in

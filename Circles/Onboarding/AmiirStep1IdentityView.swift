@@ -116,7 +116,7 @@ struct AmiirStep1IdentityView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 3, total: 8)
+                    StepIndicator(current: 5, total: 10)
 
                     Button {
                         coordinator.proceedToTransitionToAI()

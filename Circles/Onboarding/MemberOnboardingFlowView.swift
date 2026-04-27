@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Root view for the Joiner onboarding flow.
-/// Manages the NavigationStack and routes all 7 steps + 2 Islamic transition screens.
+/// Manages the NavigationStack and routes the joiner onboarding sequence.
 struct MemberOnboardingFlowView: View {
     @Environment(MemberOnboardingCoordinator.self) private var coordinator
 
@@ -24,9 +24,6 @@ struct MemberOnboardingFlowView: View {
 
                     case .onboardingQuiz:
                         JoinerQuizStepView()
-
-                    case .personalHabits:
-                        JoinerPersonalHabitsView()
 
                     case .transitionToAI:
                         OnboardingTransitionView(

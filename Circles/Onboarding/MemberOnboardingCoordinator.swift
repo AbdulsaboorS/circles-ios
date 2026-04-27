@@ -10,8 +10,7 @@ final class MemberOnboardingCoordinator {
         case transitionToCircle    // Islamic transition (before circle preview)
         case circleAlignment       // Step 2: Rich circle preview + habit selection
         case onboardingQuiz        // Phase 14: Meaningful-Habits quiz
-        case personalHabits        // Step 3: Private habits, max 2
-        case transitionToAI        // Islamic transition (after personal habits)
+        case transitionToAI        // Islamic transition (after the personal quiz)
         case momentPrimer          // Moment-mechanic demo + camera priming
         case aiGeneration          // Step 4: Background AI generation
         case identity              // Step 5: Location + push ask
@@ -26,7 +25,7 @@ final class MemberOnboardingCoordinator {
 
     // MARK: - Collected Data
     var selectedCircleHabits: Set<String> = []   // min 1 required
-    var selectedPersonalHabits: [String] = []     // max 2
+    var selectedPersonalHabits: [String] = []     // max 3
     var preferredName: String = ""
     var cityName: String = ""
     var cityTimezone: String = ""
@@ -85,10 +84,6 @@ final class MemberOnboardingCoordinator {
 
     func proceedToOnboardingQuiz() {
         navigationPath.append(.onboardingQuiz)
-    }
-
-    func proceedToPersonalHabits() {
-        navigationPath.append(.personalHabits)
     }
 
     func proceedToTransitionToAI() {

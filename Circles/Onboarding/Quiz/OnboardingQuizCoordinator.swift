@@ -1,9 +1,9 @@
 import Foundation
 import Observation
-import Supabase
 
 /// Drives the four-screen Meaningful Habits quiz (Islamic struggles → Life struggles →
-/// Processing → Habit selection). Used in three contexts:
+/// Processing → Habit selection). Used in onboarding flows to deterministically
+/// surface catalog habits from the user's struggle answers.
 ///
 /// 1. Amir onboarding (pre-auth, answers flushed after auth)
 /// 2. Member onboarding (pre-auth, answers flushed after auth)
@@ -32,19 +32,20 @@ final class OnboardingQuizCoordinator {
     var customIslamic: String = ""
     var customLife: String = ""
 
-    /// Populated by `loadSuggestions()` from Gemini, or `HabitSuggestion.fallbackSuggestions`
-    /// when Gemini is unreachable / malformed.
-    var suggestions: [HabitSuggestion] = []
+    /// Ranked catalog result surfaced on the final screen as:
+    /// - top 4 personalized picks
+    /// - next 3 common starters
+    var recommendations = HabitCatalog.Recommendations(top: [], starters: [])
     var isLoadingSuggestions: Bool = false
-
-    /// Struggle-slug fingerprint of the last *successful* Gemini load. Used to short-circuit
-    /// `loadSuggestions()` when the user navigates back-then-forward without changing anything.
-    /// Only set on Gemini success — fallback results are not cached, so a transient network
-    /// blip never locks the user into the static list for the rest of the session.
-    private var cachedSuggestionsKey: String? = nil
-
     var errorMessage: String? = nil
     var allowsMultiSelect: Bool = false
+    var selectionCap: Int = HabitCatalog.personalCap
+    var spiritualityAnswer: String? = nil
+    var rankingSeed: String = ""
+    var initialSelectedHabitNames: [String] = []
+    /// Names already committed elsewhere in the flow (e.g. shared circle habits)
+    /// so the personal screen can't recommend them again. Filtered before ranking.
+    var excludedHabitNames: Set<String> = []
 
     // MARK: - Callbacks (wired by caller)
 
@@ -52,12 +53,11 @@ final class OnboardingQuizCoordinator {
     /// Caller decides whether to write directly to Supabase or stage for later flush.
     var onPersistStruggles: ((_ islamic: [String], _ life: [String]) async -> Void)?
 
-    /// Called when the user picks a single habit on Screen D (or a custom name).
-    /// `suggestion` is nil for custom entries; `customName` carries the typed name.
-    var onFinish: ((_ suggestion: HabitSuggestion?, _ customName: String?) -> Void)?
+    /// Called when the user picks a single habit on Screen D.
+    var onFinish: ((_ habitName: String) -> Void)?
 
-    /// Called when the user picks multiple habits (multi-select intercept path only).
-    var onFinishMany: ((_ suggestions: [HabitSuggestion], _ customName: String?) -> Void)?
+    /// Called when the user finishes a multi-select flow (catalog picks + custom entries).
+    var onFinishMany: ((_ habitNames: [String]) -> Void)?
 
     // MARK: - Derived
 
@@ -79,6 +79,10 @@ final class OnboardingQuizCoordinator {
         return (custom.isEmpty ? enums : enums + ["custom:\(custom)"]).sorted()
     }
 
+    var suggestions: [HabitEntry] {
+        recommendations.combined
+    }
+
     // MARK: - Advances
 
     func advanceToLife() {
@@ -87,7 +91,7 @@ final class OnboardingQuizCoordinator {
     }
 
     /// Advances to processing, persists struggles through the caller-provided callback,
-    /// then kicks off the live Gemini suggestion load.
+    /// then ranks the deterministic catalog suggestions.
     func advanceToProcessing() async {
         guard canAdvanceFromLife else { return }
         step = .processing
@@ -97,12 +101,8 @@ final class OnboardingQuizCoordinator {
         await loadSuggestions()
     }
 
-    /// Populates `suggestions` from Gemini, racing the call against a bounded
-    /// timeout so the UI does not hang indefinitely. Budget tuned over time:
-    /// 3 s was too aggressive (always fell back), 8 s lost to cold-network second
-    /// attempts. 15 s is the current ceiling — paired with a `maxOutputTokens`
-    /// cap on the Gemini request to bound generation time on the server side.
-    /// Enforces a 1.2 s minimum so the pulse cycle completes one beat.
+    /// Ranks the catalog from the user's struggle answers. Kept async so the
+    /// processing screen still gets a short settling beat before we advance.
     func loadSuggestions() async {
         isLoadingSuggestions = true
         let start = Date()
@@ -111,72 +111,18 @@ final class OnboardingQuizCoordinator {
             step = .habitSelection
         }
 
-        let islamic = islamicSlugs
-        let life    = lifeSlugs
-        let key     = Self.suggestionsKey(islamic: islamic, life: life)
-
-        // Cache hit: same struggle set as the last *successful* Gemini call, and we still hold
-        // those suggestions. Reuse them instead of re-hitting the API — keeps "back to verify
-        // → forward" stable and avoids re-running the 8 s race on a slow second connection.
-        if key == cachedSuggestionsKey, !suggestions.isEmpty {
-            print("[Gemini suggestions] cache hit — reusing \(suggestions.count) item(s)")
-            await Self.holdMinimumPulse(since: start)
-            return
-        }
-
-        let raced: [HabitSuggestion]? = await withTaskGroup(of: [HabitSuggestion]?.self) { group in
-            group.addTask {
-                let t0 = Date()
-                do {
-                    let result = try await GroqService.shared.generateHabitSuggestions(
-                        islamicStruggles: islamic,
-                        lifeStruggles: life
-                    )
-                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("[Groq suggestions] ok — \(result.count) item(s) in \(ms)ms")
-                    return result
-                } catch is CancellationError {
-                    return nil
-                } catch {
-                    // URLSession surfaces task cancellation as NSURLErrorCancelled — suppress
-                    // so we don't mistake "sibling timeout won the race" for a real failure.
-                    if (error as NSError).code == NSURLErrorCancelled { return nil }
-                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("[Groq suggestions] error after \(ms)ms — \(error.localizedDescription)")
-                    return nil
-                }
-            }
-            group.addTask {
-                // Sleep returns normally if uncancelled (= timeout actually fired).
-                // Sleep throws CancellationError if Gemini won — silent in that case.
-                do {
-                    try await Task.sleep(for: .seconds(15.0))
-                    print("[Gemini suggestions] race timeout fired (15s) — Gemini still in flight")
-                } catch {}
-                return nil // timeout sentinel
-            }
-
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
-        }
-
-        if let live = raced {
-            suggestions = live
-            cachedSuggestionsKey = key
-        } else {
-            print("[Gemini suggestions] using fallback (timeout or error — see prior log)")
-            suggestions = HabitSuggestion.fallbackSuggestions
-            // Intentionally do NOT update cachedSuggestionsKey — next re-entry should retry Gemini.
-        }
-
+        recommendations = HabitCatalog.recommendations(
+            for: .init(
+                spirituality: CatalogSpirituality.fromAnswer(spiritualityAnswer),
+                islamicStruggles: Set(islamicSlugs),
+                lifeStruggles: Set(lifeSlugs),
+                excludedNames: excludedHabitNames,
+                seed: rankingSeed.isEmpty
+                    ? "\(spiritualityAnswer ?? "")::\(islamicSlugs.joined(separator: "|"))::\(lifeSlugs.joined(separator: "|"))"
+                    : rankingSeed
+            )
+        )
         await Self.holdMinimumPulse(since: start)
-    }
-
-    /// Stable fingerprint of a struggle selection for cache lookup.
-    /// `islamicSlugs` / `lifeSlugs` are already sorted, so this is order-independent by construction.
-    private static func suggestionsKey(islamic: [String], life: [String]) -> String {
-        "\(islamic.joined(separator: "|"))::\(life.joined(separator: "|"))"
     }
 
     /// Ensures the processing-screen pulse completes at least one beat before we transition.
@@ -189,14 +135,20 @@ final class OnboardingQuizCoordinator {
         }
     }
 
-    func finish(suggestion: HabitSuggestion) {
-        onFinish?(suggestion, nil)
+    func finish(habitName: String) {
+        onFinish?(habitName)
     }
 
-    func finish(customName: String) {
-        let trimmed = customName.trimmingCharacters(in: .whitespacesAndNewlines)
+    func finishMany(habitNames: [String]) {
+        let trimmed = habitNames
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
         guard !trimmed.isEmpty else { return }
-        onFinish?(nil, trimmed)
+        if allowsMultiSelect {
+            onFinishMany?(trimmed)
+        } else if let first = trimmed.first {
+            onFinish?(first)
+        }
     }
 
     /// Re-entry path (Bug 2 — quiz delta). Jumps straight from the delta "Same"

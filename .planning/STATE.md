@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-27T22:00:00.000Z"
+last_updated: "2026-04-27T19:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -57,22 +57,21 @@ User-flagged 8 issues during end-to-end onboarding test. Fixes shipped to `main`
 - #4 Prayer Sync double back button — `AmiirStep3LocationView` was missing `.navigationBarBackButtonHidden()`.
 - #6 `QuizProcessingView` copy: "Building your intentions…" → "Personalizing habits from your struggles…"
 
-Carry-forward (next session):
-- **#5 closed (2026-04-26 session 2).** Step-by-step back-nav confirmed sufficient for MVP. Full back-to-start deferred — kill+relaunch is a clean reset and avoids state-restoration cost.
-- **#7 partially shipped (2026-04-26 session 2).** Diagnostic logs surfaced root cause: 8 s race losing to cold-network second attempts (not a Gemini error). Shipped: (a) per-fingerprint cache so back-then-forward without changes reuses last successful result instead of re-firing the API, (b) Tier A reliability — timeout 8→15s + `maxOutputTokens: 400` cap on the Gemini request + elapsed-time logging on success/error/timeout. **Tier B (streaming via `streamGenerateContent`)** still open for next session, naturally bundled with #8 since both touch `GeminiService` + suggestions UI.
-- **#8 shipped (2026-04-26 session 3), pending hands-on QA.** Curated pool of 10 + ranking + `.prefix(3)` cap kept as-is. Each tile now renders a one-sentence rationale: baked-in default (per-habit static map) renders instantly; Gemini-personalized rationale swaps in within 1–15 s. New `GeminiService.generateHabitRationales` (additive — roadmap path untouched). Coordinator gains `habitRationales` state, fingerprint cache (`(spirituality, time, heart, top3)`), 15 s race + dedupe via in-flight `Task` handle, only-cache-on-success — same pattern as `OnboardingQuizCoordinator`. `HabitTile` expanded with 12 pt serif italic rationale row mirroring `QuizHabitSelectionView.swift:183-188`. Ranking moved out of view into `coordinator.rankedTopHabits()` (single source of truth for tile list + Gemini fetch). On timeout, defaults stay — no spinner, no error UI.
+Carry-forward:
+- #5 remains closed; step-by-step back-nav is sufficient for MVP.
+- Old AI-specific bug work for #7/#8 is now superseded by the catalog migration below. Current risk is end-to-end QA of the deterministic onboarding flow, not provider tuning.
 
 ## Onboarding rework — 2026-04-27 (catalog architecture locked)
 
-Session pivoted from per-bug QA into a structural fix. After testing both flows, decided the AI-rationale path is the wrong abstraction for onboarding suggestions. Locked a catalog-driven architecture, ready to build next session.
+Session pivoted from per-bug QA into a structural fix. After testing both flows, the onboarding suggestion path was moved off AI entirely and onto a deterministic 44-entry `HabitCatalog`.
 
-**Shipped this session (build green, on `main`):**
-- New `Circles/Services/GroqService.swift` — Llama 3.3 70B Versatile via Groq, OpenAI-compatible JSON mode, 8 s timeout. `GROQ_API_KEY` added to `Secrets.plist`.
-- `OnboardingQuizCoordinator.loadSuggestions` swapped Gemini → Groq (sub-second latency vs Gemini's 5–15 s cold).
-- `AmiirOnboardingCoordinator.fetchRationales` swapped Gemini → Groq.
-- `GeminiService` retained for `generate28DayRoadmap` only (latency-tolerant async).
+**Architecture now in use (build green):**
+- `HabitCatalog` is the single onboarding source of truth for Amir shared habits and both personal quiz flows.
+- `OnboardingQuizCoordinator` now ranks the catalog deterministically from struggle answers, with no Groq/Gemini dependency in onboarding.
+- Amir shared habits also read directly from the catalog using spirituality/time/heart inputs and render the catalog rationale text immediately.
+- `GeminiService` remains the roadmap generator; the old onboarding AI suggestion/rationale path is superseded.
 
-**Locked for next session (build spec at `.planning/notes/habit-catalog-draft.md`):**
+**Locked decisions:**
 - 44-entry hand-curated `HabitCatalog` becomes single source of truth for both Amir and Joiner suggestion paths. AI removed entirely from onboarding suggestion path.
 - Surfacing layout: 4 personalized + 3 common starters = 7 total, no overlap (set partition).
 - Selection caps: shared (Amir) = 2, personal (Joiner / private intentions) = 3.
@@ -80,14 +79,29 @@ Session pivoted from per-bug QA into a structural fix. After testing both flows,
 - Custom-habit chip UX (inline "+ Add your own" → chips in same list, multi-add) — user explicitly called this "the biggest moat."
 - Amir Step 1 (3 questions on one scrolling page) splits into 3 separate pages.
 
-**Build order (7 steps) listed at bottom of `.planning/notes/habit-catalog-draft.md`.** Steps are sequential; step 1 (`HabitCatalog.swift`) unlocks 2–4. Decision context and rationale also saved to memory at `project_habit_catalog_decision.md`.
+Decision context and rationale also saved to memory at `project_habit_catalog_decision.md`. Detailed catalog content still lives in `.planning/notes/habit-catalog-draft.md`.
 
-**Build progress (2026-04-27 session 2):**
+**Build progress (2026-04-27 session 3):**
 - ✅ Step 1 — `Circles/Models/HabitCatalog.swift` shipped: `HabitEntry` struct, all 44 entries, 8 per-spirituality variants (#1, #7, #10, #12, #20, #33, #42, #43), tag enums (`CatalogSpirituality`, `CatalogHeart`, `CatalogTimeWeight`) with answer-string mappers.
 - ✅ Step 2 — `HabitCatalog.recommendations(for:)` shipped: `RankInput` struct + `Recommendations { top, starters }` partition. Scoring: heart +3, struggle slugs +1 each, time-fit ±. Deterministic FNV-1a seed jitter for stable per-user tiebreak.
-- ⏳ Steps 3–7 NOT started: Amir Step 2 wiring, joiner quiz wiring, Amir Step 1 split, custom-habit chips, cap drop. AmiirOnboardingCoordinator still has the Groq rationale path intact — must be removed in step 3. No call sites have been migrated to the catalog yet.
+- ✅ Step 3 — Amir shared-habits flow now uses `HabitCatalog` directly. `AmiirOnboardingCoordinator` no longer owns the Groq rationale/cache path; Step 2 renders the catalog's 4 personalized + 3 starter partition and uses per-spirituality rationale variants inline.
+- ✅ Step 4 — Joiner/personal quiz now uses `HabitCatalog` deterministically. `OnboardingQuizCoordinator` no longer runs the Groq race/cache path; both Amir and Joiner wrappers seed the quiz from staged state and write back plain habit names.
+- ✅ Step 5 — Amir Step 1 is split into 3 screens (`AmiirSpiritualityStepView`, `AmiirTimeCommitmentStepView`, `AmiirHeartOfCircleStepView`) and the Amir flow step indicators were updated to the 10-step sequence.
+- ✅ Step 6 — Custom-habit chip UX shipped on both active selection surfaces: Amir shared habits and the personal quiz. "+ Add your own" now creates removable chips inline and supports multiple custom entries up to the cap.
+- ✅ Step 7 — Selection caps dropped to the locked values: shared = 2, personal = 3. Joiner's old dead `personalHabits` route was removed from the active flow. `AddPrivateIntentionSheet` was also updated to the new multi-select callback shape so the guided intercept still compiles.
+- ✅ Build verification — `xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build` passed on 2026-04-27. Only warning observed was pre-existing async/no-async noise in `FeedService.swift:99`.
 
 **Bugs #7 and #8 superseded** — the "always same 3 habits" symptom was a catalog-narrowness problem, not an AI problem. Catalog rework solves both.
+
+## Onboarding habit-card UX pass — 2026-04-27 session 4
+
+Hands-on QA of the catalog flow surfaced 3 layout issues. Fixes shipped, build green:
+
+- **Unified card style.** Shared habits screen (`AmiirStep2HabitsView`) was using a 2-col `LazyVGrid` of `HabitTile`s — uneven row heights with mixed-length rationales. Refactored to single-column rows matching the personal quiz screen's pattern. Both screens now use a shared `OnboardingHabitRow` (full-width card, leading icon block, name + serif rationale, trailing checkmark/remove).
+- **Custom-habit slot.** Replaced the pill+TextField+chip-grid pattern on both screens with a card-shaped `OnboardingCustomHabitSlot` that expands inline (collapsed `+ Add your own` → editing TextField → committed row in same list geometry). Customs commit *unselected* — user must tap the row to select, consistent with catalog rows.
+- **Personal/shared overlap fix.** `HabitCatalog.RankInput` now takes `excludedNames: Set<String>`; filtered before scoring. `OnboardingQuizCoordinator.excludedHabitNames` plumbs through. Amir personal quiz excludes `coordinator.selectedHabits`; Joiner personal quiz excludes `circle.coreHabitsSafe`. Personal recommendations no longer duplicate shared circle habits.
+- **Files touched:** `Models/HabitCatalog.swift`, `Onboarding/Quiz/OnboardingQuizCoordinator.swift`, `Onboarding/Quiz/AmiirQuizStepView.swift`, `Onboarding/Quiz/JoinerQuizStepView.swift`, `Onboarding/Quiz/QuizHabitSelectionView.swift`, `Onboarding/AmiirStep2HabitsView.swift`. New: `Onboarding/OnboardingHabitCards.swift`. Deleted: `Onboarding/OnboardingCustomHabitChip.swift` (superseded by the new slot+row combo).
+- **Build verification.** `xcodebuild` on iPhone 17 sim (OS 26.3.1) passed; only warnings are pre-existing `FeedService.swift` and `AuthManager.swift` async/no-async noise.
 
 ## Deferred QA / Rollout
 

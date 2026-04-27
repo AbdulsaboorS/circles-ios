@@ -372,12 +372,14 @@ Where a variant isn't listed, the default rationale is used for all tagged level
 
 ---
 
-## Build order (next session)
+## Implementation status
 
-1. Create `Circles/Models/HabitCatalog.swift` with `HabitEntry` struct + 44 entries from this doc + per-level variants for the 8 listed
-2. Implement `HabitCatalog.recommendations(for:)` with `(top: 4, starters: 3)` partition + user-seeded tiebreaker
-3. Wire Amir Step 2 to use catalog (drop Groq rationale path entirely; keep `GroqService` only for roadmap)
-4. Wire Joiner / personal quiz to use catalog (drop `loadSuggestions` Groq race + cache machinery)
-5. Split Amir Step 1 (3 questions on 1 page) into 3 separate views
-6. Custom-habit chip UX for both flows (inline "+ Add your own" → typed entries become removable chips in the same list, multi-add, counts toward cap)
-7. Drop selection caps to confirmed values: shared 2, personal 3
+All 7 build steps from this spec shipped on 2026-04-27:
+
+1. `HabitCatalog.swift` created with all 44 entries and the 8 rationale variants.
+2. `HabitCatalog.recommendations(for:)` shipped with the 4 + 3 partition and stable seeded tiebreaker.
+3. Amir shared habits now read directly from the catalog; the old networked rationale path is gone from the active flow.
+4. Joiner and personal quiz flows now rank the catalog deterministically from struggle answers.
+5. Amir Step 1 is split into 3 separate screens.
+6. Custom-habit chip UX shipped on both active selection surfaces.
+7. Caps are live at shared = 2 and personal = 3.

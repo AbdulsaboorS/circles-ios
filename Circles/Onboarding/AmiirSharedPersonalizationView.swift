@@ -1,13 +1,79 @@
 import SwiftUI
 
-struct AmiirSharedPersonalizationView: View {
+struct AmiirSpiritualityStepView: View {
     @Environment(AmiirOnboardingCoordinator.self) private var coordinator
 
-    private var canContinue: Bool {
-        coordinator.spiritualityLevel != nil &&
-        coordinator.timeCommitment != nil &&
-        coordinator.heartOfCircle != nil
+    var body: some View {
+        AmiirPersonalizationStepView(
+            symbol: "person.2.fill",
+            title: "Shape Your Circle",
+            subtitle: "First, tell us where you are in your journey.",
+            question: "Where are you in your faith journey?",
+            options: ["Just starting out", "Building a foundation", "Steady and growing", "Deeply rooted"],
+            selected: Binding(
+                get: { coordinator.spiritualityLevel },
+                set: { coordinator.spiritualityLevel = $0 }
+            ),
+            currentStep: 1
+        ) {
+            coordinator.proceedToTimeCommitment()
+        }
     }
+}
+
+struct AmiirTimeCommitmentStepView: View {
+    @Environment(AmiirOnboardingCoordinator.self) private var coordinator
+
+    var body: some View {
+        AmiirPersonalizationStepView(
+            symbol: "clock.fill",
+            title: "Daily Rhythm",
+            subtitle: "We’ll recommend habits that actually fit your time.",
+            question: "How much time can you give each day?",
+            options: ["5–10 minutes", "15–30 minutes", "30–60 minutes", "More than an hour"],
+            selected: Binding(
+                get: { coordinator.timeCommitment },
+                set: { coordinator.timeCommitment = $0 }
+            ),
+            currentStep: 2
+        ) {
+            coordinator.proceedToHeartOfCircle()
+        }
+    }
+}
+
+struct AmiirHeartOfCircleStepView: View {
+    @Environment(AmiirOnboardingCoordinator.self) private var coordinator
+
+    var body: some View {
+        AmiirPersonalizationStepView(
+            symbol: "heart.circle.fill",
+            title: "Circle Focus",
+            subtitle: "This tells us what your circle should orbit around.",
+            question: "What's the heart of your circle?",
+            options: ["Salah, together", "Quran in our lives", "Remembrance of Allah", "Brotherhood through hardship"],
+            selected: Binding(
+                get: { coordinator.heartOfCircle },
+                set: { coordinator.heartOfCircle = $0 }
+            ),
+            currentStep: 3
+        ) {
+            coordinator.proceedToCoreHabits()
+        }
+    }
+}
+
+private struct AmiirPersonalizationStepView: View {
+    @Environment(AmiirOnboardingCoordinator.self) private var coordinator
+
+    let symbol: String
+    let title: String
+    let subtitle: String
+    let question: String
+    let options: [String]
+    @Binding var selected: String?
+    let currentStep: Int
+    let onContinue: () -> Void
 
     var body: some View {
         ZStack {
@@ -19,16 +85,16 @@ struct AmiirSharedPersonalizationView: View {
                         Spacer(minLength: 24)
 
                         VStack(spacing: 12) {
-                            Image(systemName: "person.2.fill")
+                            Image(systemName: symbol)
                                 .font(.system(size: 48))
                                 .foregroundStyle(Color.msGold)
 
-                            Text("Shape Your Circle")
+                            Text(title)
                                 .font(.appTitle)
                                 .foregroundStyle(Color.msTextPrimary)
                                 .multilineTextAlignment(.center)
 
-                            Text("Help us understand your circle so we can build the right foundation.")
+                            Text(subtitle)
                                 .font(.appSubheadline)
                                 .foregroundStyle(Color.msTextMuted)
                                 .multilineTextAlignment(.center)
@@ -36,30 +102,9 @@ struct AmiirSharedPersonalizationView: View {
                         .padding(.horizontal, 24)
 
                         PersonalizationSection(
-                            question: "Where are you in your faith journey?",
-                            options: ["Just starting out", "Building a foundation", "Steady and growing", "Deeply rooted"],
-                            selected: Binding(
-                                get: { coordinator.spiritualityLevel },
-                                set: { coordinator.spiritualityLevel = $0 }
-                            )
-                        )
-
-                        PersonalizationSection(
-                            question: "How much time can you give each day?",
-                            options: ["5–10 minutes", "15–30 minutes", "30–60 minutes", "More than an hour"],
-                            selected: Binding(
-                                get: { coordinator.timeCommitment },
-                                set: { coordinator.timeCommitment = $0 }
-                            )
-                        )
-
-                        PersonalizationSection(
-                            question: "What's the heart of your circle?",
-                            options: ["Salah, together", "Quran in our lives", "Remembrance of Allah", "Brotherhood through hardship"],
-                            selected: Binding(
-                                get: { coordinator.heartOfCircle },
-                                set: { coordinator.heartOfCircle = $0 }
-                            )
+                            question: question,
+                            options: options,
+                            selected: $selected
                         )
 
                         Spacer(minLength: 20)
@@ -67,11 +112,9 @@ struct AmiirSharedPersonalizationView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: 1, total: 8)
+                    StepIndicator(current: currentStep, total: 10)
 
-                    Button {
-                        coordinator.proceedToStruggle()
-                    } label: {
+                    Button(action: onContinue) {
                         Text("Continue")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(Color.msBackground)
@@ -80,8 +123,8 @@ struct AmiirSharedPersonalizationView: View {
                             .background(Color.msGold, in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    .disabled(!canContinue)
-                    .opacity(canContinue ? 1 : 0.45)
+                    .disabled(selected == nil)
+                    .opacity(selected == nil ? 0.45 : 1)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }
@@ -100,9 +143,8 @@ struct AmiirSharedPersonalizationView: View {
             }
         }
     }
-}
 
-// MARK: - PersonalizationSection
+}
 
 private struct PersonalizationSection: View {
     let question: String
@@ -130,8 +172,6 @@ private struct PersonalizationSection: View {
         }
     }
 }
-
-// MARK: - PersonalizationChip
 
 private struct PersonalizationChip: View {
     let label: String

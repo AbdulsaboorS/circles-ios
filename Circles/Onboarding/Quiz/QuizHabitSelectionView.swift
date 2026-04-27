@@ -1,35 +1,48 @@
 import SwiftUI
 
-/// Screen D — picks one (or many, in intercept mode) habits from `coordinator.suggestions`
-/// or a "Custom…" name. Suggestions come from `GeminiService.generateHabitSuggestions`,
-/// falling back to `HabitSuggestion.fallbackSuggestions` when Gemini is unreachable.
+/// Screen D — picks one (or many, in intercept mode) habits from the ranked
+/// catalog plus any typed custom habits.
 ///
 /// Selection mode:
 /// - `coordinator.allowsMultiSelect == false` (default): tap replaces selection; Continue calls
-///   `coordinator.finish(suggestion:)` or `coordinator.finish(customName:)`.
+///   `coordinator.finish(habitName:)`.
 /// - `coordinator.allowsMultiSelect == true`: tap toggles into a Set; Continue calls
-///   `coordinator.onFinishMany(suggestions, nil)` with every selected suggestion. Custom name
-///   still falls back to `finish(customName:)` (single item).
+///   `coordinator.finishMany(habitNames:)` with every selected catalog + custom item.
 struct QuizHabitSelectionView: View {
     @Bindable var coordinator: OnboardingQuizCoordinator
 
-    @State private var selectedIds: Set<UUID> = []
-    @State private var showCustomField: Bool = false
-    @State private var customName: String = ""
+    @State private var selectedNames: Set<String> = []
+    /// Custom habits the user has typed and committed. Held separately from
+    /// `selectedNames` because customs are *added unselected* — the user must
+    /// tap the row to select like any other card.
+    @State private var addedCustoms: [String] = []
+    @State private var didSeedInitialSelection = false
 
-    private var trimmedCustom: String {
-        customName.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+    private static let customIcon = "pencil"
 
     private var canContinue: Bool {
-        if showCustomField { return !trimmedCustom.isEmpty }
-        return !selectedIds.isEmpty
+        !selectedNames.isEmpty
+    }
+
+    private var selectedCount: Int {
+        selectedNames.count
+    }
+
+    private var cap: Int {
+        coordinator.selectionCap
+    }
+
+    private var atCap: Bool {
+        coordinator.allowsMultiSelect && selectedCount >= cap
+    }
+
+    private var spiritualityLevel: CatalogSpirituality? {
+        CatalogSpirituality.fromAnswer(coordinator.spiritualityAnswer)
     }
 
     private var ctaLabel: String {
-        if showCustomField { return "Begin" }
         if coordinator.allowsMultiSelect {
-            let n = selectedIds.count
+            let n = selectedCount
             if n > 1 { return "Create \(n) habits" }
             if n == 1 { return "Create 1 habit" }
             return "Begin"
@@ -42,13 +55,15 @@ struct QuizHabitSelectionView: View {
     }
 
     private var headerSubtitle: String {
-        coordinator.allowsMultiSelect ? "Pick up to \(Self.multiSelectCap)." : "Pick the one that feels most alive."
+        coordinator.allowsMultiSelect
+            ? "Pick up to \(cap). Add your own if you need to."
+            : "Pick the one that feels most alive."
     }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     Spacer(minLength: 20)
 
                     VStack(spacing: 10) {
@@ -68,38 +83,30 @@ struct QuizHabitSelectionView: View {
                     }
                     .padding(.horizontal, 24)
 
-                    VStack(spacing: 10) {
-                        ForEach(coordinator.suggestions) { suggestion in
-                            let isSelected = !showCustomField && selectedIds.contains(suggestion.id)
-                            let atCap = coordinator.allowsMultiSelect
-                                && !isSelected
-                                && selectedIds.count >= Self.multiSelectCap
-                            SuggestionRow(
-                                suggestion: suggestion,
-                                isSelected: isSelected
-                            ) {
-                                handleTap(suggestion: suggestion)
-                            }
-                            .opacity(atCap ? 0.4 : 1.0)
-                        }
-
-                        QuizCustomRow(isSelected: showCustomField) {
-                            showCustomField = true
-                            selectedIds.removeAll()
-                        }
-
-                        if showCustomField {
-                            TextField("e.g. Tahajjud, Journaling…", text: $customName)
-                                .foregroundStyle(Color.msTextPrimary)
-                                .padding(14)
-                                .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 12))
-                                .overlay(RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.msGold.opacity(0.4), lineWidth: 1))
-                                .tint(Color.msGold)
-                                .padding(.top, 2)
-                        }
+                    if !coordinator.recommendations.top.isEmpty {
+                        suggestionSection(
+                            title: "Shaped around your struggles",
+                            habits: coordinator.recommendations.top
+                        )
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 20)
+
+                    if !coordinator.recommendations.starters.isEmpty {
+                        suggestionSection(
+                            title: "Good starters",
+                            habits: coordinator.recommendations.starters
+                        )
+                        .padding(.horizontal, 20)
+                    }
+
+                    customSection
+                        .padding(.horizontal, 20)
+
+                    if coordinator.allowsMultiSelect, selectedCount == cap {
+                        Text("Maximum \(cap) intentions selected.")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.msGold)
+                    }
 
                     Spacer(minLength: 24)
                 }
@@ -110,41 +117,136 @@ struct QuizHabitSelectionView: View {
             }
             .padding(20)
         }
+        .onAppear {
+            seedInitialSelectionIfNeeded()
+        }
     }
 
-    private func handleTap(suggestion: HabitSuggestion) {
-        showCustomField = false
+    // MARK: - Sections
+
+    @ViewBuilder
+    private func suggestionSection(title: String, habits: [HabitEntry]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(title)
+
+            VStack(spacing: 10) {
+                ForEach(habits) { habit in
+                    let isSelected = selectedNames.contains(habit.name)
+                    let isDisabled = !isSelected && atCap
+
+                    OnboardingHabitRow(
+                        name: habit.name,
+                        icon: habit.icon,
+                        rationale: habit.rationale(for: spiritualityLevel),
+                        isSelected: isSelected,
+                        isDisabled: isDisabled,
+                        onTap: { handleTap(name: habit.name) }
+                    )
+                }
+            }
+        }
+    }
+
+    private var customSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !addedCustoms.isEmpty {
+                sectionHeader("Your additions")
+
+                VStack(spacing: 10) {
+                    ForEach(addedCustoms, id: \.self) { name in
+                        let isSelected = selectedNames.contains(name)
+                        let isDisabled = !isSelected && atCap
+
+                        OnboardingHabitRow(
+                            name: name,
+                            icon: Self.customIcon,
+                            rationale: "",
+                            isSelected: isSelected,
+                            isDisabled: isDisabled,
+                            onTap: { handleTap(name: name) },
+                            onRemove: { removeCustomHabit(name) }
+                        )
+                    }
+                }
+            }
+
+            OnboardingCustomHabitSlot(
+                canCommit: { canCommitCustom($0) },
+                onCommit: { addCustomHabit($0) }
+            )
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.appCaption)
+            .textCase(.uppercase)
+            .tracking(0.6)
+            .foregroundStyle(Color.msTextMuted)
+            .padding(.horizontal, 4)
+    }
+
+    // MARK: - Actions
+
+    private func handleTap(name: String) {
         if coordinator.allowsMultiSelect {
-            if selectedIds.contains(suggestion.id) {
-                selectedIds.remove(suggestion.id)
-            } else if selectedIds.count < Self.multiSelectCap {
-                selectedIds.insert(suggestion.id)
+            if selectedNames.contains(name) {
+                selectedNames.remove(name)
+            } else if selectedCount < cap {
+                selectedNames.insert(name)
             }
         } else {
-            selectedIds = [suggestion.id]
+            selectedNames = [name]
         }
     }
 
-    private static let multiSelectCap = 2
-
     private func handleContinue() {
-        if showCustomField {
-            coordinator.finish(customName: trimmedCustom)
-            return
-        }
         if coordinator.allowsMultiSelect {
-            let picked = coordinator.suggestions.filter { selectedIds.contains($0.id) }
-            guard !picked.isEmpty else { return }
-            if let onFinishMany = coordinator.onFinishMany {
-                onFinishMany(picked, nil)
-            } else if let first = picked.first {
-                coordinator.finish(suggestion: first)
-            }
+            coordinator.finishMany(habitNames: orderedSelectionNames())
             return
         }
-        if let id = selectedIds.first,
-           let match = coordinator.suggestions.first(where: { $0.id == id }) {
-            coordinator.finish(suggestion: match)
+        if let first = orderedSelectionNames().first {
+            coordinator.finish(habitName: first)
+        }
+    }
+
+    private func orderedSelectionNames() -> [String] {
+        let catalog = coordinator.suggestions
+            .map(\.name)
+            .filter { selectedNames.contains($0) }
+        let custom = addedCustoms.filter { selectedNames.contains($0) }
+        return catalog + custom
+    }
+
+    private func canCommitCustom(_ trimmed: String) -> Bool {
+        let lower = trimmed.lowercased()
+        if coordinator.suggestions.contains(where: { $0.name.lowercased() == lower }) { return false }
+        if addedCustoms.contains(where: { $0.lowercased() == lower }) { return false }
+        return true
+    }
+
+    private func addCustomHabit(_ trimmed: String) {
+        addedCustoms.append(trimmed)
+        // Added unselected — user must tap the row to select.
+    }
+
+    private func removeCustomHabit(_ name: String) {
+        addedCustoms.removeAll { $0 == name }
+        selectedNames.remove(name)
+    }
+
+    private func seedInitialSelectionIfNeeded() {
+        guard !didSeedInitialSelection else { return }
+        didSeedInitialSelection = true
+
+        let catalogNames = Set(coordinator.suggestions.map(\.name))
+        for name in coordinator.initialSelectedHabitNames {
+            if catalogNames.contains(name) {
+                selectedNames.insert(name)
+            } else if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                addedCustoms.append(name)
+                selectedNames.insert(name)
+            }
         }
     }
 
@@ -162,52 +264,3 @@ struct QuizHabitSelectionView: View {
         .disabled(!enabled)
     }
 }
-
-private struct SuggestionRow: View {
-    let suggestion: HabitSuggestion
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(alignment: .top, spacing: 12) {
-                Rectangle()
-                    .fill(isSelected ? Color.msGold : Color.clear)
-                    .frame(width: 3)
-                    .clipShape(RoundedRectangle(cornerRadius: 1.5))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(suggestion.name)
-                        .font(.system(size: 15, weight: isSelected ? .semibold : .medium))
-                        .foregroundStyle(isSelected ? Color.msBackground : Color.msTextPrimary)
-                    Text(suggestion.rationale)
-                        .font(.system(size: 13, design: .serif).italic())
-                        .foregroundStyle(isSelected
-                                         ? Color.msBackground.opacity(0.78)
-                                         : Color.msTextMuted)
-                        .multilineTextAlignment(.leading)
-                }
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color.msBackground)
-                }
-            }
-            .padding(.vertical, 14)
-            .padding(.trailing, 18)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(isSelected ? Color.msGold : Color.msCardShared)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isSelected ? Color.clear : Color.msBorder, lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
