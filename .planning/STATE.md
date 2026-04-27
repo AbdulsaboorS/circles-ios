@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-27T18:00:00.000Z"
+last_updated: "2026-04-27T22:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -81,6 +81,11 @@ Session pivoted from per-bug QA into a structural fix. After testing both flows,
 - Amir Step 1 (3 questions on one scrolling page) splits into 3 separate pages.
 
 **Build order (7 steps) listed at bottom of `.planning/notes/habit-catalog-draft.md`.** Steps are sequential; step 1 (`HabitCatalog.swift`) unlocks 2–4. Decision context and rationale also saved to memory at `project_habit_catalog_decision.md`.
+
+**Build progress (2026-04-27 session 2):**
+- ✅ Step 1 — `Circles/Models/HabitCatalog.swift` shipped: `HabitEntry` struct, all 44 entries, 8 per-spirituality variants (#1, #7, #10, #12, #20, #33, #42, #43), tag enums (`CatalogSpirituality`, `CatalogHeart`, `CatalogTimeWeight`) with answer-string mappers.
+- ✅ Step 2 — `HabitCatalog.recommendations(for:)` shipped: `RankInput` struct + `Recommendations { top, starters }` partition. Scoring: heart +3, struggle slugs +1 each, time-fit ±. Deterministic FNV-1a seed jitter for stable per-user tiebreak.
+- ⏳ Steps 3–7 NOT started: Amir Step 2 wiring, joiner quiz wiring, Amir Step 1 split, custom-habit chips, cap drop. AmiirOnboardingCoordinator still has the Groq rationale path intact — must be removed in step 3. No call sites have been migrated to the catalog yet.
 
 **Bugs #7 and #8 superseded** — the "always same 3 habits" symptom was a catalog-narrowness problem, not an AI problem. Catalog rework solves both.
 
