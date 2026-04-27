@@ -271,6 +271,96 @@ final class GeminiService {
         return Array(decoded.suggestions.prefix(6))
     }
 
+    /// Phase 14 / Bug #8: Generate one personalized rationale per *already-chosen*
+    /// curated habit, keyed off the Amir's step-1 personalization answers.
+    ///
+    /// Different from `generateHabitSuggestions` in two ways:
+    /// 1. The habit names are fixed by the caller (curated pool, not Gemini's choice).
+    /// 2. The driver context is `(spirituality, time, heartOfCircle)` not struggles.
+    ///
+    /// Returns a dict keyed by exact habit name. Names that don't match the requested
+    /// set are dropped silently — caller falls back to a baked-in default rationale.
+    func generateHabitRationales(
+        habits: [String],
+        spiritualityLevel: String?,
+        timeCommitment: String?,
+        heartOfCircle: String?
+    ) async throws -> [String: String] {
+        let habitList = habits.map { "- \($0)" }.joined(separator: "\n")
+        let spirit = spiritualityLevel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let time   = timeCommitment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let heart  = heartOfCircle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        let prompt = """
+        You are a knowledgeable, gentle Islamic habits coach. The user has already
+        chosen a fixed set of habits for their small accountability circle. Write
+        ONE short rationale per habit, explaining why this habit fits *this user's*
+        answers below. Use the habit name verbatim — do not rename, translate, or
+        substitute habits.
+
+        User's spiritual level: \(spirit.isEmpty ? "(not specified)" : spirit)
+        Time they can commit daily: \(time.isEmpty ? "(not specified)" : time)
+        What their circle is rooted in: \(heart.isEmpty ? "(not specified)" : heart)
+
+        Habits to rationalize (use these exact names):
+        \(habitList)
+
+        Return ONLY valid JSON (no markdown fences) with this exact shape:
+        {"rationales":[{"name":"<exact habit name>","rationale":"one gentle sentence"}]}
+        Requirements:
+        - One object per habit, in the same order as listed above.
+        - Each "name" must match one of the habits above exactly (case-sensitive).
+        - Each "rationale" under 140 characters, first-person friendly tone, Muslim-appropriate.
+        - Never recommend anything that contradicts Islamic teachings.
+        """
+
+        // ~30 tok/rationale × 3 + envelope ≈ 120, 400 leaves headroom.
+        let body: [String: Any] = [
+            "contents": [
+                ["parts": [["text": prompt]]]
+            ],
+            "generationConfig": [
+                "maxOutputTokens": 400
+            ]
+        ]
+
+        guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await Self.session.data(for: request)
+
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "(no body)"
+            throw GeminiError.httpError(statusCode: http.statusCode, body: body)
+        }
+
+        struct RationaleItem: Decodable {
+            let name: String
+            let rationale: String
+        }
+        struct Envelope: Decodable {
+            let rationales: [RationaleItem]
+        }
+
+        let cleaned = try Self.extractGeminiTextJSON(from: data)
+        let decoded = try JSONDecoder().decode(Envelope.self, from: cleaned)
+        let requested = Set(habits)
+        var dict: [String: String] = [:]
+        for item in decoded.rationales where requested.contains(item.name) {
+            dict[item.name] = item.rationale
+        }
+        guard !dict.isEmpty else {
+            throw URLError(.cannotParseResponse)
+        }
+        return dict
+    }
+
     // MARK: - Shared Gemini response parsing
 
     private static func extractGeminiTextJSON(from data: Data) throws -> Data {

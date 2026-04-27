@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-26T23:30:00.000Z"
+last_updated: "2026-04-27T02:36:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -60,7 +60,7 @@ User-flagged 8 issues during end-to-end onboarding test. Fixes shipped to `main`
 Carry-forward (next session):
 - **#5 closed (2026-04-26 session 2).** Step-by-step back-nav confirmed sufficient for MVP. Full back-to-start deferred — kill+relaunch is a clean reset and avoids state-restoration cost.
 - **#7 partially shipped (2026-04-26 session 2).** Diagnostic logs surfaced root cause: 8 s race losing to cold-network second attempts (not a Gemini error). Shipped: (a) per-fingerprint cache so back-then-forward without changes reuses last successful result instead of re-firing the API, (b) Tier A reliability — timeout 8→15s + `maxOutputTokens: 400` cap on the Gemini request + elapsed-time logging on success/error/timeout. **Tier B (streaming via `streamGenerateContent`)** still open for next session, naturally bundled with #8 since both touch `GeminiService` + suggestions UI.
-- **#8 still open.** Decision aligned: keep curated pool of 10 fixed; expand visible tiles beyond `.prefix(3)`; wire Gemini for *rationales only* (Option B) so each tile has a personalized "why this fits" line matching the personal-intentions screen's pattern.
+- **#8 shipped (2026-04-26 session 3), pending hands-on QA.** Curated pool of 10 + ranking + `.prefix(3)` cap kept as-is. Each tile now renders a one-sentence rationale: baked-in default (per-habit static map) renders instantly; Gemini-personalized rationale swaps in within 1–15 s. New `GeminiService.generateHabitRationales` (additive — roadmap path untouched). Coordinator gains `habitRationales` state, fingerprint cache (`(spirituality, time, heart, top3)`), 15 s race + dedupe via in-flight `Task` handle, only-cache-on-success — same pattern as `OnboardingQuizCoordinator`. `HabitTile` expanded with 12 pt serif italic rationale row mirroring `QuizHabitSelectionView.swift:183-188`. Ranking moved out of view into `coordinator.rankedTopHabits()` (single source of truth for tile list + Gemini fetch). On timeout, defaults stay — no spinner, no error UI.
 
 ## Deferred QA / Rollout
 

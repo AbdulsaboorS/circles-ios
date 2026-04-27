@@ -8,49 +8,16 @@ struct AmiirStep2HabitsView: View {
 
     private var customTrimmed: String { customInput.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    private func habitScore(_ habit: (name: String, icon: String)) -> Int {
-        var score = 0
-        switch coordinator.spiritualityLevel {
-        case "Just starting out":
-            if ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].contains(habit.name) { score += 1 }
-        case "Building a foundation":
-            if ["Fajr", "Quran", "Dhikr"].contains(habit.name) { score += 1 }
-        case "Steady and growing":
-            if ["Tahajjud", "Quran", "Sadaqah"].contains(habit.name) { score += 1 }
-        case "Deeply rooted":
-            if ["Tahajjud", "Sadaqah", "Fasting"].contains(habit.name) { score += 1 }
-        default: break
-        }
-        switch coordinator.heartOfCircle {
-        case "Salah, together":
-            if ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].contains(habit.name) { score += 1 }
-        case "Quran in our lives":
-            if habit.name == "Quran" { score += 1 }
-        case "Remembrance of Allah":
-            if habit.name == "Dhikr" { score += 1 }
-        case "Brotherhood through hardship":
-            if ["Sadaqah", "Fasting"].contains(habit.name) { score += 1 }
-        default: break
-        }
-        switch coordinator.timeCommitment {
-        case "5–10 minutes":
-            if ["Tahajjud", "Fasting"].contains(habit.name) { score -= 1 }
-        case "More than an hour":
-            if ["Tahajjud", "Quran", "Fasting"].contains(habit.name) { score += 1 }
-        default: break
-        }
-        return score
+    private var rankedHabits: [(name: String, icon: String)] {
+        coordinator.rankedTopHabits()
     }
 
-    private var rankedHabits: [(name: String, icon: String)] {
-        AmiirOnboardingCoordinator.curatedHabits
-            .enumerated()
-            .sorted { a, b in
-                let sa = habitScore(a.element), sb = habitScore(b.element)
-                return sa != sb ? sa > sb : a.offset < b.offset
-            }
-            .prefix(3)
-            .map(\.element)
+    /// Renders Gemini's personalized rationale if available, else the baked-in default.
+    /// Default ensures tiles never appear empty even on cold start or Gemini timeout.
+    private func rationale(for habitName: String) -> String {
+        coordinator.habitRationales[habitName]
+            ?? AmiirOnboardingCoordinator.defaultRationales[habitName]
+            ?? ""
     }
 
     var body: some View {
@@ -95,7 +62,13 @@ struct AmiirStep2HabitsView: View {
                                         coordinator.selectedHabits.insert(habit.name)
                                     }
                                 } label: {
-                                    HabitTile(name: habit.name, icon: habit.icon, isSelected: isSelected, isDisabled: isDisabled)
+                                    HabitTile(
+                                        name: habit.name,
+                                        icon: habit.icon,
+                                        rationale: rationale(for: habit.name),
+                                        isSelected: isSelected,
+                                        isDisabled: isDisabled
+                                    )
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(isDisabled)
@@ -112,6 +85,7 @@ struct AmiirStep2HabitsView: View {
                                     icon: showCustomField && !customTrimmed.isEmpty
                                         ? AmiirOnboardingCoordinator.iconForHabit(customTrimmed)
                                         : "plus.circle.fill",
+                                    rationale: "",
                                     isSelected: customIsSelected,
                                     isDisabled: customDisabled
                                 )
@@ -191,6 +165,9 @@ struct AmiirStep2HabitsView: View {
                 .background(Color.msBackground)
             }
         }
+        .task {
+            await coordinator.loadHabitRationalesIfNeeded()
+        }
         .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -208,11 +185,12 @@ struct AmiirStep2HabitsView: View {
 private struct HabitTile: View {
     let name: String
     let icon: String
+    let rationale: String
     let isSelected: Bool
     let isDisabled: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? Color(hex: "D4A240") : Color(hex: "D4A240").opacity(0.12))
@@ -221,10 +199,21 @@ private struct HabitTile: View {
                     .font(.system(size: 16))
                     .foregroundStyle(isSelected ? Color(hex: "1A2E1E") : Color(hex: "D4A240"))
             }
-            Text(name)
-                .font(.appSubheadline)
-                .foregroundStyle(isSelected ? Color(hex: "D4A240") : Color(hex: "F0EAD6"))
-            Spacer()
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.appSubheadline)
+                    .foregroundStyle(isSelected ? Color(hex: "D4A240") : Color(hex: "F0EAD6"))
+                if !rationale.isEmpty {
+                    Text(rationale)
+                        .font(.system(size: 12, design: .serif).italic())
+                        .foregroundStyle(isSelected
+                                         ? Color(hex: "D4A240").opacity(0.85)
+                                         : Color(hex: "F0EAD6").opacity(0.6))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color(hex: "D4A240"))
@@ -232,6 +221,7 @@ private struct HabitTile: View {
             }
         }
         .padding(12)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
             isSelected
                 ? Color(hex: "D4A240").opacity(0.1)

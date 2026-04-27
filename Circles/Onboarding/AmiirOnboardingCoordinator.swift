@@ -32,6 +32,21 @@ final class AmiirOnboardingCoordinator {
         ("Tahajjud",  "sparkles")
     ]
 
+    /// One short generic rationale per curated habit. Renders instantly while Gemini
+    /// loads — and stays in place if Gemini times out, so tiles never appear empty.
+    static let defaultRationales: [String: String] = [
+        "Fajr":     "The hardest prayer to anchor — building it together makes it stick.",
+        "Quran":    "A few verses a day keeps your heart turned toward Allah.",
+        "Dhikr":    "Small remembrance, repeated, softens the heart through the day.",
+        "Dhuhr":    "A midday pause that resets your intention before the rush.",
+        "Asr":      "The afternoon prayer the Prophet ﷺ called especially weighty.",
+        "Maghrib":  "Closing the day in gratitude as the sun sets together.",
+        "Isha":     "Ending the day with your circle keeps you accountable through the night.",
+        "Sadaqah":  "Even a small daily gift trains the soul against attachment.",
+        "Fasting":  "Voluntary fasts (Mondays/Thursdays) sharpen patience and gratitude.",
+        "Tahajjud": "The night prayer is where du'a is answered — beloved practice for the steady."
+    ]
+
     // MARK: - Collected Data
     var preferredName: String = ""
     var circleName: String = ""
@@ -79,6 +94,161 @@ final class AmiirOnboardingCoordinator {
     }
 
     var canSelectMoreHabits: Bool { selectedHabits.count < 3 }
+
+    // MARK: - Habit Ranking (Step 2 shared-habits screen)
+
+    /// Score a curated habit against the user's step-1 personalization answers.
+    /// Higher score = better fit. Source of truth for ranking; the view delegates here
+    /// so the rationale-fetch and the rendered list stay in sync.
+    private func habitScore(_ habit: (name: String, icon: String)) -> Int {
+        var score = 0
+        switch spiritualityLevel {
+        case "Just starting out":
+            if ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].contains(habit.name) { score += 1 }
+        case "Building a foundation":
+            if ["Fajr", "Quran", "Dhikr"].contains(habit.name) { score += 1 }
+        case "Steady and growing":
+            if ["Tahajjud", "Quran", "Sadaqah"].contains(habit.name) { score += 1 }
+        case "Deeply rooted":
+            if ["Tahajjud", "Sadaqah", "Fasting"].contains(habit.name) { score += 1 }
+        default: break
+        }
+        switch heartOfCircle {
+        case "Salah, together":
+            if ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].contains(habit.name) { score += 1 }
+        case "Quran in our lives":
+            if habit.name == "Quran" { score += 1 }
+        case "Remembrance of Allah":
+            if habit.name == "Dhikr" { score += 1 }
+        case "Brotherhood through hardship":
+            if ["Sadaqah", "Fasting"].contains(habit.name) { score += 1 }
+        default: break
+        }
+        switch timeCommitment {
+        case "5–10 minutes":
+            if ["Tahajjud", "Fasting"].contains(habit.name) { score -= 1 }
+        case "More than an hour":
+            if ["Tahajjud", "Quran", "Fasting"].contains(habit.name) { score += 1 }
+        default: break
+        }
+        return score
+    }
+
+    /// Top-3 ranked curated habits — used by both the Step 2 view and the rationale fetch.
+    func rankedTopHabits() -> [(name: String, icon: String)] {
+        Self.curatedHabits
+            .enumerated()
+            .sorted { a, b in
+                let sa = habitScore(a.element), sb = habitScore(b.element)
+                return sa != sb ? sa > sb : a.offset < b.offset
+            }
+            .prefix(3)
+            .map(\.element)
+    }
+
+    // MARK: - Personalized Rationales (Bug #8)
+
+    /// Live Gemini result keyed by exact habit name. Empty until the first load completes.
+    /// View renders `habitRationales[name] ?? defaultRationales[name] ?? ""` so the default
+    /// covers cold start, timeout, and Gemini-name-mismatch cases.
+    var habitRationales: [String: String] = [:]
+
+    /// Fingerprint of the answers + top-3 habit set used for the last *successful* Gemini call.
+    /// Mirrors `OnboardingQuizCoordinator.cachedSuggestionsKey` — only set on success.
+    private var cachedRationalesKey: String? = nil
+
+    /// Dedupes concurrent calls if the view's `.task` re-fires (e.g. nav back/forward race).
+    private var rationalesTask: Task<Void, Never>? = nil
+
+    /// Kicks off (or reuses) a Gemini call for personalized rationales for the top-3 ranked habits.
+    /// Pattern copied verbatim from `OnboardingQuizCoordinator.loadSuggestions`: 15s timeout race,
+    /// elapsed-time logging, fingerprint cache, only-cache-on-success.
+    func loadHabitRationalesIfNeeded() async {
+        let topHabits = rankedTopHabits().map(\.name)
+        let key = Self.rationalesKey(
+            spirituality: spiritualityLevel,
+            time: timeCommitment,
+            heart: heartOfCircle,
+            habits: topHabits
+        )
+
+        if key == cachedRationalesKey, !habitRationales.isEmpty {
+            print("[Gemini rationales] cache hit — reusing \(habitRationales.count) item(s)")
+            return
+        }
+
+        // If a load for this same key is already in flight, await it instead of starting a second.
+        if let existing = rationalesTask {
+            await existing.value
+            return
+        }
+
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.fetchRationales(habits: topHabits, key: key)
+        }
+        rationalesTask = task
+        await task.value
+        rationalesTask = nil
+    }
+
+    private func fetchRationales(habits: [String], key: String) async {
+        let spirit = spiritualityLevel
+        let time   = timeCommitment
+        let heart  = heartOfCircle
+
+        let raced: [String: String]? = await withTaskGroup(of: [String: String]?.self) { group in
+            group.addTask {
+                let t0 = Date()
+                do {
+                    let result = try await GeminiService.shared.generateHabitRationales(
+                        habits: habits,
+                        spiritualityLevel: spirit,
+                        timeCommitment: time,
+                        heartOfCircle: heart
+                    )
+                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                    print("[Gemini rationales] ok — \(result.count) item(s) in \(ms)ms")
+                    return result
+                } catch is CancellationError {
+                    return nil
+                } catch {
+                    if (error as NSError).code == NSURLErrorCancelled { return nil }
+                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                    print("[Gemini rationales] error after \(ms)ms — \(error.localizedDescription)")
+                    return nil
+                }
+            }
+            group.addTask {
+                do {
+                    try await Task.sleep(for: .seconds(15.0))
+                    print("[Gemini rationales] race timeout fired (15s) — Gemini still in flight")
+                } catch {}
+                return nil
+            }
+
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+
+        if let live = raced {
+            habitRationales = live
+            cachedRationalesKey = key
+        } else {
+            print("[Gemini rationales] using defaults (timeout or error — see prior log)")
+            // Intentionally do NOT update cachedRationalesKey — next entry should retry Gemini.
+        }
+    }
+
+    private static func rationalesKey(
+        spirituality: String?,
+        time: String?,
+        heart: String?,
+        habits: [String]
+    ) -> String {
+        "\(spirituality ?? "")::\(time ?? "")::\(heart ?? "")::\(habits.joined(separator: "|"))"
+    }
 
     // MARK: - Navigation Helpers
     func proceedToSharedPersonalization() {
