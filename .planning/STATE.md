@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-27T19:00:00.000Z"
+last_updated: "2026-04-27T21:30:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -22,7 +22,7 @@ progress:
 
 ## Product Priority Order
 
-1. Test onboarding bugs and fix them
+1. ~~Test onboarding bugs and fix them~~ — **DONE as of 2026-04-27**
 2. Do the full UI/UX pass
 3. Finalize the name
 4. Finalize the logo
@@ -102,6 +102,28 @@ Hands-on QA of the catalog flow surfaced 3 layout issues. Fixes shipped, build g
 - **Personal/shared overlap fix.** `HabitCatalog.RankInput` now takes `excludedNames: Set<String>`; filtered before scoring. `OnboardingQuizCoordinator.excludedHabitNames` plumbs through. Amir personal quiz excludes `coordinator.selectedHabits`; Joiner personal quiz excludes `circle.coreHabitsSafe`. Personal recommendations no longer duplicate shared circle habits.
 - **Files touched:** `Models/HabitCatalog.swift`, `Onboarding/Quiz/OnboardingQuizCoordinator.swift`, `Onboarding/Quiz/AmiirQuizStepView.swift`, `Onboarding/Quiz/JoinerQuizStepView.swift`, `Onboarding/Quiz/QuizHabitSelectionView.swift`, `Onboarding/AmiirStep2HabitsView.swift`. New: `Onboarding/OnboardingHabitCards.swift`. Deleted: `Onboarding/OnboardingCustomHabitChip.swift` (superseded by the new slot+row combo).
 - **Build verification.** `xcodebuild` on iPhone 17 sim (OS 26.3.1) passed; only warnings are pre-existing `FeedService.swift` and `AuthManager.swift` async/no-async noise.
+
+## Onboarding QA finalization — 2026-04-27 session 5
+
+All remaining user-flagged onboarding bugs fixed and committed to `main` (commit `b0e99ad`). Build green on iPhone 17 sim.
+
+**Bug 1 — Custom habit add button silently disabled (Tahajjud, etc.)**
+`canCommitCustom` in `AmiirStep2HabitsView` was blocking against the full 44-entry catalog, not just what's visible on screen. Fixed: now blocks only against the user's rendered recommendations (top + starters).
+
+**Bug 2 — Moment primer verbiage**
+Beat 4 ("Only your circle sees it.") removed. "Only your circle sees it" folded into beat 1's body. 3 beats instead of 4.
+
+**Bug 3 — Location screen implied Adhan push notifications**
+`AmiirStep3LocationView` ("Prayer Synchronization") and `JoinerIdentityView` ("Anchor your prayer times") both implied we send notifications at every prayer — we don't. City data is only consumed by `HabitReminderScheduler` for habit reminder scheduling.
+- `HabitReminderScheduler.requiresPrayerTimes(habitName:)` added as single source of truth for the prayer-anchor keyword set.
+- `AmiirOnboardingCoordinator.needsLocation` and `MemberOnboardingCoordinator.needsLocation` expose the skip signal.
+- Both flow views route conditionally from `.momentPrimer`: prayer-habit users → location screen; everyone else → directly to auth.
+- Both location screens retitled "Your Location" with honest copy; all push-notification cards removed.
+
+**Bug 4 — Notification permission asked nowhere after location-screen cleanup**
+Moved to `OnboardingMomentPrimerView`. Button relabeled "Allow Camera & Notifications"; camera + notification requests chain sequentially on tap. "Maybe later" skips both.
+
+**Onboarding is now considered QA-complete and ready for next phase.**
 
 ## Deferred QA / Rollout
 
