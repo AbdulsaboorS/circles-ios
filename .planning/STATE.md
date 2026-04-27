@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-27T02:36:00.000Z"
+last_updated: "2026-04-27T18:00:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -61,6 +61,28 @@ Carry-forward (next session):
 - **#5 closed (2026-04-26 session 2).** Step-by-step back-nav confirmed sufficient for MVP. Full back-to-start deferred — kill+relaunch is a clean reset and avoids state-restoration cost.
 - **#7 partially shipped (2026-04-26 session 2).** Diagnostic logs surfaced root cause: 8 s race losing to cold-network second attempts (not a Gemini error). Shipped: (a) per-fingerprint cache so back-then-forward without changes reuses last successful result instead of re-firing the API, (b) Tier A reliability — timeout 8→15s + `maxOutputTokens: 400` cap on the Gemini request + elapsed-time logging on success/error/timeout. **Tier B (streaming via `streamGenerateContent`)** still open for next session, naturally bundled with #8 since both touch `GeminiService` + suggestions UI.
 - **#8 shipped (2026-04-26 session 3), pending hands-on QA.** Curated pool of 10 + ranking + `.prefix(3)` cap kept as-is. Each tile now renders a one-sentence rationale: baked-in default (per-habit static map) renders instantly; Gemini-personalized rationale swaps in within 1–15 s. New `GeminiService.generateHabitRationales` (additive — roadmap path untouched). Coordinator gains `habitRationales` state, fingerprint cache (`(spirituality, time, heart, top3)`), 15 s race + dedupe via in-flight `Task` handle, only-cache-on-success — same pattern as `OnboardingQuizCoordinator`. `HabitTile` expanded with 12 pt serif italic rationale row mirroring `QuizHabitSelectionView.swift:183-188`. Ranking moved out of view into `coordinator.rankedTopHabits()` (single source of truth for tile list + Gemini fetch). On timeout, defaults stay — no spinner, no error UI.
+
+## Onboarding rework — 2026-04-27 (catalog architecture locked)
+
+Session pivoted from per-bug QA into a structural fix. After testing both flows, decided the AI-rationale path is the wrong abstraction for onboarding suggestions. Locked a catalog-driven architecture, ready to build next session.
+
+**Shipped this session (build green, on `main`):**
+- New `Circles/Services/GroqService.swift` — Llama 3.3 70B Versatile via Groq, OpenAI-compatible JSON mode, 8 s timeout. `GROQ_API_KEY` added to `Secrets.plist`.
+- `OnboardingQuizCoordinator.loadSuggestions` swapped Gemini → Groq (sub-second latency vs Gemini's 5–15 s cold).
+- `AmiirOnboardingCoordinator.fetchRationales` swapped Gemini → Groq.
+- `GeminiService` retained for `generate28DayRoadmap` only (latency-tolerant async).
+
+**Locked for next session (build spec at `.planning/notes/habit-catalog-draft.md`):**
+- 44-entry hand-curated `HabitCatalog` becomes single source of truth for both Amir and Joiner suggestion paths. AI removed entirely from onboarding suggestion path.
+- Surfacing layout: 4 personalized + 3 common starters = 7 total, no overlap (set partition).
+- Selection caps: shared (Amir) = 2, personal (Joiner / private intentions) = 3.
+- 8 entries get per-spirituality rationale variants (gentle for J, ambitious for D); other 36 use one default.
+- Custom-habit chip UX (inline "+ Add your own" → chips in same list, multi-add) — user explicitly called this "the biggest moat."
+- Amir Step 1 (3 questions on one scrolling page) splits into 3 separate pages.
+
+**Build order (7 steps) listed at bottom of `.planning/notes/habit-catalog-draft.md`.** Steps are sequential; step 1 (`HabitCatalog.swift`) unlocks 2–4. Decision context and rationale also saved to memory at `project_habit_catalog_decision.md`.
+
+**Bugs #7 and #8 superseded** — the "always same 3 habits" symptom was a catalog-narrowness problem, not an AI problem. Catalog rework solves both.
 
 ## Deferred QA / Rollout
 

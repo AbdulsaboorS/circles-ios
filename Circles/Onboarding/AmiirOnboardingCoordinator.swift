@@ -201,21 +201,21 @@ final class AmiirOnboardingCoordinator {
             group.addTask {
                 let t0 = Date()
                 do {
-                    let result = try await GeminiService.shared.generateHabitRationales(
+                    let result = try await GroqService.shared.generateHabitRationales(
                         habits: habits,
                         spiritualityLevel: spirit,
                         timeCommitment: time,
                         heartOfCircle: heart
                     )
                     let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("[Gemini rationales] ok — \(result.count) item(s) in \(ms)ms")
+                    print("[Groq rationales] ok — \(result.count) item(s) in \(ms)ms")
                     return result
                 } catch is CancellationError {
                     return nil
                 } catch {
                     if (error as NSError).code == NSURLErrorCancelled { return nil }
                     let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("[Gemini rationales] error after \(ms)ms — \(error.localizedDescription)")
+                    print("[Groq rationales] error after \(ms)ms — \(error.localizedDescription)")
                     return nil
                 }
             }

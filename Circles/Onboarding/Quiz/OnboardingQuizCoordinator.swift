@@ -128,12 +128,12 @@ final class OnboardingQuizCoordinator {
             group.addTask {
                 let t0 = Date()
                 do {
-                    let result = try await GeminiService.shared.generateHabitSuggestions(
+                    let result = try await GroqService.shared.generateHabitSuggestions(
                         islamicStruggles: islamic,
                         lifeStruggles: life
                     )
                     let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("[Gemini suggestions] ok — \(result.count) item(s) in \(ms)ms")
+                    print("[Groq suggestions] ok — \(result.count) item(s) in \(ms)ms")
                     return result
                 } catch is CancellationError {
                     return nil
@@ -142,7 +142,7 @@ final class OnboardingQuizCoordinator {
                     // so we don't mistake "sibling timeout won the race" for a real failure.
                     if (error as NSError).code == NSURLErrorCancelled { return nil }
                     let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                    print("[Gemini suggestions] error after \(ms)ms — \(error.localizedDescription)")
+                    print("[Groq suggestions] error after \(ms)ms — \(error.localizedDescription)")
                     return nil
                 }
             }
