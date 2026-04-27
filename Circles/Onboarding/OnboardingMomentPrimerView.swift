@@ -18,7 +18,7 @@ struct OnboardingMomentPrimerView: View {
         Beat(
             icon: "clock.badge.fill",
             title: "Once a day. One chance.",
-            body: "At a random time each day, your Moment window opens. You'll have a few minutes to capture it."
+            body: "At a random time each day, your Moment window opens. You'll have a few minutes to capture it — only your circle sees it."
         ),
         Beat(
             icon: "arrow.uturn.right.circle.fill",
@@ -29,11 +29,6 @@ struct OnboardingMomentPrimerView: View {
             icon: "heart.text.square.fill",
             title: "Niyyah stays in your heart.",
             body: "Each Moment carries an intention only you and Allah know. The photo is for your circle. The niyyah is yours alone, for the sake of the Creator."
-        ),
-        Beat(
-            icon: "eye.slash.fill",
-            title: "Only your circle sees it.",
-            body: "Private to the few people walking with you. Never public, never on a stranger's feed."
         )
     ]
 
@@ -76,11 +71,6 @@ struct OnboardingMomentPrimerView: View {
                                     .scaleEffect(values.beat3Scale)
                                     .offset(y: values.beat3Y)
                                     .opacity(values.beat3Opacity)
-
-                                BeatRow(beat: beats[3])
-                                    .scaleEffect(values.beat4Scale)
-                                    .offset(y: values.beat4Y)
-                                    .opacity(values.beat4Opacity)
                             }
                             .padding(.horizontal, 24)
                             .padding(.top, 4)
@@ -92,7 +82,7 @@ struct OnboardingMomentPrimerView: View {
                         Button {
                             requestCameraThenContinue()
                         } label: {
-                            Text(isRequesting ? "Requesting..." : "Allow Camera")
+                            Text(isRequesting ? "Requesting..." : "Allow Camera & Notifications")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(Color.msBackground)
                                 .frame(maxWidth: .infinity)
@@ -175,22 +165,9 @@ struct OnboardingMomentPrimerView: View {
                     CubicKeyframe(1, duration: 0.4)
                 }
 
-                KeyframeTrack(\.beat4Scale) {
-                    LinearKeyframe(0.94, duration: 1.3)
-                    SpringKeyframe(1.0, duration: 0.4, spring: Spring(duration: 0.4, bounce: 0.24))
-                }
-                KeyframeTrack(\.beat4Y) {
-                    LinearKeyframe(8, duration: 1.3)
-                    SpringKeyframe(0, duration: 0.45)
-                }
-                KeyframeTrack(\.beat4Opacity) {
-                    LinearKeyframe(0, duration: 1.3)
-                    CubicKeyframe(1, duration: 0.4)
-                }
-
                 // Footer fades in last
                 KeyframeTrack(\.footerOpacity) {
-                    LinearKeyframe(0, duration: 1.65)
+                    LinearKeyframe(0, duration: 1.4)
                     CubicKeyframe(1, duration: 0.35)
                 }
             }
@@ -210,6 +187,7 @@ struct OnboardingMomentPrimerView: View {
         isRequesting = true
         Task {
             _ = await CameraManager.requestVideoAccess()
+            _ = await NotificationService.shared.requestPermission()
             await MainActor.run {
                 isRequesting = false
                 onContinue()
@@ -532,10 +510,6 @@ private struct EntryValues {
     var beat3Scale: CGFloat = 0.94
     var beat3Y: CGFloat = 8
     var beat3Opacity: Double = 0
-
-    var beat4Scale: CGFloat = 0.94
-    var beat4Y: CGFloat = 8
-    var beat4Opacity: Double = 0
 
     var footerOpacity: Double = 0
 }

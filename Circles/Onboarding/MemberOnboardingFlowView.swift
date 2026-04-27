@@ -36,7 +36,11 @@ struct MemberOnboardingFlowView: View {
 
                     case .momentPrimer:
                         OnboardingMomentPrimerView(currentStep: 4, totalSteps: 6) {
-                            coordinator.proceedToIdentity()
+                            if coordinator.needsLocation {
+                                coordinator.proceedToIdentity()
+                            } else {
+                                coordinator.proceedToAuthGate()
+                            }
                         }
 
                     case .aiGeneration:

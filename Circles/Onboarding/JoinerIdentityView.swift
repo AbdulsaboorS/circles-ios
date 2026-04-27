@@ -1,12 +1,9 @@
 import SwiftUI
-import UIKit
 
 struct JoinerIdentityView: View {
     @Environment(MemberOnboardingCoordinator.self) private var coordinator
 
     @State private var searchText = ""
-    @State private var pushRequested = false
-    @State private var pushDenied = false
 
     private var filteredCities: [(name: String, country: String, tz: String, lat: Double, lng: Double)] {
         if searchText.isEmpty { return LocationPickerView.cities }
@@ -27,61 +24,18 @@ struct JoinerIdentityView: View {
                         .foregroundStyle(Color.msGold)
                         .padding(.top, 24)
 
-                    Text("Anchor your prayer times.")
+                    Text("Your Location")
                         .font(.system(size: 26, weight: .semibold, design: .serif))
                         .foregroundStyle(Color.msTextPrimary)
                         .multilineTextAlignment(.center)
 
-                    Text("Your city helps us sync your prayer window.")
+                    Text("We use your city to calculate accurate prayer times — so your habits stay anchored to your day.")
                         .font(.system(size: 15))
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 }
                 .padding(.bottom, 12)
-
-                if !pushRequested {
-                    Button {
-                        pushRequested = true
-                        Task {
-                            let granted = await NotificationService.shared.requestPermission()
-                            if !granted {
-                                pushDenied = true
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "bell.fill")
-                                .foregroundStyle(Color.msBackground)
-                            Text("Enable the Adhan for your circle")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Color.msBackground)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(Color.msGold, in: RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                } else if pushDenied {
-                    VStack(spacing: 8) {
-                        Text("Without the Adhan notification, your Circle Moment window won't alert you. Enable anytime in Settings.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.msTextMuted)
-                            .multilineTextAlignment(.center)
-
-                        Button("Open Settings") {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
-                            }
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.msGold)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                }
 
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")

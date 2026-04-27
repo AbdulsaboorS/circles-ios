@@ -147,6 +147,18 @@ final class HabitReminderScheduler {
         }
     }
 
+    static func requiresPrayerTimes(habitName: String) -> Bool {
+        let name = habitName.lowercased()
+        return name.contains("fajr")
+            || name.contains("dhuhr")
+            || name.contains("asr")
+            || name.contains("maghrib")
+            || name.contains("isha")
+            || name.contains("salah")
+            || name.contains("salat")
+            || name.contains("prayer")
+    }
+
     private func reminderAnchor(for habit: Habit) -> ReminderAnchor {
         let name = habit.name.lowercased()
 
@@ -168,7 +180,7 @@ final class HabitReminderScheduler {
         if name.contains("isha") {
             return .prayer("isha")
         }
-        if name.contains("salah") || name.contains("salat") || name.contains("prayer") {
+        if Self.requiresPrayerTimes(habitName: habit.name) {
             return .prayer("dhuhr")
         }
         if name.contains("reflection")

@@ -25,6 +25,10 @@ struct AmiirStep2HabitsView: View {
         Set(HabitCatalog.all.map(\.name))
     }
 
+    private var visibleHabitNames: Set<String> {
+        Set((recommendations.top + recommendations.starters).map(\.name))
+    }
+
     var body: some View {
         ZStack {
             Color.msBackground.ignoresSafeArea()
@@ -197,9 +201,8 @@ struct AmiirStep2HabitsView: View {
     }
 
     private func canCommitCustom(_ trimmed: String) -> Bool {
-        // Disallow duplicates against catalog names + already-added customs.
         let lower = trimmed.lowercased()
-        if catalogNames.contains(where: { $0.lowercased() == lower }) { return false }
+        if visibleHabitNames.contains(where: { $0.lowercased() == lower }) { return false }
         if addedCustoms.contains(where: { $0.lowercased() == lower }) { return false }
         return true
     }

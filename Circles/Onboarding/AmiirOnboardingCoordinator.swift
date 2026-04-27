@@ -72,6 +72,11 @@ final class AmiirOnboardingCoordinator {
 
     var canSelectMoreHabits: Bool { selectedHabits.count < HabitCatalog.sharedCap }
 
+    var needsLocation: Bool {
+        let all = selectedHabits.union(Set(selectedPersonalHabits))
+        return all.contains { HabitReminderScheduler.requiresPrayerTimes(habitName: $0) }
+    }
+
     func sharedHabitRecommendations() -> HabitCatalog.Recommendations {
         HabitCatalog.recommendations(
             for: .init(

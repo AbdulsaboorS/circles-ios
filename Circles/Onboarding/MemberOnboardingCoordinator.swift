@@ -56,6 +56,11 @@ final class MemberOnboardingCoordinator {
         self.inviteCodeInput = inviteCode
     }
 
+    var needsLocation: Bool {
+        let all = selectedCircleHabits.union(Set(selectedPersonalHabits))
+        return all.contains { HabitReminderScheduler.requiresPrayerTimes(habitName: $0) }
+    }
+
     // MARK: - Invite Code Submission
     func submitInviteCode(_ code: String) async {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

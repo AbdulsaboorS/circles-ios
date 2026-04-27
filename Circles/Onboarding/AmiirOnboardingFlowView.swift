@@ -34,7 +34,11 @@ struct AmiirOnboardingFlowView: View {
                         AmiirQuizStepView()
                     case .momentPrimer:
                         OnboardingMomentPrimerView(currentStep: 8, totalSteps: 10) {
-                            coordinator.proceedToFoundation()
+                            if coordinator.needsLocation {
+                                coordinator.proceedToFoundation()
+                            } else {
+                                coordinator.proceedToActivation()
+                            }
                         }
                     case .aiGeneration:
                         AmiirAIGenerationView {
