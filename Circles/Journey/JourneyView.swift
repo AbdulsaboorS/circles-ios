@@ -29,6 +29,7 @@ private struct JourneyContentView: View {
 
     @State private var viewModel: JourneyViewModel
     @State private var selectedDayKey: String? = nil
+    @State private var hasAppearedOnce = false
 
     init(userId: UUID) {
         self.userId = userId
@@ -95,7 +96,11 @@ private struct JourneyContentView: View {
             await viewModel.loadInitial()
         }
         .onAppear {
-            Task { await viewModel.refreshOnAppear() }
+            if hasAppearedOnce {
+                Task { await viewModel.refreshOnAppear() }
+            } else {
+                hasAppearedOnce = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .momentPostRefresh)) { notification in
             guard let event = notification.object as? MomentPostRefreshEvent else { return }
@@ -185,11 +190,17 @@ private struct JourneyEmptyOverlay: View {
                 .font(.system(size: 26))
                 .foregroundStyle(Color.msGold.opacity(0.78))
 
-            Text("Your journey begins with your first intention")
+            Text("Your journey begins with your first niyyah or Moment")
                 .font(.system(size: 18, weight: .regular, design: .serif))
                 .foregroundStyle(Color.msTextPrimary.opacity(0.92))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
+
+            Text("Show up once, and this archive starts keeping the days that mattered.")
+                .font(.appSubheadline)
+                .foregroundStyle(Color.msTextMuted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
         }
         .padding(.vertical, 26)
         .padding(.horizontal, 20)

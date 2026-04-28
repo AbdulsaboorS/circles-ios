@@ -206,6 +206,11 @@ private struct JourneyDayDetailPage: View {
                     Text("Photo unavailable")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
+                    Button("Try again") {
+                        Task { await loadMediaIfNeeded() }
+                    }
+                    .font(.appCaptionMedium)
+                    .foregroundStyle(Color.msGold)
                 }
             } else {
                 Image(systemName: "photo")

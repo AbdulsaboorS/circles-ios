@@ -141,7 +141,8 @@ private struct JourneyDayCell: View {
 
     private var accessibilityLabel: String {
         let date = JourneyDateSupport.formattedDate(for: day.displayDateUTC)
-        if day.hasNiyyah { return "\(date), has niyyah and moment detail" }
+        if day.hasNiyyah && day.hasPostedMoment { return "\(date), has niyyah and moment detail" }
+        if day.hasNiyyah { return "\(date), has niyyah detail" }
         if day.hasPostedMoment { return "\(date), has moment detail" }
         return date
     }
