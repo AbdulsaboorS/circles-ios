@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-28T01:05:00.000Z"
+last_updated: "2026-04-28T05:30:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -129,6 +129,30 @@ Beat 4 ("Only your circle sees it.") removed. "Only your circle sees it" folded 
 Moved to `OnboardingMomentPrimerView`. Button relabeled "Allow Camera & Notifications"; camera + notification requests chain sequentially on tap. "Maybe later" skips both.
 
 **Onboarding closeout:** user completed full hands-on QA on both Amir and Joiner flows on 2026-04-27 and signed onboarding off as fully functional and MVP-ready.
+
+## Session 2026-04-28 — revert + BeReal regional model locked in
+
+Last session's bug-fix commit (`0a75a5d`, "fix: eliminate false error flash on pull-to-refresh and stale circle timing") did not resolve the actual reported moment bugs after user hands-on testing. Both `0a75a5d` and the trailing auto-commit `5b995fd` reverted via new revert commits `d164f06` and `a0f0ea7`. Working tree clean, Xcode build green.
+
+**Deferred this session**: pull-to-refresh / CancellationError work — out of scope until moment correctness is right.
+
+**Locked direction — BeReal regional window model**:
+- 4 regions: `americas`, `europe`, `east_asia`, `west_asia` (new `moment_region` enum + `profiles.region` column).
+- One window per region per day at random region-local 9:00–23:00. Same fire moment for everyone in a region (true BeReal copy).
+- Single fixed representative TZ per region: Americas = `America/New_York`, Europe = `Europe/Paris`, West Asia = `Asia/Dubai`, East Asia = `Asia/Tokyo`.
+- `daily_moments` becomes one-row-per-region-per-region-local-date (composite PK `region, moment_date`); `moment_date` semantics shift from UTC date to region-local date everywhere (`circle_moments.moment_date`, `DailyMomentService.activeFeedDate`/`currentWindowDate`, the `computeHasPostedToday` guard).
+- Subsumes both bugs: yesterday-flicker preview/timestamp on circles list AND "two windows in one local day" — both stem from UTC vs local-day disagreement, which the regional anchor eliminates.
+
+**Phase status (plan at `~/.claude/plans/continue-polished-cherny.md`)**:
+- Phase A revert: ✅ shipped this session.
+- Phase B echo-back: ✅ user confirmed understanding.
+- Phase C read-only investigation: ✅ complete (line-level files mapped: `DailyMomentService.swift`, `MomentService.swift`, `FeedService.swift`, `CirclesViewModel.swift`, `Models/CircleCardData.swift`, `supabase/migrations/20260423_moment_mechanic_redesign.sql`, `supabase/functions/{send-moment-window-notifications,seed-daily-moment}/index.ts`, `Profile/ProfileView.swift`).
+- Phases D1–D7 (DB migration, pg_cron 4-row seed, edge function region routing, `DailyMomentService` rewrite, `MomentService.postMomentToAllCircles` regional momentDate, onboarding region confirmation step, Profile region picker) and Phase E (verify): **not started — pick up next session**.
+
+**Confirmed product calls (don't re-litigate)**:
+- Scope: inline this session (was approved before context cap; carry forward to next).
+- Region picker UX: both onboarding (auto-detect from TZ → confirm step) AND Profile (editable row).
+- Americas TZ: single fixed Eastern (BeReal-style), not user-actual.
 
 ## Deferred QA / Rollout
 
