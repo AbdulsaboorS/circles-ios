@@ -51,6 +51,8 @@ private final class AddIntentionCoordinator {
     var planDone = false
     var errorMessage: String?
     var generatingProgressText: String = ""
+    var successfulRoadmapCount: Int = 0
+    var failedRoadmapCount: Int = 0
 
     var pendingQueue: [HabitSuggestion] = []
     var pendingIndex: Int = 0
@@ -98,6 +100,8 @@ private final class AddIntentionCoordinator {
         isSavingQuickAdd = false
         planDone = false
         generatingProgressText = ""
+        successfulRoadmapCount = 0
+        failedRoadmapCount = 0
     }
 
     func resolvedName() -> String {
@@ -146,6 +150,8 @@ private final class AddIntentionCoordinator {
         isGenerating = true
         planDone = false
         errorMessage = nil
+        successfulRoadmapCount = 0
+        failedRoadmapCount = 0
         do {
             let habit = try await HabitService.shared.createPrivateHabit(
                 userId: userId,
@@ -155,6 +161,7 @@ private final class AddIntentionCoordinator {
                 niyyah: niyyahValue
             )
             createdHabit = habit
+            createdHabits = [habit]
 
             let promptNotes: String? = {
                 switch (habit.planNotes, niyyahValue) {
@@ -175,8 +182,10 @@ private final class AddIntentionCoordinator {
                 userId: userId,
                 milestones: milestones
             )
+            successfulRoadmapCount = 1
             planDone = true
         } catch {
+            failedRoadmapCount = 1
             errorMessage = HabitPlanService.userFacingMessage(from: error)
         }
         isGenerating = false
@@ -192,6 +201,8 @@ private final class AddIntentionCoordinator {
         isGenerating = true
         planDone = false
         errorMessage = nil
+        successfulRoadmapCount = 0
+        failedRoadmapCount = 0
         var created: [Habit] = []
 
         for (index, spec) in specs.enumerated() {
@@ -225,14 +236,16 @@ private final class AddIntentionCoordinator {
                     userId: userId,
                     milestones: milestones
                 )
+                successfulRoadmapCount += 1
             } catch {
+                failedRoadmapCount += 1
                 continue
             }
         }
 
         createdHabits = created
         createdHabit = created.first
-        planDone = !created.isEmpty
+        planDone = successfulRoadmapCount > 0
         isGenerating = false
     }
 }
@@ -255,6 +268,14 @@ struct AddPrivateIntentionSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
+                if coord.step != .entryChoice && coord.step != .generating {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Back") {
+                            goBack()
+                        }
+                        .foregroundStyle(Color.msGold)
+                    }
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(Color.msGold)
@@ -472,9 +493,23 @@ struct AddPrivateIntentionSheet: View {
     }
 
     private func savedStruggleLabels() -> [String] {
-        let islamic = coord.savedStrugglesIslamic.compactMap { IslamicStruggle(rawValue: $0)?.label }
-        let life = coord.savedStrugglesLife.compactMap { LifeStruggle(rawValue: $0)?.label }
+        let islamic = coord.savedStrugglesIslamic.compactMap(labelForSavedStruggle)
+        let life = coord.savedStrugglesLife.compactMap(labelForSavedStruggle)
         return islamic + life
+    }
+
+    private func labelForSavedStruggle(_ slug: String) -> String? {
+        if slug.hasPrefix("custom:") {
+            let custom = String(slug.dropFirst("custom:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return custom.isEmpty ? nil : custom
+        }
+        if let islamic = IslamicStruggle(rawValue: slug) {
+            return islamic.label
+        }
+        if let life = LifeStruggle(rawValue: slug) {
+            return life.label
+        }
+        return nil
     }
 
     private func beginGuidedFlow() async {
@@ -529,6 +564,40 @@ struct AddPrivateIntentionSheet: View {
         quizCoordinator.onFinishMany = { habitNames in
             let suggestions = habitNames.map { HabitSuggestion(name: $0, rationale: "") }
             beginPerHabitQueue(suggestions: suggestions)
+        }
+    }
+
+    private func goBack() {
+        switch coord.step {
+        case .entryChoice:
+            return
+        case .resolvingGuidance, .quizDelta, .pickHabit:
+            coord.step = .entryChoice
+        case .quizIntercept:
+            if quizCoordinator.step != .islamicStruggles {
+                switch quizCoordinator.step {
+                case .lifeStruggles:
+                    quizCoordinator.step = .islamicStruggles
+                case .processing, .habitSelection:
+                    quizCoordinator.step = .lifeStruggles
+                case .islamicStruggles:
+                    break
+                }
+            } else if coord.savedStrugglesIslamic.isEmpty && coord.savedStrugglesLife.isEmpty {
+                coord.step = .entryChoice
+            } else {
+                coord.step = .quizDelta
+            }
+        case .niyyah:
+            if !coord.pendingQueue.isEmpty {
+                coord.step = .quizIntercept
+            } else {
+                coord.step = .pickHabit
+            }
+        case .familiarity:
+            coord.step = .niyyah
+        case .generating:
+            break
         }
     }
 
@@ -841,8 +910,8 @@ struct AddPrivateIntentionSheet: View {
                         .font(.appCaption)
                         .foregroundStyle(Color.msTextMuted)
                 }
-            } else if coord.planDone {
-                let count = coord.createdHabits.count
+            } else if coord.successfulRoadmapCount > 0 && coord.failedRoadmapCount == 0 {
+                let count = coord.successfulRoadmapCount
                 VStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 36))
@@ -853,6 +922,20 @@ struct AddPrivateIntentionSheet: View {
                     Text("Tap below to keep going.")
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
+                }
+            } else if coord.successfulRoadmapCount > 0 {
+                VStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.msGold)
+                    Text("Some roadmaps are ready")
+                        .font(.appTitle)
+                        .foregroundStyle(Color.msTextPrimary)
+                    Text("\(coord.successfulRoadmapCount) finished, \(coord.failedRoadmapCount) didn't. You can retry the missed ones later from each habit detail screen.")
+                        .font(.appSubheadline)
+                        .foregroundStyle(Color.msTextMuted)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
             } else {
                 VStack(spacing: 10) {

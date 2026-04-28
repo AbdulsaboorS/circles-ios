@@ -9,6 +9,7 @@ final class HomeViewModel {
     var streak: Streak? = nil
     var computedStreak: Int = 0
     var isLoading: Bool = false
+    var hasLoadedOnce: Bool = false
     var errorMessage: String? = nil
 
     /// Increments when the user checks off the last pending habit of the day.
@@ -31,6 +32,10 @@ final class HomeViewModel {
     func loadAll(userId: UUID) async {
         isLoading = true
         errorMessage = nil
+        defer {
+            isLoading = false
+            hasLoadedOnce = true
+        }
         do {
             async let habitsFetch = HabitService.shared.fetchActiveHabits(userId: userId)
             async let logsFetch = HabitService.shared.fetchTodayLogs(userId: userId, date: todayString)
@@ -43,7 +48,6 @@ final class HomeViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
-        isLoading = false
     }
 
     func deleteHabit(_ habit: Habit) async {

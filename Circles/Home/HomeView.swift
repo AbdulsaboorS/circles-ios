@@ -109,6 +109,14 @@ struct HomeView: View {
         islamicQuotes[viewModel.computedStreak % islamicQuotes.count]
     }
 
+    private var hasVisibleHabits: Bool {
+        !sharedHabits.isEmpty || !personalHabits.isEmpty
+    }
+
+    private var shouldShowBlockingLoadState: Bool {
+        viewModel.isLoading && !hasVisibleHabits
+    }
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ZStack(alignment: .bottomTrailing) {
@@ -171,7 +179,10 @@ struct HomeView: View {
             .onChange(of: notificationService.pendingRoute) { _, _ in
                 applyPendingNotificationRouteIfNeeded()
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+            .alert("Error", isPresented: Binding(
+                get: { viewModel.errorMessage != nil && hasVisibleHabits },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )) {
                 Button("OK") { viewModel.errorMessage = nil }
             } message: {
                 Text(viewModel.errorMessage ?? "")
@@ -309,16 +320,21 @@ struct HomeView: View {
 
     private var habitsSection: some View {
         VStack(alignment: .leading, spacing: 26) {
-            if viewModel.isLoading {
+            if shouldShowBlockingLoadState {
                 HStack {
                     Spacer()
                     ProgressView().tint(Color.msGold)
                     Spacer()
                 }
                 .padding(.vertical, 32)
-            } else if sharedHabits.isEmpty && personalHabits.isEmpty {
+            } else if !hasVisibleHabits, let errorMessage = viewModel.errorMessage {
+                loadErrorState(message: errorMessage)
+            } else if !hasVisibleHabits {
                 emptyState
             } else {
+                if viewModel.isLoading {
+                    refreshingState
+                }
                 if !sharedHabits.isEmpty {
                     intentionsSection(
                         title: "Shared Intentions",
@@ -337,6 +353,25 @@ struct HomeView: View {
         }
     }
 
+    private var refreshingState: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(Color.msGold)
+                .scaleEffect(0.85)
+            Text("Refreshing your intentions…")
+                .font(.appCaption)
+                .foregroundStyle(Color.msTextMuted)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.msBorder, lineWidth: 1)
+        )
+    }
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "moon.stars.fill")
@@ -349,6 +384,34 @@ struct HomeView: View {
                 .font(.appCaption)
                 .foregroundStyle(Color.msTextMuted)
                 .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+    }
+
+    private func loadErrorState(message: String) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 34))
+                .foregroundStyle(Color.msGold.opacity(0.7))
+            Text("Couldn't load your intentions")
+                .font(.appSubheadline.weight(.semibold))
+                .foregroundStyle(Color.msTextPrimary)
+            Text(message)
+                .font(.appCaption)
+                .foregroundStyle(Color.msTextMuted)
+                .multilineTextAlignment(.center)
+            Button {
+                Task { await reloadHome() }
+            } label: {
+                Text("Try again")
+                    .font(.appSubheadline.weight(.semibold))
+                    .foregroundStyle(Color.msBackgroundDeep)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color.msGold, in: Capsule())
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 36)
@@ -406,11 +469,8 @@ struct HomeView: View {
         return incomplete + completed
     }
 
-    private func subtitle(for habit: Habit) -> String {
-        if let niyyah = habit.niyyah?.trimmingCharacters(in: .whitespacesAndNewlines), !niyyah.isEmpty {
-            return niyyah
-        }
-        return viewModel.isCompleted(habitId: habit.id) ? "Completed today" : "Tap the check circle to mark it done"
+    private func subtitle(for habit: Habit) -> String? {
+        nil
     }
 
     private func updateOrderedHabits(from habits: [Habit]) {
@@ -622,7 +682,7 @@ private struct HomeUndoToast: View {
 
 private struct IntentionCard: View {
     let habit: Habit
-    let subtitle: String
+    let subtitle: String?
     let isCompleted: Bool
     let onOpen: () -> Void
     let onCheckIn: () -> Void
@@ -654,10 +714,12 @@ private struct IntentionCard: View {
                             .foregroundStyle(Color.msTextPrimary.opacity(isCompleted ? 0.95 : 1))
                             .lineLimit(2)
 
-                        Text(subtitle)
-                            .font(.appCaption)
-                            .foregroundStyle(Color.msTextMuted.opacity(isCompleted ? 0.88 : 1))
-                            .lineLimit(2)
+                        if let subtitle, !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.appCaption)
+                                .foregroundStyle(Color.msTextMuted.opacity(isCompleted ? 0.88 : 1))
+                                .lineLimit(2)
+                        }
                     }
 
                     Spacer(minLength: 0)
