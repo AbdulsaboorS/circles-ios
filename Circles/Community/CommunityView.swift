@@ -18,6 +18,21 @@ struct CommunityView: View {
     @State private var selectedCircle: Circle?
     @State private var selectedCircleDetailTab: CircleDetailViewModel.DetailTab = .huddle
 
+    private var shouldShowInlineCirclesError: Bool {
+        !viewModel.isLoading && viewModel.circles.isEmpty && viewModel.errorMessage != nil
+    }
+
+    private var shouldShowInlineFeedError: Bool {
+        !feedViewModel.isLoadingInitial
+            && !viewModel.circles.isEmpty
+            && feedViewModel.items.isEmpty
+            && feedViewModel.errorMessage != nil
+    }
+
+    private var activeSurfaceErrorMessage: String? {
+        viewModel.errorMessage ?? feedViewModel.errorMessage
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -39,14 +54,7 @@ struct CommunityView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             // Toolbar + removed — create/join now lives in the carousel's Empty Pedestal card
             .task {
-                guard let userId = auth.session?.user.id else { return }
-                await viewModel.loadCircles(userId: userId)
-                // Gate must load first — FeedService reads activeFeedDate to pick
-                // today vs yesterday. Parallel loads let the feed query with a stale
-                // .preWindow date and pin yesterday's own moment after gate flips.
-                await DailyMomentService.shared.load(userId: userId)
-                await loadGlobalFeed()
-                applyPendingNotificationRouteIfNeeded()
+                await reloadCommunity()
             }
             .onReceive(NotificationCenter.default.publisher(for: .habitCheckinBroadcast)) { _ in
                 Task { await loadGlobalFeed() }
@@ -142,6 +150,26 @@ struct CommunityView: View {
             } message: {
                 Text(postAlertMessage ?? "")
             }
+            .alert("Something went wrong", isPresented: Binding(
+                get: {
+                    activeSurfaceErrorMessage != nil
+                        && !shouldShowInlineCirclesError
+                        && !shouldShowInlineFeedError
+                },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.errorMessage = nil
+                        feedViewModel.errorMessage = nil
+                    }
+                }
+            )) {
+                Button("OK") {
+                    viewModel.errorMessage = nil
+                    feedViewModel.errorMessage = nil
+                }
+            } message: {
+                Text(activeSurfaceErrorMessage ?? "")
+            }
             .navigationDestination(item: $selectedCircle) { circle in
                 CircleDetailView(circle: circle, initialDetailTab: selectedCircleDetailTab)
             }
@@ -232,6 +260,13 @@ struct CommunityView: View {
                     ProgressView().tint(Color.msGold)
                     Spacer()
                 }
+            } else if shouldShowInlineFeedError {
+                surfaceErrorState(
+                    title: "Couldn't load your feed",
+                    message: feedViewModel.errorMessage ?? "Please try again.",
+                    primaryTitle: "Try again",
+                    primaryAction: { Task { await loadGlobalFeed() } }
+                )
             } else if viewModel.circles.isEmpty {
                 VStack(spacing: 16) {
                     Spacer()
@@ -245,6 +280,33 @@ struct CommunityView: View {
                         .font(.appSubheadline)
                         .foregroundStyle(Color.msTextMuted)
                         .multilineTextAlignment(.center)
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.showCreateSheet = true
+                        } label: {
+                            Text("Create Circle")
+                                .font(.appSubheadline.weight(.semibold))
+                                .foregroundStyle(Color.msBackgroundDeep)
+                                .frame(height: 48)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.msGold, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            viewModel.showJoinSheet = true
+                        } label: {
+                            Text("Join Circle")
+                                .font(.appSubheadline.weight(.medium))
+                                .foregroundStyle(Color.msGold)
+                                .frame(height: 48)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.msGold.opacity(0.12), in: Capsule())
+                                .overlay(Capsule().stroke(Color.msGold.opacity(0.28), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 4)
                     Spacer()
                 }
                 .padding(.horizontal, 32)
@@ -304,6 +366,13 @@ struct CommunityView: View {
                     ProgressView().tint(Color.msGold)
                     Spacer()
                 }
+            } else if shouldShowInlineCirclesError {
+                surfaceErrorState(
+                    title: "Couldn't load your circles",
+                    message: viewModel.errorMessage ?? "Please try again.",
+                    primaryTitle: "Try again",
+                    primaryAction: { Task { await reloadCommunity() } }
+                )
             } else if viewModel.circles.isEmpty {
                 MyCirclesEmptyView(
                     onCreateCircle: { viewModel.showCreateSheet = true },
@@ -393,6 +462,17 @@ struct CommunityView: View {
     }
 
     // MARK: - Helpers
+
+    private func reloadCommunity() async {
+        guard let userId = auth.session?.user.id else { return }
+        await viewModel.loadCircles(userId: userId)
+        // Gate must load first — FeedService reads activeFeedDate to pick
+        // today vs yesterday. Parallel loads let the feed query with a stale
+        // .preWindow date and pin yesterday's own moment after gate flips.
+        await DailyMomentService.shared.load(userId: userId)
+        await loadGlobalFeed()
+        applyPendingNotificationRouteIfNeeded()
+    }
 
     private func loadGlobalFeed() async {
         guard let userId = auth.session?.user.id, !viewModel.circles.isEmpty else { return }
@@ -569,6 +649,39 @@ struct CommunityView: View {
         case .huddle, .none:
             return .huddle
         }
+    }
+
+    private func surfaceErrorState(
+        title: String,
+        message: String,
+        primaryTitle: String,
+        primaryAction: @escaping () -> Void
+    ) -> some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 38))
+                .foregroundStyle(Color.msGold.opacity(0.72))
+            Text(title)
+                .font(.system(size: 20, weight: .semibold, design: .serif))
+                .foregroundStyle(Color.msTextPrimary)
+                .multilineTextAlignment(.center)
+            Text(message)
+                .font(.appSubheadline)
+                .foregroundStyle(Color.msTextMuted)
+                .multilineTextAlignment(.center)
+            Button(action: primaryAction) {
+                Text(primaryTitle)
+                    .font(.appSubheadline.weight(.semibold))
+                    .foregroundStyle(Color.msBackgroundDeep)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 12)
+                    .background(Color.msGold, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+        .padding(.horizontal, 28)
     }
 }
 

@@ -85,9 +85,12 @@ struct CreateCircleView: View {
                                 }
                                 let result = await viewModel.createCircle(
                                     name: name.trimmingCharacters(in: .whitespaces),
-                                    description: description.isEmpty ? nil : description,
+                                    description: description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                        ? nil
+                                        : description.trimmingCharacters(in: .whitespacesAndNewlines),
                                     prayerTime: nil,
-                                    userId: userId
+                                    userId: userId,
+                                    genderSetting: genderSetting
                                 )
                                 if result != nil {
                                     dismiss()

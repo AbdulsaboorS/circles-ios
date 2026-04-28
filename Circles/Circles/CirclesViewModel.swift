@@ -182,11 +182,17 @@ final class CirclesViewModel {
         sendingNudgeCircleIDs.remove(circleId)
     }
 
-    func createCircle(name: String, description: String?, prayerTime: String?, userId: UUID) async -> Circle? {
+    func createCircle(
+        name: String,
+        description: String?,
+        prayerTime: String?,
+        userId: UUID,
+        genderSetting: String
+    ) async -> Circle? {
         do {
             let circle = try await CircleService.shared.createCircle(
                 name: name, description: description,
-                prayerTime: prayerTime, userId: userId
+                prayerTime: prayerTime, userId: userId, genderSetting: genderSetting
             )
             insertNewCircle(circle)
             if circles.count == 1 {

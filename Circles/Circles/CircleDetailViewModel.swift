@@ -12,6 +12,7 @@ final class CircleDetailViewModel {
     var completionStats: CircleCompletionStats?
     var isLoadingMembers = true
     var isLoadingStats = true
+    var errorMessage: String?
     var activeTab: DetailTab = .huddle
 
     enum DetailTab: String, CaseIterable {
@@ -37,26 +38,41 @@ final class CircleDetailViewModel {
     func load(userId: UUID) async {
         isLoadingMembers = true
         isLoadingStats = true
+        errorMessage = nil
 
-        // Fetch members + profiles
-        let fetchedMembers = (try? await CircleService.shared.fetchMembers(circleId: circleId)) ?? []
-        members = fetchedMembers
-        isLoadingMembers = false
+        do {
+            let fetchedMembers = try await CircleService.shared.fetchMembers(circleId: circleId)
+            members = fetchedMembers
+            isLoadingMembers = false
 
-        let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: fetchedMembers.map(\.userId))) ?? []
-        memberProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+            let profiles = (try? await AvatarService.shared.fetchProfiles(userIds: fetchedMembers.map(\.userId))) ?? []
+            memberProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
 
-        // Fetch completion stats
-        await refreshStats()
+            await refreshStats()
+        } catch {
+            members = []
+            memberProfiles = [:]
+            completionStats = nil
+            errorMessage = "Couldn't load this circle right now. Pull to retry."
+            isLoadingMembers = false
+            isLoadingStats = false
+        }
     }
 
     func refreshStats() async {
         isLoadingStats = true
         let memberIds = members.map(\.userId)
-        completionStats = try? await HabitService.shared.fetchCircleCompletionStats(
-            circleId: circleId,
-            memberIds: memberIds
-        )
+        do {
+            completionStats = try await HabitService.shared.fetchCircleCompletionStats(
+                circleId: circleId,
+                memberIds: memberIds
+            )
+        } catch {
+            completionStats = nil
+            if errorMessage == nil {
+                errorMessage = "Couldn't load today's circle activity. Pull to retry."
+            }
+        }
         isLoadingStats = false
     }
 

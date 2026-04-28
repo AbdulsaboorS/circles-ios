@@ -38,6 +38,12 @@ struct JoinCircleView: View {
                         .tint(Color.msGold)
                         .onChange(of: inviteCode) { _, val in
                             inviteCode = String(val.uppercased().prefix(8))
+                            if pendingCircle != nil {
+                                pendingCircle = nil
+                            }
+                            if viewModel.errorMessage != nil {
+                                viewModel.errorMessage = nil
+                            }
                         }
 
                     if let error = viewModel.errorMessage {

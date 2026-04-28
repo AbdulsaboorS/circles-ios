@@ -45,6 +45,12 @@ struct CircleDetailView: View {
         CircleColorDeriver.accent(for: circle.name)
     }
 
+    private var shouldShowInlineFeedError: Bool {
+        !feedViewModel.isLoadingInitial
+            && feedViewModel.items.isEmpty
+            && feedViewModel.errorMessage != nil
+    }
+
     var body: some View {
         ZStack {
             BreathingGradientBackground(circleName: circle.name)
@@ -70,6 +76,19 @@ struct CircleDetailView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                             .padding(.top, 4)
+                    }
+
+                    if let errorMessage = detailVM.errorMessage {
+                        inlineStatusCard(
+                            title: "Couldn't load this circle cleanly",
+                            message: errorMessage,
+                            buttonTitle: "Try again",
+                            action: {
+                                Task { await reloadCircleSurface() }
+                            }
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
                     }
 
                     // Star Constellation — each member is a star
@@ -176,36 +195,49 @@ struct CircleDetailView: View {
 
                     // Tab Content — cross-fade on switch
                     Group {
-                        switch detailVM.activeTab {
-                        case .huddle:
-                            if let userId = auth.session?.user.id {
-                                HuddleTimelineView(
-                                    feedViewModel: feedViewModel,
-                                    circleId: circle.id,
-                                    currentUserId: userId
-                                )
-                                .padding(.top, 4)
-                            }
-                        case .gallery:
-                            if let userId = auth.session?.user.id {
-                                ZStack(alignment: .top) {
-                                    MomentGalleryView(
+                        if shouldShowInlineFeedError {
+                            inlineStatusCard(
+                                title: "Couldn't load this circle feed",
+                                message: feedViewModel.errorMessage ?? "Please try again.",
+                                buttonTitle: "Try again",
+                                action: {
+                                    Task { await reloadFeedSurface() }
+                                }
+                            )
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                        } else {
+                            switch detailVM.activeTab {
+                            case .huddle:
+                                if let userId = auth.session?.user.id {
+                                    HuddleTimelineView(
                                         feedViewModel: feedViewModel,
-                                        currentUserId: userId,
-                                        hasPostedToday: DailyMomentService.shared.hasPostedToday
+                                        circleId: circle.id,
+                                        currentUserId: userId
                                     )
-                                    .padding(.top, 12)
-
-                                    if DailyMomentService.shared.isGateActive {
-                                        ReciprocityGateView(
-                                            mode: DailyMomentService.shared.gateMode == .missedWindow ? .missed : .open
-                                        ) {
-                                            draftMoment = nil
-                                            showCamera = true
-                                        }
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .padding(.horizontal, 16)
+                                    .padding(.top, 4)
+                                }
+                            case .gallery:
+                                if let userId = auth.session?.user.id {
+                                    ZStack(alignment: .top) {
+                                        MomentGalleryView(
+                                            feedViewModel: feedViewModel,
+                                            currentUserId: userId,
+                                            hasPostedToday: DailyMomentService.shared.hasPostedToday
+                                        )
                                         .padding(.top, 12)
+
+                                        if DailyMomentService.shared.isGateActive {
+                                            ReciprocityGateView(
+                                                mode: DailyMomentService.shared.gateMode == .missedWindow ? .missed : .open
+                                            ) {
+                                                draftMoment = nil
+                                                showCamera = true
+                                            }
+                                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                                            .padding(.horizontal, 16)
+                                            .padding(.top, 12)
+                                        }
                                     }
                                 }
                             }
@@ -434,6 +466,12 @@ struct CircleDetailView: View {
                 .font(.appCaption)
                 .foregroundStyle(Color.msTextMuted)
             Spacer()
+            Button("Settings") {
+                NotificationService.shared.openAppSettings()
+            }
+            .font(.appCaptionMedium)
+            .foregroundStyle(Color.msGold)
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -449,6 +487,28 @@ struct CircleDetailView: View {
         } catch {
             print("[CircleDetailView] reloadCircle failed: \(error)")
         }
+    }
+
+    private func reloadCircleSurface() async {
+        guard let userId = auth.session?.user.id else { return }
+        await NotificationService.shared.refreshPermissionStatus()
+        await DailyMomentService.shared.load(userId: userId)
+        await detailVM.load(userId: userId)
+        await reloadCircleFromServer()
+        let allCircles = try? await CircleService.shared.fetchMyCircles(userId: userId)
+        allUserCircles = allCircles ?? [circle]
+        allUserCircleIds = allUserCircles.map(\.id)
+        startWindowTimer()
+        await reloadFeedSurface()
+    }
+
+    private func reloadFeedSurface() async {
+        guard let userId = auth.session?.user.id else { return }
+        await feedViewModel.refresh(
+            circleIds: [circle.id],
+            currentUserId: userId,
+            singleCircleId: circle.id
+        )
     }
 
     private var isShowingPostAlert: Binding<Bool> {
@@ -607,6 +667,8 @@ struct CircleDetailView: View {
     // MARK: - Window Timer
 
     private func startWindowTimer() {
+        windowTimer?.invalidate()
+        windowTimer = nil
         guard let windowStartStr = circle.momentWindowStart else { return }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -630,6 +692,32 @@ struct CircleDetailView: View {
                 }
             }
         }
+    }
+
+    private func inlineStatusCard(
+        title: String,
+        message: String,
+        buttonTitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(spacing: 10) {
+            Text(title)
+                .font(.system(size: 16, weight: .semibold, design: .serif))
+                .foregroundStyle(Color.msTextPrimary)
+                .multilineTextAlignment(.center)
+            Text(message)
+                .font(.appCaption)
+                .foregroundStyle(Color.msTextMuted)
+                .multilineTextAlignment(.center)
+            Button(buttonTitle, action: action)
+                .font(.appCaptionMedium)
+                .foregroundStyle(Color.msGold)
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.msBorder, lineWidth: 1))
     }
 }
 

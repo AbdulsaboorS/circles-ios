@@ -104,7 +104,12 @@ struct FeedView: View {
         }
 
         return userMeta.keys.sorted { a, b in
-            (userMeta[a]?.name ?? "") < (userMeta[b]?.name ?? "")
+            let aLatest = (checkinMap[a, default: []].map(\.checkedAt) + streakMap[a, default: []].map(\.achievedAt)).max() ?? ""
+            let bLatest = (checkinMap[b, default: []].map(\.checkedAt) + streakMap[b, default: []].map(\.achievedAt)).max() ?? ""
+            if aLatest != bLatest {
+                return aLatest > bLatest
+            }
+            return (userMeta[a]?.name ?? "") < (userMeta[b]?.name ?? "")
         }.map { userId in
             let checkins = checkinMap[userId, default: []]
             let streaks = streakMap[userId, default: []]
