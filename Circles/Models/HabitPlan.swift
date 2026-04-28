@@ -51,10 +51,25 @@ extension HabitPlan {
         return refinementCount >= 3
     }
 
-    /// Calendar date string "yyyy-MM-dd" for roadmap day 1...28 (anchor = local start of day of `createdAt`).
+    private func currentCycleAnchorDate(referenceDate: Date = Date(), calendar: Calendar = .current) -> Date {
+        let start = calendar.startOfDay(for: createdAt)
+        let today = calendar.startOfDay(for: referenceDate)
+        let elapsedDays = max(0, calendar.dateComponents([.day], from: start, to: today).day ?? 0)
+        let completedCycles = elapsedDays / 28
+        return calendar.date(byAdding: .day, value: completedCycles * 28, to: start) ?? start
+    }
+
+    func currentCycleMilestoneDay(referenceDate: Date = Date(), calendar: Calendar = .current) -> Int {
+        let start = calendar.startOfDay(for: createdAt)
+        let today = calendar.startOfDay(for: referenceDate)
+        let elapsedDays = max(0, calendar.dateComponents([.day], from: start, to: today).day ?? 0)
+        return (elapsedDays % 28) + 1
+    }
+
+    /// Calendar date string "yyyy-MM-dd" for roadmap day 1...28 in the current repeating cycle.
     func calendarDateString(forMilestoneDay day: Int, calendar: Calendar = .current) -> String? {
         guard day >= 1, day <= 28 else { return nil }
-        let anchor = calendar.startOfDay(for: createdAt)
+        let anchor = currentCycleAnchorDate(calendar: calendar)
         guard let d = calendar.date(byAdding: .day, value: day - 1, to: anchor) else { return nil }
         let f = DateFormatter()
         f.calendar = calendar
@@ -64,13 +79,7 @@ extension HabitPlan {
     }
 
     func isMilestoneToday(day: Int, calendar: Calendar = .current) -> Bool {
-        guard let s = calendarDateString(forMilestoneDay: day, calendar: calendar) else { return false }
-        let f = DateFormatter()
-        f.calendar = calendar
-        f.timeZone = calendar.timeZone
-        f.dateFormat = "yyyy-MM-dd"
-        let today = f.string(from: Date())
-        return s == today
+        currentCycleMilestoneDay(calendar: calendar) == day
     }
 
     /// 1-based week bucket within the 28-day window from plan start (for grouping in UI).

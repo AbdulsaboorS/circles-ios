@@ -25,7 +25,9 @@ struct HabitDetailView: View {
     @State private var isLoading = true
     @State private var isLoadingPlan = false
     @State private var isGeneratingPlan = false
-    @State private var errorMessage: String?
+    @State private var alertMessage: String?
+    @State private var logsErrorMessage: String?
+    @State private var planErrorMessage: String?
     @State private var planLoadingTitle = ""
     @State private var planLoadingSubtitle = ""
     @State private var planLoadingMode: PlanLoadingMode = .generating
@@ -114,14 +116,8 @@ struct HabitDetailView: View {
 
     private var todayMilestone: HabitMilestone? {
         guard let plan else { return nil }
-        return plan.milestones.first { plan.isMilestoneToday(day: $0.day) }
-    }
-
-    private var contextualText: String {
-        if let niyyah = habit.niyyah?.trimmingCharacters(in: .whitespacesAndNewlines), !niyyah.isEmpty {
-            return "“\(niyyah)”"
-        }
-        return "Make today count."
+        let currentDay = plan.currentCycleMilestoneDay()
+        return plan.milestones.first { $0.day == currentDay }
     }
 
     var body: some View {
@@ -146,6 +142,15 @@ struct HabitDetailView: View {
                         ProgressView()
                             .tint(Color.msGold)
                             .padding(.top, 8)
+                    } else if let logsErrorMessage, logs.isEmpty {
+                        inlineStatusCard(
+                            title: "Couldn't load check-ins",
+                            message: logsErrorMessage,
+                            buttonTitle: "Retry"
+                        ) {
+                            Task { await fetchLogs() }
+                        }
+                        .padding(.horizontal, 16)
                     }
 
                     Spacer(minLength: 8)
@@ -189,10 +194,13 @@ struct HabitDetailView: View {
             await fetchLogs()
             await loadPlan()
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
+        .alert("Error", isPresented: Binding(
+            get: { alertMessage != nil },
+            set: { if !$0 { alertMessage = nil } }
+        )) {
+            Button("OK") { alertMessage = nil }
         } message: {
-            Text(errorMessage ?? "")
+            Text(alertMessage ?? "")
         }
     }
 
@@ -215,7 +223,7 @@ struct HabitDetailView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
-            Text(contextualText)
+            Text("Make today count.")
                 .font(.system(size: 15, weight: .regular, design: .serif).italic())
                 .foregroundStyle(Color.msTextMuted)
                 .multilineTextAlignment(.center)
@@ -243,6 +251,15 @@ struct HabitDetailView: View {
                 Spacer()
             }
             .padding(.vertical, 20)
+        } else if let planErrorMessage {
+            inlineStatusCard(
+                title: "Couldn't load your roadmap",
+                message: planErrorMessage,
+                buttonTitle: "Retry"
+            ) {
+                Task { await loadPlan() }
+            }
+            .padding(.horizontal, 16)
         } else {
             buildPlanCTA
                 .padding(.horizontal, 16)
@@ -380,11 +397,44 @@ struct HabitDetailView: View {
         .transition(.opacity)
     }
 
+    private func inlineStatusCard(
+        title: String,
+        message: String,
+        buttonTitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(size: 17, weight: .semibold, design: .serif))
+                .foregroundStyle(Color.msTextPrimary)
+            Text(message)
+                .font(.appSubheadline)
+                .foregroundStyle(Color.msTextMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(buttonTitle, action: action)
+                .font(.appSubheadline.weight(.semibold))
+                .foregroundStyle(Color.msBackground)
+                .frame(maxWidth: .infinity)
+                .frame(height: 46)
+                .background(Color.msGold, in: Capsule())
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.msBorder, lineWidth: 1))
+    }
+
     private func loadPlan() async {
         guard let userId = auth.session?.user.id else { return }
         isLoadingPlan = true
+        planErrorMessage = nil
         defer { isLoadingPlan = false }
-        plan = try? await HabitPlanService.shared.fetchPlan(habitId: habit.id, userId: userId)
+        do {
+            plan = try await HabitPlanService.shared.fetchPlan(habitId: habit.id, userId: userId)
+        } catch {
+            plan = nil
+            planErrorMessage = HabitPlanService.userFacingMessage(from: error)
+        }
     }
 
     private func generatePlan() async {
@@ -393,7 +443,7 @@ struct HabitDetailView: View {
         planLoadingTitle = "Generating your roadmap..."
         planLoadingSubtitle = "Building a gentle 28-day path for this habit."
         isGeneratingPlan = true
-        errorMessage = nil
+        alertMessage = nil
         defer { isGeneratingPlan = false }
 
         do {
@@ -407,14 +457,15 @@ struct HabitDetailView: View {
                 userId: userId,
                 milestones: milestones
             )
+            planErrorMessage = nil
         } catch {
-            errorMessage = HabitPlanService.userFacingMessage(from: error)
+            alertMessage = HabitPlanService.userFacingMessage(from: error)
         }
     }
 
     private func fetchLogs() async {
         isLoading = true
-        errorMessage = nil
+        logsErrorMessage = nil
         do {
             let fetched: [HabitLog] = try await SupabaseService.shared.client
                 .from("habit_logs")
@@ -424,7 +475,8 @@ struct HabitDetailView: View {
                 .value
             logs = fetched
         } catch {
-            errorMessage = error.localizedDescription
+            logs = []
+            logsErrorMessage = "Check your connection and try again."
         }
         isLoading = false
     }
@@ -433,10 +485,12 @@ struct HabitDetailView: View {
         guard let userId = auth.session?.user.id, !isTogglingToday else { return }
 
         let wasCompleted = isCompletedToday
+        let createdOptimisticLog: Bool
         isTogglingToday = true
 
         if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
             logs[existingIndex].completed.toggle()
+            createdOptimisticLog = false
         } else {
             logs.append(
                 HabitLog(
@@ -449,6 +503,7 @@ struct HabitDetailView: View {
                     createdAt: Date()
                 )
             )
+            createdOptimisticLog = true
         }
 
         if !wasCompleted {
@@ -464,13 +519,15 @@ struct HabitDetailView: View {
                 alreadyCompleted: wasCompleted
             )
         } catch {
-            if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
+            if createdOptimisticLog {
+                logs.removeAll { $0.date == todayDateString }
+            } else if let existingIndex = logs.firstIndex(where: { $0.date == todayDateString }) {
                 logs[existingIndex].completed = wasCompleted
             }
             if !wasCompleted {
                 showAlhamdulillah = false
             }
-            errorMessage = error.localizedDescription
+            alertMessage = "Couldn't save today's check-in. Try again."
         }
 
         isTogglingToday = false

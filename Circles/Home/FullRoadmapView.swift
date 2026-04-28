@@ -17,6 +17,7 @@ struct FullRoadmapView: View {
     @State private var editingMilestone: HabitMilestone?
     @State private var showRefineSheet = false
     @State private var isRefining = false
+    @State private var isSavingMilestone = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -53,6 +54,15 @@ struct FullRoadmapView: View {
                     .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
                     .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.msBorder, lineWidth: 1))
             }
+
+            if isSavingMilestone {
+                Color.black.opacity(0.18).ignoresSafeArea()
+                ProgressView("Saving edit…")
+                    .tint(Color.msGold)
+                    .padding(24)
+                    .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.msBorder, lineWidth: 1))
+            }
         }
         .navigationTitle("28-Day Roadmap")
         .navigationBarTitleDisplayMode(.inline)
@@ -68,11 +78,14 @@ struct FullRoadmapView: View {
                         }
                     }
                     .foregroundStyle(plan?.isRefinementLimitReached == true ? Color.msTextMuted : Color.msGold)
-                    .disabled(isRefining)
+                    .disabled(isRefining || isSavingMilestone)
                 }
             }
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
+        .alert("Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
             Button("OK") { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
@@ -169,6 +182,7 @@ struct FullRoadmapView: View {
                         .foregroundStyle(Color.msTextMuted.opacity(0.6))
                 }
                 .buttonStyle(.plain)
+                .disabled(isSavingMilestone)
             }
             Text(milestone.title)
                 .font(.appSubheadline)
@@ -191,16 +205,25 @@ struct FullRoadmapView: View {
     // MARK: - Mutations
 
     private func applyMilestoneEdit(_ updated: HabitMilestone) {
-        guard var currentPlan = plan,
-              let idx = currentPlan.milestones.firstIndex(where: { $0.day == updated.day }) else { return }
-        currentPlan.milestones[idx] = updated
-        plan = currentPlan
-        onPlanChanged?(currentPlan)
+        guard let previousPlan = plan,
+              let idx = previousPlan.milestones.firstIndex(where: { $0.day == updated.day }) else { return }
+        var updatedPlan = previousPlan
+        updatedPlan.milestones[idx] = updated
+        plan = updatedPlan
+        onPlanChanged?(updatedPlan)
         Task {
-            try? await HabitPlanService.shared.updateMilestones(
-                planId: currentPlan.id,
-                milestones: currentPlan.milestones
-            )
+            isSavingMilestone = true
+            defer { isSavingMilestone = false }
+            do {
+                try await HabitPlanService.shared.updateMilestones(
+                    planId: updatedPlan.id,
+                    milestones: updatedPlan.milestones
+                )
+            } catch {
+                plan = previousPlan
+                onPlanChanged?(previousPlan)
+                errorMessage = "Couldn't save your roadmap edit. Try again."
+            }
         }
     }
 
