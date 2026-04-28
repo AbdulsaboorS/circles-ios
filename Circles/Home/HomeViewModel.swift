@@ -46,7 +46,7 @@ final class HomeViewModel {
             streak = try await streakFetch
             computedStreak = await HabitToggleService.shared.computeAccountableStreak(userId: userId, habits: habits)
         } catch {
-            errorMessage = error.localizedDescription
+            if !(error is CancellationError) { errorMessage = error.localizedDescription }
         }
     }
 

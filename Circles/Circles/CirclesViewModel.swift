@@ -41,7 +41,7 @@ final class CirclesViewModel {
             circles = applyLayout(to: fetched, orderedIDs: layout.orderedIDs, pinnedIDs: layout.pinnedIDs)
             saveLayoutIfPossible()
         } catch {
-            errorMessage = error.localizedDescription
+            if !(error is CancellationError) { errorMessage = error.localizedDescription }
         }
         isLoading = false
 

@@ -61,7 +61,7 @@ final class FeedViewModel {
             await mergeAuthorProfiles()
             await mergeReactionProfiles()
         } catch {
-            errorMessage = error.localizedDescription
+            if !(error is CancellationError) { errorMessage = error.localizedDescription }
         }
         isLoadingInitial = false
     }
@@ -88,7 +88,7 @@ final class FeedViewModel {
                 await mergeAuthorProfiles()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if !(error is CancellationError) { errorMessage = error.localizedDescription }
         }
         isLoadingNextPage = false
     }
@@ -170,9 +170,7 @@ final class FeedViewModel {
                 itemId: itemId, itemType: itemType, userId: currentUserId, emoji: emoji
             )
         } catch {
-            // On failure: silently log, keep optimistic state (reactions are low-stakes)
-            // If stricter revert is needed, reload reactions for this item
-            errorMessage = error.localizedDescription
+            print("[FeedViewModel] reaction toggle failed: \(error)")
         }
     }
 
