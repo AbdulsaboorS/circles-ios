@@ -1,8 +1,8 @@
-# Circles — Product Vision & Requirements (v2.3)
+# Circles — Product Vision & Requirements (v2.4)
 
 > Vision doc only. Do not use this file for current execution state; use `STATE.md` and `HANDOFF.md` instead.
 
-**Date:** 2026-03-26 (vision); **execution status:** 2026-04-07 — Phase 12 complete, Phase 13 active (see `STATE.md` / `HANDOFF.md` for current iteration state).
+**Date:** 2026-03-26 (vision); **execution status:** 2026-04-27 — onboarding catalog path and final QA fixes are on `main` (see `STATE.md` / `HANDOFF.md` for current iteration state).
 **Status:** Finalized for Execution (Private MVP)
 
 ---
@@ -42,26 +42,28 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 - **Accountable Habits**: Linked to a specific circle. Completions broadcast to that circle's feed only. A habit can be accountable in multiple circles independently.
 - **Personal Habits**: Private-only. Never broadcast. No one else sees these.
 - Users can convert a Personal habit → Accountable at any time
+- Onboarding recommendations are deterministic: a 44-entry `HabitCatalog` ranks 4 personal fits + 3 starter options, with custom add-your-own support on both selection surfaces
 - AI generates a 28-day roadmap per habit (Gemini 3 Flash preview): manual **Generate** on habit detail plus background jobs after onboarding completion
 - Refinement guardrail: 3 AI refinements per habit per **UTC ISO week** (`refinement_cycle` + `apply_habit_plan_refinement` RPC)
 
 ### C. Circle Core Habits
-- Amir selects 2-3 "Core Habits" that define the circle's mission
+- Amir selects up to 2 "Core Habits" that define the circle's mission
 - Members must pick at least 1 core habit to join
 - Core habits displayed on circle card and detail view
 
 ### D. The "Amir" (Leader) Flow — under 60 seconds
-1. **Circle Identity**: Name + gender setting (Brothers / Sisters / Mixed)
-2. **Core Mission**: Select 2-3 habits from curated Islamic list
-3. **Prayer Sync**: Location (Aladhan-based prayer time)
-4. **Soul Gate** (hard lock): Must trigger native share sheet before onboarding completes. After completion, background jobs enqueue 28-day plans for habits created in-session (`HabitPlanService`).
-5. **Landing**: Home tab — Daily Intentions
+1. **Shared Personalization**: Spirituality level, time commitment, and heart-of-circle prompts
+2. **Core Mission**: Pick up to 2 shared habits from a deterministic catalog surface (4 tailored + 3 starter options, plus custom add-your-own)
+3. **Circle Identity**: Name + gender setting (Brothers / Sisters / Mixed)
+4. **Private Intention Quiz**: Two-screen struggle quiz ranks up to 3 personal habits from the same catalog, again with custom add-your-own
+5. **Moment Primer + Auth-Last Finish**: AI roadmap reveal, Moment education, conditional location only for prayer-anchored habits, then auth gate
+6. **Landing**: Home tab — Daily Intentions
 
 ### E. The "Member" (Joiner) Flow
 1. **Rich Circle Preview**: Unauthenticated. Shows circle name, member count, group streak. Zero personal data.
-2. **Sign-In**: Google / Apple
-3. **Habit Alignment**: "Ahmad is tracking Fajr and Quran. Which will you do?" Must select ≥ 1.
-4. **Prayer Sync**: Location
+2. **Habit Alignment**: Joiner picks at least 1 of the circle's shared habits
+3. **Private Intention Quiz**: Same deterministic catalog path for up to 3 personal habits, excluding the shared habits already chosen
+4. **Moment Primer + Auth-Last Finish**: AI roadmap reveal, Moment education, conditional location only for prayer-anchored habits, then auth gate
 5. **Landing**: Global Feed (Circles tab)
 
 ### F. Navigation Structure
@@ -140,4 +142,4 @@ The Islamic social accountability app for Muslims ages 15-35. The "Islamic BeRea
 
 ---
 
-*Last updated: 2026-04-07 — v2.3; Phase 12 cleanup complete, Phase 13 interactive UI/UX pass active. Operational QA is tracked in `STATE.md`.*
+*Last updated: 2026-04-27 — v2.4; onboarding catalog path and final QA fixes are on `main`. Operational QA is tracked in `STATE.md`.*

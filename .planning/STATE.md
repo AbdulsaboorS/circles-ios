@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-27T21:30:00.000Z"
+last_updated: "2026-04-28T01:05:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -17,22 +17,27 @@ progress:
 
 - `main` now contains the shipped foundation through Phase 15
 - Phase 14 Meaningful Habits is built and still needs hands-on validation
+- Onboarding is now fully functional and MVP-ready; both Amir and Joiner flows passed user hands-on QA on 2026-04-27
 - Phase 15 Social Pulse is merged to `main`, code-complete, and build-verified
+- UX pass fixes are shipped for Home, Community/feed, Circles, Habit detail/roadmap, and Journey
+- Profile/settings UX pass remains deferred and incomplete
 - Phase 15 rollout work and combined notification QA are intentionally deferred
 
 ## Product Priority Order
 
-1. ~~Test onboarding bugs and fix them~~ — **DONE as of 2026-04-27**
-2. Do the full UI/UX pass
-3. Finalize the name
-4. Finalize the logo
-5. Work on landing-page video animations and onboarding animations if needed
+1. Bug-bash the shipped UX pass and fix the reported issues
+2. Finish the deferred Profile/settings UX pass
+3. Do the full UI polish pass
+4. Finalize the name
+5. Finalize the logo
+6. Work on landing-page video animations and onboarding animations if needed
 
 ## Phase Snapshot
 
 - Phase 13 UI/UX pass: complete
 - Phase 13A Journey: shipped
 - Phase 14 Meaningful Habits: built, QA in progress (matrix: `.planning/phases/14-meaningful-habits/QA.md`). Session 2026-04-24 fixed 4 moment-mechanic bugs found during QA: (1) per-circle unique index, (2) feed-vs-gate cold-start race, (3) camera countdown tracking wrong cutoff, (4) camera top/bottom control centering. Camera-side fixes pending in-sim visual verification by user.
+- App-wide UX pass: Home, Community/feed, Circles, Habit detail/roadmap, and Journey are now shipped and in user bug-bash. Profile/settings remains deferred.
 - Phase 15 Social Pulse: merged to `main`, QA deferred
 - Phase 16 Naming + Branding: planned
 - Phase 17 Animation Polish: planned
@@ -50,8 +55,8 @@ progress:
 
 ## Onboarding QA — 2026-04-26
 
-User-flagged 8 issues during end-to-end onboarding test. Fixes shipped to `main`, build green on iPhone 17 Pro sim, awaiting hands-on QA:
-- #1 Prayer Sync screen reframed away from Moment-anchoring → "prayer times + Adhan notifications" (kept for TestFlight MVP).
+User-flagged 8 issues during end-to-end onboarding test. Fixes shipped to `main`, build green on iPhone 17 Pro sim:
+- #1 Initial interim fix: Prayer Sync screen reframed away from Moment-anchoring. This copy was later superseded in session 5 when location became conditional and all Adhan-notification claims were removed.
 - #2 AI-gen → Moment primer transition softened: 2-phase reveal in `AmiirAIGenerationView` + `JoinerAIGenerationView` (~1.6 s spinner → checkmark.seal + "Your plan is ready. It'll be waiting on your dashboard." → primer).
 - #3 Daily Moment primer: "Your Daily Moment" capitalized, em dashes scrubbed from beats 1 + 2, **new beat 3** clarifying niyyah-vs-photo dichotomy (photo for circle, niyyah for the Creator). Beat 4 keyframes added.
 - #4 Prayer Sync double back button — `AmiirStep3LocationView` was missing `.navigationBarBackButtonHidden()`.
@@ -123,7 +128,7 @@ Beat 4 ("Only your circle sees it.") removed. "Only your circle sees it" folded 
 **Bug 4 — Notification permission asked nowhere after location-screen cleanup**
 Moved to `OnboardingMomentPrimerView`. Button relabeled "Allow Camera & Notifications"; camera + notification requests chain sequentially on tap. "Maybe later" skips both.
 
-**Onboarding is now considered QA-complete and ready for next phase.**
+**Onboarding closeout:** user completed full hands-on QA on both Amir and Joiner flows on 2026-04-27 and signed onboarding off as fully functional and MVP-ready.
 
 ## Deferred QA / Rollout
 

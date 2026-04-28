@@ -21,26 +21,33 @@ Do not use it for session history, long QA plans, or feature specs.
 - Profile hero/settings polish shipped
 - Phase 14 Meaningful Habits is built and awaiting hands-on validation
 - Phase 15 Social Pulse is now merged to `main`
+- Deterministic onboarding `HabitCatalog` flow and final onboarding QA fixes are on `main`
+- Onboarding is fully functional and MVP-ready after user hands-on QA of both Amir and Joiner flows on 2026-04-27
+- UX pass fixes are now shipped for Home, Community/feed, Circles, Habit detail/roadmap, and Journey
+- Profile/settings UX pass was not completed; no new Profile/settings product changes were shipped in this stream
 - Phase 15 rollout and combined end-to-end notification QA remain intentionally deferred
 
 ### Active Worktrees
 - none currently tracked as active in this handoff
 
 ### Open Planning Thread
-- Onboarding QA pass in progress on `main`. Bugs #1–4 + #6 fixed 2026-04-26 session 1. Bug #5 closed session 2 (back-nav sufficient for MVP). Catalog migration for the onboarding suggestion path shipped 2026-04-27 session 3: deterministic `HabitCatalog` now drives Amir shared habits and both personal quiz flows. Build is green; hands-on QA is next. No cross-stream conflicts.
-- Earlier (2026-04-25 session 2) onboarding gaps A + B baseline still in place; gaps C (mirror copy) and D (Path 1 plan reveal) still deferred.
+- Onboarding work is closed for MVP unless new bugs surface.
+- Current stream is bug-bashing the shipped UX pass across Home → Feed → Circles → Habit → Journey.
+- After bug-bashing, finish the deferred Profile/settings UX pass, then move to dedicated UI polish. Phase 15 rollout stays deferred.
 
 ### Next Session — Pickup Notes
-- **Run full onboarding QA on the shipped catalog path.** Amir should now be 3 personalization screens → shared habits (7 total = 4 personalized + 3 starters, cap 2) → identity → private quiz (cap 3) → AI gen → moment → foundation → auth. Joiner should be circle alignment → transition → private quiz (7 total, cap 3) → AI gen → moment → identity → auth. Confirm custom habits add as removable chips inline on both active selection screens.
-- **Regression checks to watch:** back-nav should preserve enum + `custom:` struggle answers, habit selections should stay deterministic for the same inputs, catalog entries should show their baked rationale / per-spirituality variant immediately with no network dependency, and no screen should still reference the old Groq/Gemini suggestion path.
-- **Build baseline:** `xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build` passed on 2026-04-27 after this migration. Remaining warning is the pre-existing `FeedService.swift:99` unnecessary `await`.
+- **Continue bug-bashing the shipped UX pass.** User is testing Home → Feed → Circles → Habit → Journey and will report user-visible bugs next session.
+- **Shipped UX areas to treat as active QA scope:** Home/Daily Intentions, Community feed + gate states, circles list/detail/join/create, habit detail + plan generation/refinement, and Journey.
+- **Deferred area:** Profile/settings still needs its dedicated UX pass; no new Profile/settings UI behavior was intentionally shipped in this stream.
+- **Build baseline:** `xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build` passed on 2026-04-27. Remaining warning is the pre-existing `FeedService.swift:99` unnecessary `await`.
 
 ### Product Priority Order
-1. Test onboarding bugs and fix them
-2. Do the full UI/UX pass
-3. Finalize the name
-4. Finalize the logo
-5. Work on landing-page video animations and onboarding animations if needed
+1. Bug-bash the shipped UX pass and fix the reported issues
+2. Finish the deferred Profile/settings UX pass
+3. Do the full UI polish pass
+4. Finalize the name
+5. Finalize the logo
+6. Work on landing-page video animations and onboarding animations if needed
 
 ## Integration Hotspots
 

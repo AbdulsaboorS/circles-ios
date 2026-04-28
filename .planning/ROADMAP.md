@@ -32,8 +32,8 @@ This file is sequencing only. Use phase docs for deep specs, and use `STATE.md` 
 
 ## Current Product Priority Order
 
-1. Test onboarding bugs and fix them
-2. Do the full UI/UX pass
+1. Do the full UX pass across all app flows and pages
+2. Do the full UI polish pass
 3. Finalize the name
 4. Finalize the logo
 5. Work on landing-page video animations and onboarding animations if needed

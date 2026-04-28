@@ -33,7 +33,7 @@ For non-trivial responses, explain plainly — if you can't explain it simply in
 - **UI**: SwiftUI
 - **Backend**: Supabase Swift SDK (via SPM)
 - **Auth**: Supabase (Google OAuth + Sign in with Apple)
-- **AI**: Gemini 3 Flash (preview) REST API — model `gemini-3-flash-preview` in `GeminiService`
+- **AI**: Gemini 3 Flash (preview) REST API — model `gemini-3-flash-preview` in `GeminiService` for roadmap generation; onboarding recommendations now come from deterministic `HabitCatalog`
 - **Prayer Times**: Aladhan API (api.aladhan.com, method=3 MWL)
 - **Storage**: Supabase Storage (`circle-moments` bucket, `avatars` bucket)
 - **Push**: APNs
@@ -50,7 +50,7 @@ Circles/
 ├── Assets.xcassets/
 ├── Secrets.plist             # GITIGNORED — Supabase URL/anon key, Gemini key
 ├── Auth/                     # AuthView (Sign in with Apple + Google)
-├── Onboarding/               # AmiirOnboarding (4 steps), MemberOnboarding (2 steps), CirclePreviewView
+├── Onboarding/               # Auth-last Amir + Joiner flows, quiz flow, moment primer, pending-state cache
 ├── Home/                     # Daily Intentions — HomeView, HabitDetailView
 ├── Community/                # CommunityView (Feed|Circles), MyCirclesView
 ├── Circles/                  # CircleDetailView, CreateCircleView, JoinCircleView
@@ -90,7 +90,7 @@ Active tables:
 - `activity_feed` — habit check-ins + streak milestones for feed
 - `habit_reactions` — reactions on feed items
 - `comments` — circle-private comment threads
-- `profiles` — user profiles (preferred_name, gender, avatar_url, location)
+- `profiles` — user profiles (preferred_name, gender, avatar_url, city_name, latitude, longitude, timezone, struggle arrays)
 - `device_tokens` — APNs device tokens
 - `daily_moments` — server-selected prayer of the day (one row per date)
 
