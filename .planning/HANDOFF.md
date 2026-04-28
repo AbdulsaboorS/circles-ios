@@ -24,7 +24,7 @@ Do not use it for session history, long QA plans, or feature specs.
 - Deterministic onboarding `HabitCatalog` flow and final onboarding QA fixes are on `main`
 - Onboarding is fully functional and MVP-ready after user hands-on QA of both Amir and Joiner flows on 2026-04-27
 - UX pass fixes are now shipped for Home, Community/feed, Circles, Habit detail/roadmap, and Journey
-- Profile/settings UX pass was not completed; no new Profile/settings product changes were shipped in this stream
+- BeReal-style regional Moment model is now code-complete in repo: 4 fixed regions, region-local `daily_moments`, regional notification routing, onboarding region confirmation, and Profile region picker
 - Phase 15 rollout and combined end-to-end notification QA remain intentionally deferred
 
 ### Active Worktrees
@@ -32,14 +32,14 @@ Do not use it for session history, long QA plans, or feature specs.
 
 ### Open Planning Thread
 - Onboarding work is closed for MVP unless new bugs surface.
-- Current stream is bug-bashing the shipped UX pass across Home → Feed → Circles → Habit → Journey.
-- After bug-bashing, finish the deferred Profile/settings UX pass, then move to dedicated UI polish. Phase 15 rollout stays deferred.
+- Current stream is manual QA of the regional Moment rewrite plus deployment of the updated `send-moment-window-notifications` edge function.
+- D1 was applied directly on Supabase by the user; D2 was added in repo and run manually. The D1 SQL still does not exist in-repo.
 
 ### Next Session — Pickup Notes
-- **Continue bug-bashing the shipped UX pass.** User is testing Home → Feed → Circles → Habit → Journey and will report user-visible bugs next session.
-- **Shipped UX areas to treat as active QA scope:** Home/Daily Intentions, Community feed + gate states, circles list/detail/join/create, habit detail + plan generation/refinement, and Journey.
-- **Deferred area:** Profile/settings still needs its dedicated UX pass; no new Profile/settings UI behavior was intentionally shipped in this stream.
-- **Build baseline:** `xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build` passed on 2026-04-27. Remaining warning is the pre-existing `FeedService.swift:99` unnecessary `await`.
+- **Run manual Moment QA for the regional model.** Focus on the two original bugs: no second window within one region-local day, and circles-list preview/timestamp matching the just-posted Moment.
+- **Deploy the updated edge function before notification QA.** `supabase/functions/send-moment-window-notifications/index.ts` is updated in repo but not deployed from this session.
+- **Profile/onboarding region UX is now in scope for smoke test.** Verify auto-inferred onboarding region, manual override, and Profile region changes refreshing the active `daily_moments` query without crashing.
+- **Build baseline:** `xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build` passed on 2026-04-28. Remaining warning is the pre-existing `AuthManager.swift:21` unnecessary `await`.
 
 ### Product Priority Order
 1. Bug-bash the shipped UX pass and fix the reported issues

@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: milestone
 status: active
-last_updated: "2026-04-28T05:30:00.000Z"
+last_updated: "2026-04-28T19:20:00.000Z"
 progress:
   total_phases: 19
   completed_phases: 15
@@ -147,7 +147,11 @@ Last session's bug-fix commit (`0a75a5d`, "fix: eliminate false error flash on p
 - Phase A revert: ✅ shipped this session.
 - Phase B echo-back: ✅ user confirmed understanding.
 - Phase C read-only investigation: ✅ complete (line-level files mapped: `DailyMomentService.swift`, `MomentService.swift`, `FeedService.swift`, `CirclesViewModel.swift`, `Models/CircleCardData.swift`, `supabase/migrations/20260423_moment_mechanic_redesign.sql`, `supabase/functions/{send-moment-window-notifications,seed-daily-moment}/index.ts`, `Profile/ProfileView.swift`).
-- Phases D1–D7 (DB migration, pg_cron 4-row seed, edge function region routing, `DailyMomentService` rewrite, `MomentService.postMomentToAllCircles` regional momentDate, onboarding region confirmation step, Profile region picker) and Phase E (verify): **not started — pick up next session**.
+- Phase D1 DB migration: server-applied by user, but the repo still does not contain the D1 SQL file.
+- Phase D2 pg_cron seed rewrite: repo migration added and user-confirmed run in Supabase (`supabase/migrations/20260428_moment_region_seed_rewrite.sql`).
+- Phase D3 edge function region routing: shipped in repo (`supabase/functions/send-moment-window-notifications/index.ts`), not yet deployed.
+- Phases D4–D7 (`DailyMomentService` regional rewrite, `MomentService.postMomentToAllCircles` regional momentDate, onboarding region confirmation step, Profile region picker): shipped in repo.
+- Phase E verify: build green on iPhone 17 simulator (`xcodebuild -quiet -project Circles.xcodeproj -scheme Circles -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.3.1' build`) on 2026-04-28. Manual simulator QA and edge-function deployment are still pending.
 
 **Confirmed product calls (don't re-litigate)**:
 - Scope: inline this session (was approved before context cap; carry forward to next).
