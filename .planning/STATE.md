@@ -22,6 +22,9 @@ progress:
 - UX pass fixes are shipped for Home, Community/feed, Circles, Habit detail/roadmap, and Journey
 - Profile/settings UX pass remains deferred and incomplete
 - Phase 15 rollout work and combined notification QA are intentionally deferred
+- Session 2026-04-27 (bug bash): shipped commit `0a75a5d` — two focused fixes:
+  1. False error flash on pull-to-refresh across Home/Feed/Circle detail/Community — CancellationError now filtered in all refresh catch blocks; refreshStats() clears prior error; toggleReaction no longer writes to errorMessage.
+  2. Circle detail stale timing + wrong moments — reloadCircleFromServer() now runs before startWindowTimer() in .task; one-shot windowObserverTask reloads feed when gate transitions preWindow→windowOpen mid-session. Needs user QA (see test checklist in session notes).
 
 ## Product Priority Order
 
