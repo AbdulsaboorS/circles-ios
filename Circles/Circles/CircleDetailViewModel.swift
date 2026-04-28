@@ -50,7 +50,6 @@ final class CircleDetailViewModel {
 
             await refreshStats()
         } catch {
-            if error is CancellationError { isLoadingMembers = false; isLoadingStats = false; return }
             members = []
             memberProfiles = [:]
             completionStats = nil
@@ -62,7 +61,6 @@ final class CircleDetailViewModel {
 
     func refreshStats() async {
         isLoadingStats = true
-        errorMessage = nil
         let memberIds = members.map(\.userId)
         do {
             completionStats = try await HabitService.shared.fetchCircleCompletionStats(
@@ -70,8 +68,8 @@ final class CircleDetailViewModel {
                 memberIds: memberIds
             )
         } catch {
-            if !(error is CancellationError) {
-                completionStats = nil
+            completionStats = nil
+            if errorMessage == nil {
                 errorMessage = "Couldn't load today's circle activity. Pull to retry."
             }
         }

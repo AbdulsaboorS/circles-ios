@@ -16,7 +16,6 @@ struct CircleDetailView: View {
     @State private var allUserCircles: [Circle] = []
     @State private var bannerPulsing = false
     @State private var postAlertMessage: String?
-    @State private var windowObserverTask: Task<Void, Never>?
 
     @Environment(AuthManager.self) private var auth
 
@@ -315,31 +314,14 @@ struct CircleDetailView: View {
             let allCircles = try? await CircleService.shared.fetchMyCircles(userId: userId)
             allUserCircles = allCircles ?? [circle]
             allUserCircleIds = allUserCircles.map { $0.id }
-            await reloadCircleFromServer()
             startWindowTimer()
             await feedViewModel.loadInitial(
                 circleIds: [circle.id],
                 currentUserId: userId,
                 singleCircleId: circle.id
             )
-            // One-shot observer: if window hasn't opened yet, reload feed+timer when it does.
-            if DailyMomentService.shared.gateMode == .preWindow,
-               let windowOpensAt = DailyMomentService.shared.windowStart {
-                let delay = max(0, windowOpensAt.timeIntervalSinceNow)
-                windowObserverTask?.cancel()
-                windowObserverTask = Task { @MainActor in
-                    do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
-                    catch { return }
-                    guard !Task.isCancelled else { return }
-                    await reloadFeedSurface()
-                    startWindowTimer()
-                }
-            }
         }
-        .onDisappear {
-            windowTimer?.invalidate()
-            windowObserverTask?.cancel()
-        }
+        .onDisappear { windowTimer?.invalidate() }
         .onReceive(NotificationCenter.default.publisher(for: .momentPostRefresh)) { notification in
             guard let event = notification.object as? MomentPostRefreshEvent else { return }
             Task { await handleMomentPostRefresh(event) }
