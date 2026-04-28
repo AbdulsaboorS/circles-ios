@@ -35,11 +35,12 @@ struct MemberOnboardingFlowView: View {
                         }
 
                     case .momentPrimer:
-                        OnboardingMomentPrimerView(currentStep: 4, totalSteps: 6) {
+                        OnboardingMomentPrimerView(currentStep: 4, totalSteps: 7) {
                             if coordinator.needsLocation {
                                 coordinator.proceedToIdentity()
                             } else {
-                                coordinator.proceedToAuthGate()
+                                coordinator.prepareRegionConfirmation()
+                                coordinator.proceedToRegionConfirmation()
                             }
                         }
 
@@ -50,6 +51,8 @@ struct MemberOnboardingFlowView: View {
 
                     case .identity:
                         JoinerIdentityView()
+                    case .regionConfirmation:
+                        JoinerRegionConfirmationView()
 
                     case .authGate:
                         JoinerAuthGateView()

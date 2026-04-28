@@ -59,7 +59,8 @@ struct AmiirStep3LocationView: View {
                         coordinator.cityTimezone = city.tz
                         coordinator.cityLatitude = city.lat
                         coordinator.cityLongitude = city.lng
-                        coordinator.proceedToActivation()
+                        coordinator.prepareRegionConfirmation(using: city.tz)
+                        coordinator.proceedToRegionConfirmation()
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -91,7 +92,7 @@ struct AmiirStep3LocationView: View {
                         .padding()
                 }
 
-                StepIndicator(current: 9, total: 10)
+                StepIndicator(current: 9, total: 11)
                     .padding(.bottom, 16)
             }
         }

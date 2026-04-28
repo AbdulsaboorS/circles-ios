@@ -60,7 +60,7 @@ struct JoinerAIGenerationView: View {
 
                 Spacer()
 
-                StepIndicator(current: 3, total: 6)
+                StepIndicator(current: 3, total: 7)
                     .padding(.bottom, 40)
             }
         }

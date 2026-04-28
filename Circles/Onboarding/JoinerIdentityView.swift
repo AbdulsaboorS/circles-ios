@@ -58,7 +58,8 @@ struct JoinerIdentityView: View {
                         coordinator.cityTimezone = city.tz
                         coordinator.cityLatitude = city.lat
                         coordinator.cityLongitude = city.lng
-                        coordinator.proceedToAuthGate()
+                        coordinator.prepareRegionConfirmation(using: city.tz)
+                        coordinator.proceedToRegionConfirmation()
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -86,7 +87,7 @@ struct JoinerIdentityView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
 
-                StepIndicator(current: 5, total: 6)
+                StepIndicator(current: 5, total: 7)
                     .padding(.bottom, 16)
             }
         }

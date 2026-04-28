@@ -33,11 +33,12 @@ struct AmiirOnboardingFlowView: View {
                     case .onboardingQuiz:
                         AmiirQuizStepView()
                     case .momentPrimer:
-                        OnboardingMomentPrimerView(currentStep: 8, totalSteps: 10) {
+                        OnboardingMomentPrimerView(currentStep: 8, totalSteps: 11) {
                             if coordinator.needsLocation {
                                 coordinator.proceedToFoundation()
                             } else {
-                                coordinator.proceedToActivation()
+                                coordinator.prepareRegionConfirmation()
+                                coordinator.proceedToRegionConfirmation()
                             }
                         }
                     case .aiGeneration:
@@ -46,6 +47,8 @@ struct AmiirOnboardingFlowView: View {
                         }
                     case .foundation:
                         AmiirStep3LocationView()
+                    case .regionConfirmation:
+                        AmiirRegionConfirmationView()
                     case .activation:
                         AmiirActivationView()
                     }

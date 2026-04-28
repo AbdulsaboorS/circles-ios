@@ -14,6 +14,7 @@ final class MemberOnboardingCoordinator {
         case momentPrimer          // Moment-mechanic demo + camera priming
         case aiGeneration          // Step 4: Background AI generation
         case identity              // Step 5: Location + push ask
+        case regionConfirmation    // Step 6: BeReal-style fixed region
         case authGate              // Step 6: Auth gate
     }
 
@@ -29,6 +30,7 @@ final class MemberOnboardingCoordinator {
     var preferredName: String = ""
     var cityName: String = ""
     var cityTimezone: String = ""
+    var selectedRegion: MomentRegion = .inferFromDevice()
     var cityLatitude: Double = 0
     var cityLongitude: Double = 0
 
@@ -107,9 +109,20 @@ final class MemberOnboardingCoordinator {
         navigationPath.append(.identity)
     }
 
+    func proceedToRegionConfirmation() {
+        navigationPath.append(.regionConfirmation)
+    }
+
     func proceedToAuthGate() {
         savePendingState()
         navigationPath.append(.authGate)
+    }
+
+    func prepareRegionConfirmation(using timezoneIdentifier: String? = nil) {
+        let sourceTimezone = timezoneIdentifier ?? cityTimezone
+        selectedRegion = MomentRegion.infer(
+            from: sourceTimezone.isEmpty ? TimeZone.current.identifier : sourceTimezone
+        )
     }
 
     func fireBackgroundPlans() async {
@@ -200,6 +213,7 @@ final class MemberOnboardingCoordinator {
         state.selectedPersonalHabits = selectedPersonalHabits
         state.cityName = cityName
         state.cityTimezone = cityTimezone
+        state.region = selectedRegion.rawValue
         state.cityLatitude = cityLatitude
         state.cityLongitude = cityLongitude
         state.strugglesIslamic = strugglesIslamic
@@ -209,10 +223,11 @@ final class MemberOnboardingCoordinator {
 
     private func saveLocation(userId: UUID) async throws {
         var updates: [String: AnyJSON] = [
-            "city_name":  .string(cityName),
-            "latitude":   .double(cityLatitude),
-            "longitude":  .double(cityLongitude),
-            "timezone":   .string(cityTimezone)
+            "city_name": cityName.isEmpty ? .null : .string(cityName),
+            "latitude": cityName.isEmpty ? .null : .double(cityLatitude),
+            "longitude": cityName.isEmpty ? .null : .double(cityLongitude),
+            "timezone": cityTimezone.isEmpty ? .null : .string(cityTimezone),
+            "region": .string(selectedRegion.rawValue)
         ]
         let trimmedName = preferredName.trimmingCharacters(in: .whitespaces)
         if !trimmedName.isEmpty {

@@ -165,6 +165,7 @@ private struct ProfileSettingsSheet: View {
     private enum Route: Hashable {
         case editProfile
         case location
+        case region
         case notifications
     }
 
@@ -227,6 +228,19 @@ private struct ProfileSettingsSheet: View {
                                     )
                                 }
                                 .buttonStyle(.plain)
+
+                                Divider()
+                                    .foregroundStyle(Color.msBorder)
+                                    .padding(.leading, 52)
+
+                                NavigationLink(value: Route.region) {
+                                    SettingsRowLabel(
+                                        icon: "globe",
+                                        label: "Region",
+                                        detail: draft.region.displayName
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                         .overlay(
@@ -283,6 +297,12 @@ private struct ProfileSettingsSheet: View {
                     )
                 case .location:
                     ProfileLocationPickerView(draft: $draft)
+                case .region:
+                    ProfileRegionPickerView(
+                        viewModel: viewModel,
+                        userId: userId,
+                        draft: $draft
+                    )
                 case .notifications:
                     NotificationSettingsView(userId: userId)
                 }
@@ -521,6 +541,18 @@ private struct EditProfileView: View {
                             )
                         }
                         .buttonStyle(.plain)
+
+                        fieldTitle("Moment Region")
+                        Text(draft.region.displayName)
+                            .font(.appSubheadline)
+                            .foregroundStyle(Color.msTextMuted)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.msCardShared.opacity(0.75), in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.msBorder, lineWidth: 1)
+                            )
 
                         fieldTitle("Account")
                         Text(email)
@@ -764,6 +796,81 @@ private struct ProfileLocationPickerView: View {
             }
         }
         .navigationTitle("Prayer Location")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+}
+
+@MainActor
+private struct ProfileRegionPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let viewModel: ProfileViewModel
+    let userId: UUID
+    @Binding var draft: ProfileEditDraft
+    @State private var isSaving = false
+
+    var body: some View {
+        ZStack {
+            Color.msBackground.ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ForEach(MomentRegion.allCases) { region in
+                    Button {
+                        Task {
+                            let previousRegion = draft.region
+                            draft.region = region
+                            isSaving = true
+                            let didSave = await viewModel.saveProfile(draft, userId: userId)
+                            isSaving = false
+                            if didSave {
+                                dismiss()
+                            } else {
+                                draft.region = previousRegion
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 14) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(region.displayName)
+                                    .font(.appSubheadline)
+                                    .foregroundStyle(Color.msTextPrimary)
+                                Text(region.summary)
+                                    .font(.appCaption)
+                                    .foregroundStyle(Color.msTextMuted)
+                            }
+
+                            Spacer()
+
+                            if draft.region == region {
+                                if isSaving {
+                                    ProgressView()
+                                        .tint(Color.msGold)
+                                } else {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(Color.msGold)
+                                }
+                            } else {
+                                Image(systemName: "circle")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(Color.msTextMuted)
+                            }
+                        }
+                        .padding(16)
+                        .background(Color.msCardShared, in: RoundedRectangle(cornerRadius: 18))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18)
+                                .stroke(draft.region == region ? Color.msGold : Color.msBorder, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSaving)
+                }
+            }
+            .padding(16)
+        }
+        .navigationTitle("Moment Region")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
     }

@@ -420,12 +420,9 @@ final class MomentService {
         return message.contains("circle_moments_one_per_day") || message.contains("duplicate key value")
     }
 
-    /// Returns "YYYY-MM-DD" for today in UTC.
+    /// Returns "YYYY-MM-DD" for today in the active Moment region.
     static func todayDateString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        return formatter.string(from: Date())
+        DailyMomentService.shared.todayInRegionString()
     }
 
     /// Determine if current time is within the 5-minute on-time window from windowStart.

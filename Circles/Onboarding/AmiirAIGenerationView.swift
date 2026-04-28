@@ -66,7 +66,7 @@ struct AmiirAIGenerationView: View {
 
                 Spacer()
 
-                StepIndicator(current: 7, total: 10)
+                StepIndicator(current: 7, total: 11)
                     .padding(.bottom, 40)
             }
         }

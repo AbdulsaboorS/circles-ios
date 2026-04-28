@@ -17,6 +17,7 @@ struct ProfileEditDraft: Equatable, Sendable {
     var gender: String?
     var avatarUrl: String?
     var cityName: String
+    var region: MomentRegion
     var timezone: String?
     var latitude: Double?
     var longitude: Double?
@@ -90,6 +91,7 @@ final class ProfileViewModel {
             gender: profile?.gender,
             avatarUrl: avatarUrl,
             cityName: profile?.cityName ?? "",
+            region: profile?.region ?? MomentRegion.infer(from: profile?.timezone),
             timezone: profile?.timezone,
             latitude: profile?.latitude,
             longitude: profile?.longitude
@@ -130,6 +132,7 @@ final class ProfileViewModel {
                 "preferred_name": .string(trimmedName),
                 "gender": draft.gender.map(AnyJSON.string) ?? .null,
                 "city_name": draft.cityName.isEmpty ? .null : .string(draft.cityName),
+                "region": .string(draft.region.rawValue),
                 "timezone": draft.timezone.map(AnyJSON.string) ?? .null,
                 "latitude": draft.latitude.map(AnyJSON.double) ?? .null,
                 "longitude": draft.longitude.map(AnyJSON.double) ?? .null
@@ -148,6 +151,7 @@ final class ProfileViewModel {
                     gender: draft.gender,
                     avatarUrl: draft.avatarUrl,
                     cityName: draft.cityName.isEmpty ? nil : draft.cityName,
+                    region: draft.region,
                     timezone: draft.timezone,
                     latitude: draft.latitude,
                     longitude: draft.longitude
@@ -157,12 +161,15 @@ final class ProfileViewModel {
                 profile?.gender = draft.gender
                 profile?.avatarUrl = draft.avatarUrl
                 profile?.cityName = draft.cityName.isEmpty ? nil : draft.cityName
+                profile?.region = draft.region
                 profile?.timezone = draft.timezone
                 profile?.latitude = draft.latitude
                 profile?.longitude = draft.longitude
             }
 
             avatarUrl = draft.avatarUrl
+            DailyMomentService.shared.setRegion(draft.region)
+            await DailyMomentService.shared.load(userId: userId)
             await NotificationService.shared.refreshHabitReminderScheduling()
             return true
         } catch {

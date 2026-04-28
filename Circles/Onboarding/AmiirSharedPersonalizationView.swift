@@ -112,7 +112,7 @@ private struct AmiirPersonalizationStepView: View {
                 }
 
                 VStack(spacing: 16) {
-                    StepIndicator(current: currentStep, total: 10)
+                    StepIndicator(current: currentStep, total: 11)
 
                     Button(action: onContinue) {
                         Text("Continue")

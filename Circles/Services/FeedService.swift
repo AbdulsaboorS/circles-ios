@@ -96,17 +96,16 @@ final class FeedService {
 
         // Feed anchors on the active feed date (BeReal Memories: yesterday while
         // today's window hasn't opened yet; today otherwise).
-        let feedDate = await DailyMomentService.shared.activeFeedDate
-        let dayStart = "\(feedDate)T00:00:00Z"
-        let dayEnd   = "\(feedDate)T23:59:59Z"
+        let feedDate = DailyMomentService.shared.activeFeedDate
+        let feedRange = DailyMomentService.shared.utcRange(for: feedDate)
 
         // 1+2. Fetch activity_feed and circle_moments concurrently
         async let activityFetch: [ActivityFeedRow] = client
             .from("activity_feed")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("created_at", value: dayStart)
-            .lt("created_at", value: dayEnd)
+            .gte("created_at", value: feedRange.startISO8601)
+            .lt("created_at", value: feedRange.endExclusiveISO8601)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -219,15 +218,15 @@ final class FeedService {
     func fetchLatestActivityPerCircle(circleIds: [UUID]) async throws -> [UUID: LatestActivityInfo] {
         guard !circleIds.isEmpty else { return [:] }
         let idStrings = circleIds.map { $0.uuidString }
-        let todayStart = Self.todayUTCStart()
-        let todayEnd = Self.todayUTCEnd()
+        let activityDate = DailyMomentService.shared.activeFeedDate
+        let activityRange = DailyMomentService.shared.utcRange(for: activityDate)
 
         let rows: [ActivityFeedRow] = try await client
             .from("activity_feed")
             .select()
             .in("circle_id", values: idStrings)
-            .gte("created_at", value: todayStart)
-            .lt("created_at", value: todayEnd)
+            .gte("created_at", value: activityRange.startISO8601)
+            .lt("created_at", value: activityRange.endExclusiveISO8601)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -264,7 +263,7 @@ final class FeedService {
     func fetchLatestMomentPerCircle(circleIds: [UUID]) async throws -> [UUID: LatestMomentInfo] {
         guard !circleIds.isEmpty else { return [:] }
         let idStrings = circleIds.map { $0.uuidString }
-        let feedDate = await DailyMomentService.shared.activeFeedDate
+        let feedDate = DailyMomentService.shared.activeFeedDate
 
         let rows: [CircleMomentRow] = try await client
             .from("circle_moments")
@@ -304,16 +303,15 @@ final class FeedService {
     func fetchActiveUserIdsToday(circleIds: [UUID]) async throws -> [UUID: Set<UUID>] {
         guard !circleIds.isEmpty else { return [:] }
         let idStrings = circleIds.map { $0.uuidString }
-        let todayStart = Self.todayUTCStart()
-        let todayEnd = Self.todayUTCEnd()
-        let feedDate = await DailyMomentService.shared.activeFeedDate
+        let feedDate = DailyMomentService.shared.activeFeedDate
+        let feedRange = DailyMomentService.shared.utcRange(for: feedDate)
 
         async let activityRowsTask: [ActivityFeedRow] = client
             .from("activity_feed")
             .select("circle_id, user_id, event_type, habit_name, streak_days, created_at, id")
             .in("circle_id", values: idStrings)
-            .gte("created_at", value: todayStart)
-            .lt("created_at", value: todayEnd)
+            .gte("created_at", value: feedRange.startISO8601)
+            .lt("created_at", value: feedRange.endExclusiveISO8601)
             .execute()
             .value
 
@@ -401,22 +399,6 @@ final class FeedService {
                 .insert(newRow)
                 .execute()
         }
-    }
-
-    // MARK: - Date helpers
-
-    private static func todayUTCStart() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone(identifier: "UTC")
-        return "\(f.string(from: Date()))T00:00:00Z"
-    }
-
-    private static func todayUTCEnd() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone(identifier: "UTC")
-        return "\(f.string(from: Date()))T23:59:59Z"
     }
 
     // MARK: - Private helpers

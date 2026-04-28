@@ -133,7 +133,7 @@ struct JoinerCircleAlignmentView: View {
             }
 
             VStack(spacing: 16) {
-                StepIndicator(current: 1, total: 6)
+                StepIndicator(current: 1, total: 7)
 
                 Button {
                     coordinator.proceedToTransitionToAI()

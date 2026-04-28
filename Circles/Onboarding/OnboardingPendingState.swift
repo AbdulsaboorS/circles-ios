@@ -7,6 +7,7 @@ struct OnboardingPendingState: Codable {
     var preferredName: String = ""
     var cityName: String = ""
     var cityTimezone: String = ""
+    var region: String = MomentRegion.inferFromDevice().rawValue
     var cityLatitude: Double = 0
     var cityLongitude: Double = 0
     var selectedPersonalHabits: [String] = []

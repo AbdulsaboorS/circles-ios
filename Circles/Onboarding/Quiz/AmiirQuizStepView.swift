@@ -10,7 +10,7 @@ struct AmiirQuizStepView: View {
     var body: some View {
         OnboardingQuizFlowView(coordinator: quiz)
             .safeAreaInset(edge: .top) {
-                StepIndicator(current: 6, total: 10)
+                StepIndicator(current: 6, total: 11)
                     .background(Color.msBackground)
             }
             .navigationBarBackButtonHidden()

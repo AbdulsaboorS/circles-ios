@@ -6,6 +6,7 @@ struct Profile: Codable, Identifiable, Sendable {
     var gender: String?          // "brother" | "sister"
     var avatarUrl: String?
     var cityName: String?
+    var region: MomentRegion?
     var timezone: String?
     var latitude: Double?
     var longitude: Double?
@@ -18,6 +19,7 @@ struct Profile: Codable, Identifiable, Sendable {
         case gender
         case avatarUrl = "avatar_url"
         case cityName = "city_name"
+        case region
         case timezone
         case latitude
         case longitude

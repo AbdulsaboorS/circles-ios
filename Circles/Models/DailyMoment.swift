@@ -6,13 +6,15 @@ import Foundation
 struct DailyMoment: Codable, Identifiable, Sendable {
     let id: UUID
     let prayerName: String   // "fajr" | "dhuhr" | "asr" | "maghrib" | "isha"
-    let momentDate: String   // DATE stored as String "YYYY-MM-DD"
-    let momentTime: String?  // "HH:MM" in UTC — random window time (BeReal-style)
+    let region: MomentRegion?
+    let momentDate: String   // Region-local DATE stored as String "YYYY-MM-DD"
+    let momentTime: String?  // "HH:MM" in UTC for the region's shared window
     let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case prayerName = "prayer_name"
+        case region
         case momentDate = "moment_date"
         case momentTime = "moment_time"
         case createdAt = "created_at"

@@ -8,7 +8,7 @@ struct CircleMoment: Codable, Identifiable, Sendable {
     let secondaryPhotoUrl: String?
     let caption: String?
     let postedAt: String   // TIMESTAMPTZ stored as String per project convention
-    let momentDate: String // DATE stamped from the active window's UTC date ("YYYY-MM-DD")
+    let momentDate: String // DATE stamped from the active window's region-local date ("YYYY-MM-DD")
     let isOnTime: Bool
     let hasNiyyah: Bool
 
